@@ -106,7 +106,14 @@ export default function Navbar({ storage, activeName, page, onNavigate }) {
           >
             {theme === "light" ? "Dark" : "White"}
           </button>
-          <button type="button" className="profile-btn" aria-label="Profile" title="Profile">
+          <button
+            type="button"
+            className={`profile-btn ${page === "profile" ? "is-active" : ""}`}
+            aria-label="Open profile"
+            aria-current={page === "profile" ? "page" : undefined}
+            title="Profile"
+            onClick={() => onNavigate("profile")}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="8" r="3.5" fill="currentColor" />
               <path

@@ -8,6 +8,9 @@ import DailyReviewModal from "./components/DailyReviewModal.jsx";
 import SelectedStack from "./components/SelectedStack.jsx";
 import TodayWorksModal from "./components/TodayWorksModal.jsx";
 import SocialPage from "./components/SocialPage.jsx";
+import MessagesPage from "./components/MessagesPage.jsx";
+import ProfilePage from "./components/ProfilePage.jsx";
+import ShareProjectModal from "./components/ShareProjectModal.jsx";
 import {
   createProject,
   deleteProject,
@@ -80,6 +83,9 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState(() => loadDailySelectedIds());
   const [worksPickerId, setWorksPickerId] = useState(null);
   const [page, setPage] = useState("progress");
+  const [shareOpen, setShareOpen] = useState(false);
+  const [socialGroupId, setSocialGroupId] = useState(null);
+  const [messagesThreadId, setMessagesThreadId] = useState(null);
   const reviewStartedRef = useRef(false);
 
   const pouringRef = useRef(false);
@@ -380,6 +386,9 @@ export default function App() {
   };
 
   const progress = Math.min(1, elapsedMs / durationMs);
+  const shareProject =
+    projects.find((p) => p._id === activeId) ||
+    (activeName ? { _id: activeId, name: activeName } : null);
   const regularProjects = projects.filter((p) => !p.important);
   const importantProjects = projects
     .filter((p) => p.important)
@@ -486,11 +495,29 @@ export default function App() {
         storage={storage}
         activeName={activeName}
         page={page}
-        onNavigate={setPage}
+        onNavigate={(next) => {
+          if (next !== "social") setSocialGroupId(null);
+          if (next !== "messages") setMessagesThreadId(null);
+          setPage(next);
+        }}
       />
 
       {page === "social" ? (
-        <SocialPage />
+        <SocialPage key={socialGroupId || "social"} initialGroupId={socialGroupId} />
+      ) : page === "messages" ? (
+        <MessagesPage
+          key={messagesThreadId || "messages"}
+          initialThreadId={messagesThreadId}
+        />
+      ) : page === "profile" ? (
+        <ProfilePage
+          projects={projects}
+          activeId={activeId}
+          onOpenProject={(project) => {
+            handleSelect(project);
+            setPage("progress");
+          }}
+        />
       ) : (
       <div className="layout">
         <div className="left-col">
@@ -559,6 +586,15 @@ export default function App() {
             >
               <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
             </div>
+            {completed && (
+              <button
+                type="button"
+                className="share-done-btn"
+                onClick={() => setShareOpen(true)}
+              >
+                Share
+              </button>
+            )}
           </div>
 
           <p className="status">
@@ -616,6 +652,28 @@ export default function App() {
           onClose={() => setTopicPopup(null)}
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}
+        />
+      )}
+      {shareOpen && (
+        <ShareProjectModal
+          project={shareProject}
+          onClose={() => setShareOpen(false)}
+          onPosted={(post, meta) => {
+            setShareOpen(false);
+            if (meta?.target === "groups" && meta.groupId) {
+              setSocialGroupId(meta.groupId);
+              setMessagesThreadId(null);
+              setPage("social");
+            } else if (meta?.target === "messages" && meta.threadId) {
+              setMessagesThreadId(meta.threadId);
+              setSocialGroupId(null);
+              setPage("messages");
+            } else {
+              setSocialGroupId(null);
+              setMessagesThreadId(null);
+              setPage("social");
+            }
+          }}
         />
       )}
     </div>

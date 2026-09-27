@@ -1,0 +1,219 @@
+import { useEffect, useState } from "react";
+import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
+import ProofMedia from "./ProofMedia.jsx";
+import "./MessagesPage.css";
+
+const SANDADD_ID = "sandadd";
+
+const THREADS = [
+  {
+    id: "1",
+    initial: "A",
+    name: "Alex",
+    preview: "Nice pour today — how long was the session?",
+    time: "2m",
+    unread: true,
+    status: "Direct message",
+    messages: [
+      { id: "a1", from: "them", text: "Nice pour today — how long was the session?" },
+      { id: "a2", from: "me", text: "Still pouring — check back when this hourglass fills." },
+    ],
+  },
+  {
+    id: "2",
+    initial: "M",
+    name: "Maya",
+    preview: "Join Deep Work tomorrow morning?",
+    time: "1h",
+    unread: true,
+    status: "Direct message",
+    messages: [
+      { id: "m1", from: "them", text: "Join Deep Work tomorrow morning?" },
+      { id: "m2", from: "me", text: "Still pouring — check back when this hourglass fills." },
+    ],
+  },
+  {
+    id: "3",
+    initial: "J",
+    name: "Jordan",
+    preview: "Shipped the draft. Thanks for the nudge.",
+    time: "Yesterday",
+    unread: false,
+    status: "Direct message",
+    messages: [
+      { id: "j1", from: "them", text: "Shipped the draft. Thanks for the nudge." },
+      { id: "j2", from: "me", text: "Still pouring — check back when this hourglass fills." },
+    ],
+  },
+  {
+    id: SANDADD_ID,
+    name: "SandAdd",
+    preview: "Got feedback? Tell us anything — we read every message.",
+    time: "Official",
+    unread: true,
+    official: true,
+    status: "Official · Feedback & support",
+    messages: [
+      {
+        id: "sa1",
+        from: "them",
+        text: "Hey — this is SandAdd. Talk to us directly here.",
+      },
+      {
+        id: "sa2",
+        from: "them",
+        text: "Bug, idea, or how pouring feels in real work? Send feedback anytime. We read every message.",
+      },
+    ],
+  },
+];
+
+function ThreadAvatar({ thread }) {
+  if (thread.official) {
+    return (
+      <img
+        className="messages-avatar messages-avatar-logo"
+        src="/sandadd-mark.png?v=exact4"
+        alt=""
+      />
+    );
+  }
+  return (
+    <span className="messages-avatar" aria-hidden="true">
+      {thread.initial}
+    </span>
+  );
+}
+
+function MessageBubble({ msg }) {
+  return (
+    <div className={`messages-bubble-wrap ${msg.from === "me" ? "is-mine" : "is-theirs"}`}>
+      <p className={`messages-bubble ${msg.from === "me" ? "is-mine" : "is-theirs"}`}>
+        {msg.text}
+      </p>
+      <ProofMedia proof={msg.proof} className="messages-proof" />
+    </div>
+  );
+}
+
+export default function MessagesPage({ initialThreadId = null }) {
+  const [activeId, setActiveId] = useState(initialThreadId || SANDADD_ID);
+  const [draft, setDraft] = useState("");
+  const [extraByThread, setExtraByThread] = useState({});
+  const [sharedByThread, setSharedByThread] = useState(() => {
+    const start = {};
+    THREADS.forEach((t) => {
+      start[t.id] = loadSharedMessages(t.id);
+    });
+    return start;
+  });
+
+  useEffect(() => {
+    if (initialThreadId) setActiveId(initialThreadId);
+  }, [initialThreadId]);
+
+  useEffect(() => {
+    let alive = true;
+    hydrateSocialFeeds().then((data) => {
+      if (!alive) return;
+      const map = data.messageShares || {};
+      setSharedByThread((prev) => {
+        const next = { ...prev };
+        THREADS.forEach((t) => {
+          next[t.id] = Array.isArray(map[t.id]) ? map[t.id] : loadSharedMessages(t.id);
+        });
+        return next;
+      });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    setSharedByThread((prev) => ({
+      ...prev,
+      [activeId]: loadSharedMessages(activeId),
+    }));
+  }, [activeId]);
+
+  const active = THREADS.find((t) => t.id === activeId) || THREADS[0];
+  const extras = extraByThread[activeId] || [];
+  const shared = sharedByThread[activeId] || [];
+  const messages = [...(active.messages || []), ...extras, ...shared];
+
+  const send = (e) => {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    setExtraByThread((prev) => ({
+      ...prev,
+      [activeId]: [
+        ...(prev[activeId] || []),
+        { id: `local-${Date.now()}`, from: "me", text },
+      ],
+    }));
+    setDraft("");
+  };
+
+  return (
+    <section className="messages-page" aria-label="Messages">
+      <aside className="messages-list" aria-label="Conversations">
+        {THREADS.map((thread) => (
+          <button
+            key={thread.id}
+            type="button"
+            className={`messages-thread ${activeId === thread.id ? "is-active" : ""} ${thread.unread ? "is-unread" : ""} ${thread.official ? "is-official" : ""}`}
+            onClick={() => setActiveId(thread.id)}
+          >
+            <ThreadAvatar thread={thread} />
+            <span className="messages-thread-body">
+              <span className="messages-thread-top">
+                <strong>
+                  {thread.name}
+                  {thread.official ? <span className="messages-official-badge">Team</span> : null}
+                </strong>
+                <time>{thread.time}</time>
+              </span>
+              <span className="messages-preview">{thread.preview}</span>
+            </span>
+          </button>
+        ))}
+      </aside>
+
+      <div className="messages-chat" aria-label={`Chat with ${active.name}`}>
+        <header className="messages-chat-head">
+          <ThreadAvatar thread={active} />
+          <div>
+            <strong>
+              {active.name}
+              {active.official ? <span className="messages-official-badge">Team</span> : null}
+            </strong>
+            <span className="messages-status">{active.status}</span>
+          </div>
+        </header>
+
+        <div className="messages-bubbles">
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} msg={msg} />
+          ))}
+        </div>
+
+        <form className="messages-compose" onSubmit={send}>
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={
+              active.official
+                ? "Send feedback to SandAdd…"
+                : "Write a message…"
+            }
+            aria-label={active.official ? "Feedback to SandAdd" : "Message"}
+          />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+  );
+}
