@@ -1,12 +1,26 @@
 node_modules/
 dist/
-.env
 *.log
 .DS_Store
 client/dist/
 
-# Secrets and personal project data
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+**/.env.*.local
 server/.env
-server/data/
+
+# Personal project data (names, progress, topics) — never commit
+server/data/*
+!server/data/.gitkeep
 server/data/projects.json
 
+# Editor / OS junk
+.vscode/
+.idea/
+Thumbs.db
+*.swp
+*.swo

@@ -6,10 +6,19 @@
   box-sizing: border-box;
 }
 
+.social-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .social-tabs {
   display: flex;
+  flex: 1;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  min-width: 0;
 }
 
 .social-tabs button {
@@ -34,6 +43,102 @@
   background: var(--blue-soft);
   border-color: var(--brass);
   font-weight: 600;
+}
+
+.social-new-group-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.social-new-group-btn:hover {
+  filter: brightness(1.05);
+}
+
+.social-create-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.social-create-group .social-group-post-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.social-create-group-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.social-create-group input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--ink-2);
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.social-create-group input::placeholder {
+  color: var(--muted);
+}
+
+.social-create-group-btn {
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 9px 16px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.social-create-group-btn:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 560px) {
+  .social-tabs-row {
+    flex-wrap: wrap;
+  }
+
+  .social-new-group-btn {
+    width: 100%;
+  }
+
+  .social-create-group {
+    grid-template-columns: 1fr;
+  }
+
+  .social-create-group-btn {
+    width: 100%;
+  }
 }
 
 .social-view {

@@ -128,13 +128,6 @@ export default function MessagesPage({ initialThreadId = null }) {
     return () => {
       alive = false;
     };
-  }, []);
-
-  useEffect(() => {
-    setSharedByThread((prev) => ({
-      ...prev,
-      [activeId]: loadSharedMessages(activeId),
-    }));
   }, [activeId]);
 
   const active = THREADS.find((t) => t.id === activeId) || THREADS[0];

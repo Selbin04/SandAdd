@@ -46,6 +46,21 @@
   color: var(--muted);
 }
 
+.profile-follow-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.profile-follow-stats strong {
+  color: var(--paper);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
 .profile-bio {
   margin: 10px 0 0;
   font-size: 14px;

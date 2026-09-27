@@ -5,6 +5,16 @@
   transition: transform 0.35s ease;
 }
 
+/* No glass shine / light reflection in dark (black) theme */
+.glass-specular {
+  opacity: 0;
+  pointer-events: none;
+}
+
+[data-theme="light"] .glass-specular {
+  opacity: 1;
+}
+
 [data-theme="light"] .hourglass-svg {
   filter: contrast(1.08) saturate(1.05);
 }

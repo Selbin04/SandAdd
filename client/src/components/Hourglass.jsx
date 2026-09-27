@@ -14,6 +14,16 @@ const TOP_BULB =
 const BOT_BULB =
   "M107 212 C108.5 209, 111.5 209, 113 212 C168 292, 168 356, 168 356 C168 362, 162 366, 110 366 C58 366, 52 362, 52 356 C52 356, 52 292, 107 212 Z";
 
+function readTheme() {
+  try {
+    return document.documentElement.getAttribute("data-theme") === "light"
+      ? "light"
+      : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
 function topSandPath(progress) {
   const p = Math.min(1, Math.max(0, progress));
   if (p >= 0.992) return "";
@@ -56,12 +66,24 @@ function spawnGrain() {
 
 export default function Hourglass({ progress, pouring, finished }) {
   const [grains, setGrains] = useState([]);
+  const [theme, setTheme] = useState(readTheme);
   const grainsRef = useRef([]);
   const pouringRef = useRef(pouring);
   const progressRef = useRef(progress);
 
   pouringRef.current = pouring;
   progressRef.current = progress;
+
+  useEffect(() => {
+    const sync = () => setTheme(readTheme());
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     let raf;
@@ -109,10 +131,12 @@ export default function Hourglass({ progress, pouring, finished }) {
   const botPath = bottomSandPath(progress);
   const remaining = Math.max(0, 1 - progress);
   const topSurfaceY = TOP_Y + Math.pow(progress, 0.92) * (NECK_Y - 10 - TOP_Y);
+  const isLight = theme === "light";
+  const glassFill = isLight ? "url(#glassBodyLite)" : "url(#glassBodyDark)";
 
   return (
     <svg
-      className={`hourglass-svg ${finished ? "is-done" : ""} ${pouring ? "is-pouring" : ""}`}
+      className={`hourglass-svg ${finished ? "is-done" : ""} ${pouring ? "is-pouring" : ""} ${isLight ? "is-light" : "is-dark"}`}
       viewBox="0 0 220 420"
       role="img"
       aria-label="Hourglass"
@@ -140,10 +164,16 @@ export default function Hourglass({ progress, pouring, finished }) {
           <stop offset="45%" stopColor="rgba(255,240,200,0.35)" />
           <stop offset="100%" stopColor="rgba(255,255,255,0)" />
         </linearGradient>
-        <radialGradient id="glassBody" cx="35%" cy="30%" r="70%">
+        <radialGradient id="glassBodyLite" cx="35%" cy="30%" r="70%">
           <stop offset="0%" stopColor="rgba(170,210,240,0.55)" />
           <stop offset="40%" stopColor="rgba(120,170,210,0.28)" />
           <stop offset="100%" stopColor="rgba(70,120,170,0.32)" />
+        </radialGradient>
+        {/* Dark theme: flat glass — no bright reflection hotspot */}
+        <radialGradient id="glassBodyDark" cx="50%" cy="45%" r="70%">
+          <stop offset="0%" stopColor="rgba(28,52,78,0.42)" />
+          <stop offset="55%" stopColor="rgba(22,42,64,0.48)" />
+          <stop offset="100%" stopColor="rgba(16,32,50,0.55)" />
         </radialGradient>
         <linearGradient id="glassEdge" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#5a8fb8" />
@@ -194,8 +224,20 @@ export default function Hourglass({ progress, pouring, finished }) {
       {/* Glass chambers — dark outline first so shape reads on light bg */}
       <path d={TOP_BULB} fill="none" stroke="#1a3a55" strokeWidth="4.5" opacity="0.35" />
       <path d={BOT_BULB} fill="none" stroke="#1a3a55" strokeWidth="4.5" opacity="0.35" />
-      <path d={TOP_BULB} fill="url(#glassBody)" stroke="url(#glassEdge)" strokeWidth="2.8" filter="url(#glassSoft)" />
-      <path d={BOT_BULB} fill="url(#glassBody)" stroke="url(#glassEdge)" strokeWidth="2.8" filter="url(#glassSoft)" />
+      <path
+        d={TOP_BULB}
+        fill={glassFill}
+        stroke="url(#glassEdge)"
+        strokeWidth="2.8"
+        filter={isLight ? "url(#glassSoft)" : undefined}
+      />
+      <path
+        d={BOT_BULB}
+        fill={glassFill}
+        stroke="url(#glassEdge)"
+        strokeWidth="2.8"
+        filter={isLight ? "url(#glassSoft)" : undefined}
+      />
 
       {/* Inner glass rim near neck */}
       <ellipse cx={CX} cy={NECK_Y} rx="9" ry="4" fill="none" stroke="#3a6f98" strokeWidth="1.4" opacity="0.7" />
@@ -251,35 +293,37 @@ export default function Hourglass({ progress, pouring, finished }) {
         />
       ))}
 
-      {/* Specular highlights on glass */}
-      <path
-        d="M64 70 C72 110, 88 155, 104 198"
-        fill="none"
-        stroke="rgba(255,255,255,0.65)"
-        strokeWidth="3.2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M68 72 C76 108, 90 150, 103 196"
-        fill="none"
-        stroke="rgba(80,130,180,0.35)"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M66 330 C80 295, 94 250, 106 218"
-        fill="none"
-        stroke="rgba(255,255,255,0.4)"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M156 78 C148 120, 132 160, 116 198"
-        fill="none"
-        stroke="rgba(40,80,120,0.28)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      {/* Specular highlights on glass — light theme only */}
+      <g className="glass-specular" aria-hidden="true">
+        <path
+          d="M64 70 C72 110, 88 155, 104 198"
+          fill="none"
+          stroke="rgba(255,255,255,0.65)"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M68 72 C76 108, 90 150, 103 196"
+          fill="none"
+          stroke="rgba(80,130,180,0.35)"
+          strokeWidth="1.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M66 330 C80 295, 94 250, 106 218"
+          fill="none"
+          stroke="rgba(255,255,255,0.4)"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M156 78 C148 120, 132 160, 116 198"
+          fill="none"
+          stroke="rgba(40,80,120,0.28)"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </g>
 
       {/* Neck collar */}
       <rect x="98" y="198" width="24" height="16" rx="3" fill="url(#capMetal)" />

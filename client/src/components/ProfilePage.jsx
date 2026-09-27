@@ -17,6 +17,10 @@ const DEFAULT_PROFILE = {
   bio: "I pour into what matters.",
 };
 
+/** Demo social counts for the profile prototype. */
+const DUMMY_FOLLOWERS = 128;
+const DUMMY_FOLLOWING = 86;
+
 function readProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
@@ -120,10 +124,6 @@ export default function ProfilePage({
     return () => {
       alive = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (section === "posts") setPosts(loadUserPosts());
   }, [section]);
 
   const initial = profile.name.trim().slice(0, 1).toUpperCase() || "S";
@@ -245,6 +245,14 @@ export default function ProfilePage({
             <>
               <h1>{profile.name}</h1>
               <p className="profile-handle">@{profile.handle}</p>
+              <div className="profile-follow-stats" aria-label="Follow counts">
+                <span>
+                  <strong>{DUMMY_FOLLOWERS}</strong> followers
+                </span>
+                <span>
+                  <strong>{DUMMY_FOLLOWING}</strong> following
+                </span>
+              </div>
               <p className="profile-bio">{profile.bio || "No bio yet."}</p>
               <button type="button" className="profile-edit-btn" onClick={startEdit}>
                 Edit profile

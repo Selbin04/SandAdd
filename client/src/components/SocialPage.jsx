@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addGroupPost,
   addUserPost,
+  createCustomGroup,
   fileToProof,
   hydrateSocialFeeds,
+  loadCustomGroups,
   loadGroupPosts,
   loadUserPosts,
   PROOF_ACCEPT,
@@ -36,10 +38,10 @@ const SAMPLE_FEED = [
   },
 ];
 
-const GROUPS = [
+const SEED_GROUPS = [
   {
     id: "g1",
-    name: "Morning Pour",
+    name: "Tech Placement Info",
     members: 12,
     blurb: "Daily check-ins before noon.",
     posts: [
@@ -61,7 +63,7 @@ const GROUPS = [
   },
   {
     id: "g2",
-    name: "Deep Work",
+    name: "CSE S7 B",
     members: 8,
     blurb: "Long pours, few distractions.",
     posts: [
@@ -104,6 +106,17 @@ const GROUPS = [
     ],
   },
 ];
+
+function toDisplayGroup(g) {
+  return {
+    id: g.id,
+    name: g.name,
+    members: g.members ?? 1,
+    blurb: g.blurb || "Your group",
+    posts: Array.isArray(g.posts) ? g.posts : [],
+    isCustom: Boolean(g.isCustom),
+  };
+}
 
 function IconLike({ filled }) {
   return (
@@ -227,6 +240,13 @@ export default function SocialPage({ initialGroupId = null }) {
   const [proofName, setProofName] = useState("");
   const [postError, setPostError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [customGroups, setCustomGroups] = useState(() =>
+    loadCustomGroups().map(toDisplayGroup)
+  );
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupBlurb, setNewGroupBlurb] = useState("");
+  const [groupCreateError, setGroupCreateError] = useState("");
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -236,34 +256,29 @@ export default function SocialPage({ initialGroupId = null }) {
       setViewPosts(data.userPosts || []);
       if (openGroupId) {
         const list = data.groupPosts?.[openGroupId];
-        setGroupUserPosts(Array.isArray(list) ? list : []);
+        setGroupUserPosts(Array.isArray(list) ? list : loadGroupPosts(openGroupId));
+      } else {
+        setGroupUserPosts([]);
       }
     });
     return () => {
       alive = false;
     };
-  }, [openGroupId]);
+  }, [section, openGroupId]);
 
   useEffect(() => {
-    setGroupUserPosts(openGroupId ? loadGroupPosts(openGroupId) : []);
     setDraft("");
     setProof(null);
     setProofName("");
     setPostError("");
-  }, [openGroupId]);
+  }, [openGroupId, section]);
 
-  useEffect(() => {
-    if (section === "view" && !openGroupId) {
-      setViewPosts(loadUserPosts());
-      setDraft("");
-      setProof(null);
-      setProofName("");
-      setPostError("");
-    }
-  }, [section, openGroupId]);
-
+  const groups = useMemo(
+    () => [...customGroups, ...SEED_GROUPS.map(toDisplayGroup)],
+    [customGroups]
+  );
   const feed = useMemo(() => [...viewPosts, ...SAMPLE_FEED], [viewPosts]);
-  const openGroup = GROUPS.find((g) => g.id === openGroupId) || null;
+  const openGroup = groups.find((g) => g.id === openGroupId) || null;
   const groupFeed = useMemo(
     () => [...groupUserPosts, ...(openGroup?.posts || [])],
     [groupUserPosts, openGroup]
@@ -281,6 +296,38 @@ export default function SocialPage({ initialGroupId = null }) {
   const goGroupsList = () => {
     setSection("groups");
     setOpenGroupId(null);
+  };
+
+  const openCreateGroup = () => {
+    setShowCreateGroup(true);
+    setGroupCreateError("");
+  };
+
+  const cancelCreateGroup = () => {
+    setShowCreateGroup(false);
+    setNewGroupName("");
+    setNewGroupBlurb("");
+    setGroupCreateError("");
+  };
+
+  const submitCreateGroup = (e) => {
+    e.preventDefault();
+    setGroupCreateError("");
+    try {
+      const group = createCustomGroup({
+        name: newGroupName,
+        blurb: newGroupBlurb,
+      });
+      setCustomGroups(loadCustomGroups().map(toDisplayGroup));
+      setNewGroupName("");
+      setNewGroupBlurb("");
+      setGroupCreateError("");
+      setShowCreateGroup(false);
+      setOpenGroupId(group.id);
+      setSection("groups");
+    } catch (err) {
+      setGroupCreateError(err.message || "Could not create group");
+    }
   };
 
   const onProofChange = async (e) => {
@@ -360,32 +407,47 @@ export default function SocialPage({ initialGroupId = null }) {
   return (
     <section className="social-page" aria-label="Social">
       {!openGroup && (
-        <div className="social-tabs" role="tablist" aria-label="Social sections">
-          <button
-            type="button"
-            role="tab"
-            id="social-tab-view"
-            aria-selected={section === "view"}
-            aria-controls="social-panel-view"
-            className={section === "view" ? "is-active" : ""}
-            onClick={() => {
-              setSection("view");
-              setOpenGroupId(null);
-            }}
-          >
-            View
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="social-tab-groups"
-            aria-selected={section === "groups"}
-            aria-controls="social-panel-groups"
-            className={section === "groups" ? "is-active" : ""}
-            onClick={goGroupsList}
-          >
-            Groups
-          </button>
+        <div className="social-tabs-row">
+          <div className="social-tabs" role="tablist" aria-label="Social sections">
+            <button
+              type="button"
+              role="tab"
+              id="social-tab-view"
+              aria-selected={section === "view"}
+              aria-controls="social-panel-view"
+              className={section === "view" ? "is-active" : ""}
+              onClick={() => {
+                setSection("view");
+                setOpenGroupId(null);
+                setShowCreateGroup(false);
+              }}
+            >
+              View
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="social-tab-groups"
+              aria-selected={section === "groups"}
+              aria-controls="social-panel-groups"
+              className={section === "groups" ? "is-active" : ""}
+              onClick={() => {
+                goGroupsList();
+              }}
+            >
+              Groups
+            </button>
+          </div>
+          {section === "groups" ? (
+            <button
+              type="button"
+              className="social-new-group-btn"
+              aria-expanded={showCreateGroup}
+              onClick={() => (showCreateGroup ? cancelCreateGroup() : openCreateGroup())}
+            >
+              {showCreateGroup ? "Cancel" : "New group"}
+            </button>
+          ) : null}
         </div>
       )}
 
@@ -508,7 +570,34 @@ export default function SocialPage({ initialGroupId = null }) {
           id="social-panel-groups"
           aria-labelledby="social-tab-groups"
         >
-          {GROUPS.map((group) => (
+          {showCreateGroup ? (
+            <form className="social-create-group" onSubmit={submitCreateGroup}>
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Group name"
+                maxLength={60}
+                aria-label="Group name"
+                autoFocus
+              />
+              <input
+                type="text"
+                value={newGroupBlurb}
+                onChange={(e) => setNewGroupBlurb(e.target.value)}
+                placeholder="Short description (optional)"
+                maxLength={120}
+                aria-label="Group description"
+              />
+              <button type="submit" className="social-create-group-btn">
+                Create
+              </button>
+              {groupCreateError ? (
+                <p className="social-group-post-error">{groupCreateError}</p>
+              ) : null}
+            </form>
+          ) : null}
+          {groups.map((group) => (
             <button
               key={group.id}
               type="button"

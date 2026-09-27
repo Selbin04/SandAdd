@@ -61,17 +61,37 @@
   background: var(--surface-strong);
 }
 
-.done-tick {
+.done-list li.is-done .done-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.done-check {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border-radius: 6px;
+  border: 1.5px solid var(--line);
   display: grid;
   place-items: center;
-  background: rgba(125, 154, 98, 0.25);
-  color: var(--ok);
+  background: var(--input-bg, var(--ink-2));
+  color: transparent;
   font-size: 12px;
   font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.done-check:hover {
+  border-color: var(--brass);
+}
+
+.done-check.is-checked {
+  border-color: var(--ok);
+  background: rgba(125, 154, 98, 0.28);
+  color: var(--ok);
 }
 
 .done-text {

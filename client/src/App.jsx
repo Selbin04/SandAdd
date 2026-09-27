@@ -11,6 +11,7 @@ import SocialPage from "./components/SocialPage.jsx";
 import MessagesPage from "./components/MessagesPage.jsx";
 import ProfilePage from "./components/ProfilePage.jsx";
 import ShareProjectModal from "./components/ShareProjectModal.jsx";
+import TopicShareModal from "./components/TopicShareModal.jsx";
 import {
   createProject,
   deleteProject,
@@ -30,6 +31,10 @@ import {
   saveDailyWorkIds,
   shouldShowDailyReview,
 } from "./lib/dailyReview.js";
+import {
+  countSharesForTopic,
+  deleteSharesForTopic,
+} from "./lib/socialFeed.js";
 import "./App.css";
 
 function playChime() {
@@ -84,6 +89,8 @@ export default function App() {
   const [worksPickerId, setWorksPickerId] = useState(null);
   const [page, setPage] = useState("progress");
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareSeed, setShareSeed] = useState(null);
+  const [topicShare, setTopicShare] = useState(null);
   const [socialGroupId, setSocialGroupId] = useState(null);
   const [messagesThreadId, setMessagesThreadId] = useState(null);
   const reviewStartedRef = useRef(false);
@@ -387,6 +394,8 @@ export default function App() {
 
   const progress = Math.min(1, elapsedMs / durationMs);
   const shareProject =
+    (shareSeed?.projectId &&
+      projects.find((p) => p._id === shareSeed.projectId)) ||
     projects.find((p) => p._id === activeId) ||
     (activeName ? { _id: activeId, name: activeName } : null);
   const regularProjects = projects.filter((p) => !p.important);
@@ -458,12 +467,53 @@ export default function App() {
     if (!project) return;
     const topics = [
       ...(project.topics || []),
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, text, done: true },
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        text,
+        done: false,
+      },
     ];
     try {
       const updated = await updateProject(projectId, { topics });
       setProjects((list) => patchProject(list, updated));
       setApiError("");
+    } catch (err) {
+      setApiError(err.message);
+    }
+  };
+
+  const handleToggleTopic = async (projectId, topicId) => {
+    const project = projectsRef.current.find((p) => p._id === projectId);
+    if (!project) return;
+    const current = (project.topics || []).find((t) => t.id === topicId);
+    if (!current) return;
+    const markingDone = !current.done;
+
+    if (!markingDone) {
+      const shareCount = countSharesForTopic(topicId);
+      const ok = window.confirm(
+        shareCount > 0
+          ? "Delete the post uploaded while ticking this topic? The topic will only be unticked after that post is deleted."
+          : "No shared post was found for this topic. Untick it anyway?"
+      );
+      if (!ok) return;
+      if (shareCount > 0) deleteSharesForTopic(topicId);
+    }
+
+    const topics = (project.topics || []).map((t) =>
+      t.id === topicId ? { ...t, done: !t.done } : t
+    );
+    try {
+      const updated = await updateProject(projectId, { topics });
+      setProjects((list) => patchProject(list, updated));
+      setApiError("");
+      if (markingDone) {
+        const topic = (updated.topics || topics).find((t) => t.id === topicId);
+        setTopicShare({
+          projectId,
+          topic: topic || { ...current, done: true },
+        });
+      }
     } catch (err) {
       setApiError(err.message);
     }
@@ -484,6 +534,9 @@ export default function App() {
 
   const popupProject = topicPopup
     ? projects.find((p) => p._id === topicPopup.projectId)
+    : null;
+  const topicShareProject = topicShare
+    ? projects.find((p) => p._id === topicShare.projectId)
     : null;
   const worksPickerProject = worksPickerId
     ? projects.find((p) => p._id === worksPickerId)
@@ -590,7 +643,10 @@ export default function App() {
               <button
                 type="button"
                 className="share-done-btn"
-                onClick={() => setShareOpen(true)}
+                onClick={() => {
+                  setShareSeed(null);
+                  setShareOpen(true);
+                }}
               >
                 Share
               </button>
@@ -652,14 +708,40 @@ export default function App() {
           onClose={() => setTopicPopup(null)}
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}
+          onToggle={handleToggleTopic}
+        />
+      )}
+      {topicShareProject && topicShare && (
+        <TopicShareModal
+          topic={topicShare.topic}
+          onClose={() => setTopicShare(null)}
+          onShare={(proof) => {
+            const topicText = topicShare.topic?.text || "a work item";
+            setShareSeed({
+              projectId: topicShare.projectId,
+              topicId: topicShare.topic?.id || null,
+              proof,
+              caption: `Finished: ${topicText}`,
+            });
+            setTopicShare(null);
+            setTopicPopup(null);
+            setShareOpen(true);
+          }}
         />
       )}
       {shareOpen && (
         <ShareProjectModal
           project={shareProject}
-          onClose={() => setShareOpen(false)}
+          initialProof={shareSeed?.proof || null}
+          initialCaption={shareSeed?.caption || null}
+          topicId={shareSeed?.topicId || null}
+          onClose={() => {
+            setShareOpen(false);
+            setShareSeed(null);
+          }}
           onPosted={(post, meta) => {
             setShareOpen(false);
+            setShareSeed(null);
             if (meta?.target === "groups" && meta.groupId) {
               setSocialGroupId(meta.groupId);
               setMessagesThreadId(null);

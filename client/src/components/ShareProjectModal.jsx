@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 import {
-  SHARE_GROUPS,
   SHARE_THREADS,
   PROOF_ACCEPT,
   addGroupPost,
   addSharedMessage,
   addUserPost,
   fileToProof,
+  getShareGroups,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
@@ -18,21 +18,30 @@ const TARGETS = [
   { id: "messages", label: "Messages", hint: "Send proof in a chat", ready: true },
 ];
 
-export default function ShareProjectModal({ project, onClose, onPosted }) {
+export default function ShareProjectModal({
+  project,
+  onClose,
+  onPosted,
+  initialProof = null,
+  initialCaption = null,
+  topicId = null,
+}) {
   const [step, setStep] = useState("target"); // target | pick-group | pick-thread | proof
   const [target, setTarget] = useState(null);
   const [groupId, setGroupId] = useState(null);
   const [threadId, setThreadId] = useState(null);
   const [caption, setCaption] = useState(
-    project?.name ? `Finished ${project.name}` : "Finished a pour"
+    initialCaption ||
+      (project?.name ? `Finished ${project.name}` : "Finished a pour")
   );
-  const [proof, setProof] = useState(null);
-  const [proofName, setProofName] = useState("");
+  const [proof, setProof] = useState(initialProof);
+  const [proofName, setProofName] = useState(initialProof?.name || "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
 
-  const selectedGroup = SHARE_GROUPS.find((g) => g.id === groupId) || null;
+  const shareGroups = getShareGroups();
+  const selectedGroup = shareGroups.find((g) => g.id === groupId) || null;
   const selectedThread = SHARE_THREADS.find((t) => t.id === threadId) || null;
 
   const pickTarget = (item) => {
@@ -114,6 +123,7 @@ export default function ShareProjectModal({ project, onClose, onPosted }) {
       body,
       projectId: project?._id || null,
       projectName: project?.name || "",
+      topicId: topicId || null,
       proof,
       createdAt: new Date().toISOString(),
       isUser: true,
@@ -135,6 +145,7 @@ export default function ShareProjectModal({ project, onClose, onPosted }) {
         text: body,
         proof,
         projectName: project?.name || "",
+        topicId: topicId || null,
         createdAt: new Date().toISOString(),
       };
       addSharedMessage(threadId, message);
@@ -218,7 +229,7 @@ export default function ShareProjectModal({ project, onClose, onPosted }) {
               ← Back
             </button>
             <p className="share-hint">Pick a group</p>
-            {SHARE_GROUPS.map((group, i) => (
+            {shareGroups.map((group, i) => (
               <button
                 key={group.id}
                 type="button"

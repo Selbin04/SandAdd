@@ -8,6 +8,7 @@ export default function DonePopup({
   onClose,
   onAdd,
   onRemove,
+  onToggle,
   mode = "all",
   topicIds = null,
 }) {
@@ -53,24 +54,37 @@ export default function DonePopup({
           </p>
         ) : (
           <ul className="done-list">
-            {topics.map((topic) => (
-              <li key={topic.id}>
-                <span className="done-tick" aria-hidden="true">
-                  {todayMode ? "·" : "✓"}
-                </span>
-                <span className="done-text">{topic.text}</span>
-                {!todayMode && (
+            {topics.map((topic) => {
+              const finished = topic.done === true;
+              return (
+                <li key={topic.id} className={finished ? "is-done" : ""}>
                   <button
                     type="button"
-                    className="ghost"
-                    onClick={() => onRemove(project._id, topic.id)}
-                    aria-label={`Remove ${topic.text}`}
+                    className={`done-check ${finished ? "is-checked" : ""}`}
+                    onClick={() => onToggle?.(project._id, topic.id)}
+                    aria-pressed={finished}
+                    aria-label={
+                      finished
+                        ? `Mark ${topic.text} as not done`
+                        : `Mark ${topic.text} as done`
+                    }
                   >
-                    ×
+                    {finished ? "✓" : ""}
                   </button>
-                )}
-              </li>
-            ))}
+                  <span className="done-text">{topic.text}</span>
+                  {!todayMode && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => onRemove(project._id, topic.id)}
+                      aria-label={`Remove ${topic.text}`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 

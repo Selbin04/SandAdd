@@ -51,7 +51,7 @@ function parseProjectInput(body, { partial = false } = {}) {
     result.topics = body.topics.slice(0, 80).map((topic, index) => ({
       id: String(topic?.id || `${Date.now()}-${index}`),
       text: String(topic?.text ?? "").trim().slice(0, 80),
-      done: topic?.done !== false,
+      done: Boolean(topic?.done),
     })).filter((topic) => topic.text);
   }
 

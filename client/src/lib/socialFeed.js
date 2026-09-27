@@ -1,15 +1,71 @@
 const FEED_KEY = "sandadd.socialPosts";
 const GROUP_FEED_KEY = "sandadd.groupPosts";
+const CUSTOM_GROUPS_KEY = "sandadd.customGroups";
 const PROFILE_KEY = "sandadd.userProfile";
 const MESSAGE_SHARE_KEY = "sandadd.messageShares";
 const DB_NAME = "sandadd.media";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const SHARE_GROUPS = [
-  { id: "g1", name: "Morning Pour" },
-  { id: "g2", name: "Deep Work" },
+  { id: "g1", name: "Tech Placement Info" },
+  { id: "g2", name: "CSE S7 B" },
   { id: "g3", name: "Ship Club" },
 ];
+
+export function loadCustomGroups() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_GROUPS_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list.filter(
+      (g) => g && typeof g.id === "string" && typeof g.name === "string"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomGroups(list) {
+  try {
+    localStorage.setItem(CUSTOM_GROUPS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Builtin + user-created groups for share pickers. */
+export function getShareGroups() {
+  const custom = loadCustomGroups().map((g) => ({
+    id: g.id,
+    name: g.name,
+  }));
+  return [...SHARE_GROUPS, ...custom];
+}
+
+export function createCustomGroup({ name, blurb = "" }) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  if (!trimmed) {
+    throw new Error("Enter a group name");
+  }
+  const existing = [
+    ...SHARE_GROUPS.map((g) => g.name.toLowerCase()),
+    ...loadCustomGroups().map((g) => g.name.toLowerCase()),
+  ];
+  if (existing.includes(trimmed.toLowerCase())) {
+    throw new Error("A group with that name already exists");
+  }
+  const group = {
+    id: `ug-${Date.now()}`,
+    name: trimmed.slice(0, 60),
+    blurb: (typeof blurb === "string" ? blurb.trim() : "").slice(0, 120) || "Your group",
+    members: 1,
+    isCustom: true,
+    createdAt: new Date().toISOString(),
+  };
+  saveCustomGroups([group, ...loadCustomGroups()]);
+  return group;
+}
 
 const DEFAULT_PROFILE = {
   name: "SandAdd User",
@@ -74,7 +130,7 @@ function lightProof(proof) {
     type: proof.type || "",
     size: proof.size || 0,
     mediaId: proof.mediaId || null,
-    hasMedia: Boolean(proof.dataUrl),
+    hasMedia: Boolean(proof.dataUrl || proof.mediaId),
   };
 }
 
@@ -97,33 +153,36 @@ function openMediaDb() {
       if (!db.objectStoreNames.contains("feeds")) {
         db.createObjectStore("feeds");
       }
+      if (!db.objectStoreNames.contains("media")) {
+        db.createObjectStore("media");
+      }
     };
     req.onsuccess = () => resolve(req.result);
   });
 }
 
-async function idbGet(key) {
+async function idbGet(storeName, key) {
   const db = await openMediaDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction("feeds", "readonly");
-    const req = tx.objectStore("feeds").get(key);
+    const tx = db.transaction(storeName, "readonly");
+    const req = tx.objectStore(storeName).get(key);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-async function idbSet(key, value) {
+async function idbSet(storeName, key, value) {
   const db = await openMediaDb();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction("feeds", "readwrite");
-    tx.objectStore("feeds").put(value, key);
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(value, key);
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error);
   });
 }
 
 function ensureProofId(postOrMsg, prefix) {
-  if (!postOrMsg?.proof?.dataUrl) return postOrMsg;
+  if (!postOrMsg?.proof?.dataUrl && !postOrMsg?.proof?.mediaId) return postOrMsg;
   if (postOrMsg.proof.mediaId) return postOrMsg;
   return {
     ...postOrMsg,
@@ -132,6 +191,118 @@ function ensureProofId(postOrMsg, prefix) {
       mediaId: `${prefix}-${postOrMsg.id || Date.now()}`,
     },
   };
+}
+
+function pickRicherProof(a, b) {
+  if (a?.dataUrl && !b?.dataUrl) return a;
+  if (b?.dataUrl && !a?.dataUrl) return b;
+  if (a?.dataUrl || b?.dataUrl) return { ...(b || {}), ...(a || {}), dataUrl: (a?.dataUrl || b?.dataUrl) };
+  return a || b || null;
+}
+
+function mergeByIdPreferMedia(memoryList, storedList) {
+  const map = new Map();
+  for (const item of storedList || []) {
+    if (item?.id == null) continue;
+    map.set(String(item.id), item);
+  }
+  for (const item of memoryList || []) {
+    if (item?.id == null) continue;
+    const id = String(item.id);
+    const prev = map.get(id);
+    if (!prev) {
+      map.set(id, item);
+      continue;
+    }
+    map.set(id, {
+      ...prev,
+      ...item,
+      proof: pickRicherProof(item.proof, prev.proof),
+    });
+  }
+  const preferredOrder = (memoryList?.length ? memoryList : storedList) || [];
+  const seen = new Set();
+  const out = [];
+  for (const item of preferredOrder) {
+    const id = String(item.id);
+    if (seen.has(id)) continue;
+    const merged = map.get(id);
+    if (merged) {
+      out.push(merged);
+      seen.add(id);
+    }
+  }
+  for (const [id, item] of map) {
+    if (!seen.has(id)) out.push(item);
+  }
+  return out;
+}
+
+async function persistProofMedia(proof) {
+  if (!proof?.mediaId || !proof.dataUrl) return;
+  await idbSet("media", proof.mediaId, {
+    dataUrl: proof.dataUrl,
+    type: proof.type || "",
+    name: proof.name || "",
+    size: proof.size || 0,
+  });
+}
+
+async function restoreProofMedia(proof) {
+  if (!proof) return null;
+  if (proof.dataUrl) return proof;
+  if (!proof.mediaId) return proof;
+  try {
+    const stored = await idbGet("media", proof.mediaId);
+    if (!stored?.dataUrl) return proof;
+    return {
+      ...proof,
+      dataUrl: stored.dataUrl,
+      type: proof.type || stored.type || "",
+      name: proof.name || stored.name || "",
+      size: proof.size || stored.size || 0,
+    };
+  } catch {
+    return proof;
+  }
+}
+
+async function restoreListMedia(list) {
+  if (!Array.isArray(list)) return [];
+  return Promise.all(
+    list.map(async (item) => {
+      if (!item?.proof) return item;
+      const proof = await restoreProofMedia(item.proof);
+      return { ...item, proof };
+    })
+  );
+}
+
+async function persistListMedia(list) {
+  if (!Array.isArray(list)) return;
+  for (const item of list) {
+    if (item?.proof?.dataUrl) await persistProofMedia(item.proof);
+  }
+}
+
+function persistFeedAsync(feedKey, fullValue, lightValue) {
+  void (async () => {
+    try {
+      await idbSet("feeds", feedKey, lightValue);
+      if (feedKey === "userPosts") await persistListMedia(fullValue);
+      else if (feedKey === "groupPosts") {
+        for (const list of Object.values(fullValue || {})) {
+          await persistListMedia(list);
+        }
+      } else if (feedKey === "messageShares") {
+        for (const list of Object.values(fullValue || {})) {
+          await persistListMedia(list);
+        }
+      }
+    } catch {
+      /* ignore quota / private mode */
+    }
+  })();
 }
 
 export function loadUserPosts() {
@@ -144,14 +315,16 @@ export function loadUserPosts() {
 export function saveUserPosts(posts) {
   userPostsCache = posts;
   bumpFeedEpoch();
-  writeJson(FEED_KEY, posts.map(lightPost));
-  void idbSet("userPosts", posts).catch(() => {});
+  const light = posts.map(lightPost);
+  writeJson(FEED_KEY, light);
+  persistFeedAsync("userPosts", posts, light);
 }
 
 export function addUserPost(post) {
   const nextPost = ensureProofId(post, "proof");
   const next = [nextPost, ...loadUserPosts()];
   saveUserPosts(next);
+  if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
   return next;
 }
 
@@ -169,6 +342,79 @@ export function deleteUserPost(id) {
   return next;
 }
 
+/** Count posts/messages linked to a topic (from tick → share flow). */
+export function countSharesForTopic(topicId) {
+  if (!topicId) return 0;
+  const tid = String(topicId);
+  let n = loadUserPosts().filter((p) => String(p.topicId) === tid).length;
+  const groups = loadAllGroupPosts();
+  for (const list of Object.values(groups)) {
+    if (!Array.isArray(list)) continue;
+    n += list.filter((p) => String(p.topicId) === tid).length;
+  }
+  const messages = loadAllMessageShares();
+  for (const list of Object.values(messages)) {
+    if (!Array.isArray(list)) continue;
+    n += list.filter((m) => String(m.topicId) === tid).length;
+  }
+  return n;
+}
+
+/** Remove all View / Group / Message shares created for a topic. */
+export function deleteSharesForTopic(topicId) {
+  if (!topicId) return 0;
+  const tid = String(topicId);
+  let removed = 0;
+
+  const posts = loadUserPosts();
+  const nextPosts = posts.filter((p) => {
+    if (String(p.topicId) === tid) {
+      removed += 1;
+      return false;
+    }
+    return true;
+  });
+  if (nextPosts.length !== posts.length) saveUserPosts(nextPosts);
+
+  const groupMap = { ...loadAllGroupPosts() };
+  let groupsChanged = false;
+  for (const [gid, list] of Object.entries(groupMap)) {
+    if (!Array.isArray(list)) continue;
+    const next = list.filter((p) => {
+      if (String(p.topicId) === tid) {
+        removed += 1;
+        return false;
+      }
+      return true;
+    });
+    if (next.length !== list.length) {
+      groupMap[gid] = next;
+      groupsChanged = true;
+    }
+  }
+  if (groupsChanged) saveAllGroupPosts(groupMap);
+
+  const msgMap = { ...loadAllMessageShares() };
+  let msgChanged = false;
+  for (const [threadId, list] of Object.entries(msgMap)) {
+    if (!Array.isArray(list)) continue;
+    const next = list.filter((m) => {
+      if (String(m.topicId) === tid) {
+        removed += 1;
+        return false;
+      }
+      return true;
+    });
+    if (next.length !== list.length) {
+      msgMap[threadId] = next;
+      msgChanged = true;
+    }
+  }
+  if (msgChanged) saveAllMessageShares(msgMap);
+
+  return removed;
+}
+
 function loadAllGroupPosts() {
   if (groupPostsCache) return groupPostsCache;
   const data = readJson(GROUP_FEED_KEY, {});
@@ -184,7 +430,7 @@ function saveAllGroupPosts(map) {
     light[gid] = Array.isArray(list) ? list.map(lightPost) : [];
   }
   writeJson(GROUP_FEED_KEY, light);
-  void idbSet("groupPosts", map).catch(() => {});
+  persistFeedAsync("groupPosts", map, light);
 }
 
 export function loadGroupPosts(groupId) {
@@ -196,8 +442,10 @@ export function loadGroupPosts(groupId) {
 export function addGroupPost(groupId, post) {
   const map = { ...loadAllGroupPosts() };
   const list = Array.isArray(map[groupId]) ? map[groupId] : [];
-  map[groupId] = [ensureProofId(post, "gproof"), ...list];
+  const nextPost = ensureProofId(post, "gproof");
+  map[groupId] = [nextPost, ...list];
   saveAllGroupPosts(map);
+  if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
   return map[groupId];
 }
 
@@ -223,7 +471,7 @@ function saveAllMessageShares(map) {
     light[tid] = Array.isArray(list) ? list.map(lightMessage) : [];
   }
   writeJson(MESSAGE_SHARE_KEY, light);
-  void idbSet("messageShares", map).catch(() => {});
+  persistFeedAsync("messageShares", map, light);
 }
 
 export function loadSharedMessages(threadId) {
@@ -235,44 +483,57 @@ export function loadSharedMessages(threadId) {
 export function addSharedMessage(threadId, message) {
   const map = { ...loadAllMessageShares() };
   const list = Array.isArray(map[threadId]) ? map[threadId] : [];
-  map[threadId] = [...list, ensureProofId(message, "mproof")];
+  const nextMsg = ensureProofId(message, "mproof");
+  map[threadId] = [...list, nextMsg];
   saveAllMessageShares(map);
+  if (nextMsg.proof?.dataUrl) void persistProofMedia(nextMsg.proof);
   return map[threadId];
 }
 
 /** Restore full media (including videos) from IndexedDB after reload. */
 export async function hydrateSocialFeeds() {
-  const epochAtStart = feedEpoch;
   try {
     const [userPosts, groupPosts, messageShares] = await Promise.all([
-      idbGet("userPosts"),
-      idbGet("groupPosts"),
-      idbGet("messageShares"),
+      idbGet("feeds", "userPosts"),
+      idbGet("feeds", "groupPosts"),
+      idbGet("feeds", "messageShares"),
     ]);
 
-    // Don't clobber in-memory posts that were written while IDB was loading
-    if (feedEpoch === epochAtStart) {
-      if (Array.isArray(userPosts)) userPostsCache = userPosts;
-      if (groupPosts && typeof groupPosts === "object") groupPostsCache = groupPosts;
-      if (messageShares && typeof messageShares === "object") {
-        messageSharesCache = messageShares;
+    // Merge memory + stored; never drop in-memory dataUrls
+    userPostsCache = mergeByIdPreferMedia(
+      userPostsCache,
+      Array.isArray(userPosts) ? userPosts : []
+    );
+    userPostsCache = await restoreListMedia(userPostsCache);
+
+    const mergedGroups = { ...(typeof groupPosts === "object" && groupPosts ? groupPosts : {}) };
+    if (groupPostsCache) {
+      for (const [gid, list] of Object.entries(groupPostsCache)) {
+        mergedGroups[gid] = mergeByIdPreferMedia(list, mergedGroups[gid] || []);
       }
     }
+    for (const gid of Object.keys(mergedGroups)) {
+      mergedGroups[gid] = await restoreListMedia(mergedGroups[gid]);
+    }
+    groupPostsCache = mergedGroups;
 
-    // First run: seed IDB from whatever localStorage still has
-    if (!userPosts && userPostsCache?.length) {
-      void idbSet("userPosts", userPostsCache).catch(() => {});
+    const mergedMessages = {
+      ...(typeof messageShares === "object" && messageShares ? messageShares : {}),
+    };
+    if (messageSharesCache) {
+      for (const [tid, list] of Object.entries(messageSharesCache)) {
+        mergedMessages[tid] = mergeByIdPreferMedia(list, mergedMessages[tid] || []);
+      }
     }
-    if (!groupPosts && groupPostsCache && Object.keys(groupPostsCache).length) {
-      void idbSet("groupPosts", groupPostsCache).catch(() => {});
+    for (const tid of Object.keys(mergedMessages)) {
+      mergedMessages[tid] = await restoreListMedia(mergedMessages[tid]);
     }
-    if (
-      !messageShares &&
-      messageSharesCache &&
-      Object.keys(messageSharesCache).length
-    ) {
-      void idbSet("messageShares", messageSharesCache).catch(() => {});
-    }
+    messageSharesCache = mergedMessages;
+
+    // Persist any in-memory media that IDB doesn't have yet
+    await persistListMedia(userPostsCache);
+    for (const list of Object.values(groupPostsCache)) await persistListMedia(list);
+    for (const list of Object.values(messageSharesCache)) await persistListMedia(list);
   } catch {
     /* IDB blocked — memory + light localStorage only */
   }
