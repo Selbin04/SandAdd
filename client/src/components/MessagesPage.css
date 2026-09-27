@@ -244,7 +244,8 @@
 
 .messages-works li {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 4px;
   font-size: 12px;
@@ -253,6 +254,20 @@
 
 .messages-works li.is-done {
   color: var(--muted);
+}
+
+.messages-work-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.messages-works .work-source {
+  margin-left: auto;
+}
+
+.messages-works .work-source.is-open {
+  flex: 1 1 100%;
+  margin-left: 22px;
 }
 
 .messages-works-empty {

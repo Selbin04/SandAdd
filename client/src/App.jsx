@@ -45,6 +45,9 @@ import {
 import {
   countSharesForTopic,
   deleteSharesForTopic,
+  persistTopicSourceProof,
+  prepareTopicsForSave,
+  restoreProjectsTopicMedia,
 } from "./lib/socialFeed.js";
 import "./App.css";
 
@@ -264,16 +267,17 @@ export default function App() {
     try {
       const [health, list] = await Promise.all([fetchHealth(), fetchProjects()]);
       setStorage(health.storage || "file");
-      setProjects(list);
+      const withMedia = await restoreProjectsTopicMedia(list);
+      setProjects(withMedia);
       setApiError("");
-      if (!activeIdRef.current && list[0]) applyProject(list[0]);
+      if (!activeIdRef.current && withMedia[0]) applyProject(withMedia[0]);
 
       const forced = applyDailyReviewForce();
       if (forced) setSelectedIds([]);
 
       if (!reviewStartedRef.current && (forced || shouldShowDailyReview())) {
         reviewStartedRef.current = true;
-        const queue = incompleteImportant(list);
+        const queue = incompleteImportant(withMedia);
         if (queue.length === 0) {
           markDailyReviewDone();
         } else {
@@ -691,13 +695,23 @@ export default function App() {
       const completed = topics.length > 0 && elapsedMs >= duration;
       const popupOpen = topicPopupRef.current?.projectId === projectId;
       try {
+        const topicsForSave = await prepareTopicsForSave(topics);
         const updated = await updateProject(projectId, {
-          topics,
+          topics: topicsForSave,
           durationMs: duration,
           elapsedMs,
           completed,
         });
-        setProjects((list) => patchProject(list, updated));
+        // Keep in-memory source file dataUrls for instant open
+        const mergedTopics = (updated.topics || topicsForSave).map((t) => {
+          const local = topics.find((x) => x.id === t.id);
+          if (local?.sourceProof?.dataUrl) {
+            return { ...t, sourceProof: { ...t.sourceProof, ...local.sourceProof } };
+          }
+          return t;
+        });
+        const merged = { ...updated, topics: mergedTopics };
+        setProjects((list) => patchProject(list, merged));
         setApiError("");
 
         // While the works popup is open, keep the glass still — pour on close
@@ -712,7 +726,7 @@ export default function App() {
           setDurationMs(duration);
           setCompleted(completed);
         }
-        return updated;
+        return merged;
       } catch (err) {
         setApiError(err.message);
         return null;
@@ -720,17 +734,48 @@ export default function App() {
     },
     []
   );
-  const handleAddTopic = async (projectId, text) => {
+  const handleAddTopic = async (projectId, text, sourceInfo = {}) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
     if (!project) return;
+    const source =
+      typeof sourceInfo === "string"
+        ? sourceInfo
+        : String(sourceInfo?.source || "").trim();
+    const sourceProof =
+      typeof sourceInfo === "object" && sourceInfo?.sourceProof
+        ? sourceInfo.sourceProof
+        : null;
     const topics = [
       ...(project.topics || []),
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         text,
         done: false,
+        source: source.slice(0, 500),
+        sourceProof,
       },
     ];
+    await applyWorksProgress(projectId, topics);
+  };
+
+  const handleSetTopicSource = async (projectId, topicId, sourceInfo = {}) => {
+    const project = projectsRef.current.find((p) => p._id === projectId);
+    if (!project) return;
+    const source =
+      typeof sourceInfo === "string"
+        ? sourceInfo
+        : String(sourceInfo?.source || "").trim();
+    const sourceProof =
+      typeof sourceInfo === "object" ? sourceInfo?.sourceProof ?? null : null;
+    const topics = (project.topics || []).map((t) =>
+      t.id === topicId
+        ? {
+            ...t,
+            source: source.slice(0, 500),
+            sourceProof,
+          }
+        : t
+    );
     await applyWorksProgress(projectId, topics);
   };
 
@@ -822,21 +867,42 @@ export default function App() {
           initialGroupId={socialGroupId}
           onAddSharedProject={async (template) => {
             const durationMs = durationRef.current || 30_000;
+            const topics = Array.isArray(template.works)
+              ? template.works.map((w, index) => ({
+                  id: w.id || `t-${Date.now()}-${index}`,
+                  text: w.text,
+                  done: false,
+                  source: String(w.source || "").trim().slice(0, 500),
+                  sourceProof: w.sourceProof || null,
+                }))
+              : [];
+            for (const t of topics) {
+              if (t.sourceProof?.dataUrl) {
+                await persistTopicSourceProof(t.sourceProof);
+              }
+            }
             const created = await createProject({
               name: template.name,
               durationMs,
               elapsedMs: 0,
               completed: false,
-              topics: Array.isArray(template.works)
-                ? template.works.map((w, index) => ({
-                    id: w.id || `t-${Date.now()}-${index}`,
-                    text: w.text,
-                    done: false,
-                  }))
-                : [],
+              topics: await prepareTopicsForSave(topics),
             });
-            setProjects((list) => upsertProject(list, created));
-            applyProject(created);
+            const merged = {
+              ...created,
+              topics: (created.topics || []).map((t) => {
+                const local = topics.find((x) => x.id === t.id || x.text === t.text);
+                if (local?.sourceProof?.dataUrl) {
+                  return {
+                    ...t,
+                    sourceProof: { ...t.sourceProof, ...local.sourceProof },
+                  };
+                }
+                return t;
+              }),
+            };
+            setProjects((list) => upsertProject(list, merged));
+            applyProject(merged);
             setPage("progress");
           }}
         />
@@ -992,6 +1058,7 @@ export default function App() {
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}
           onToggle={handleToggleTopic}
+          onSetSource={handleSetTopicSource}
         />
       )}
       {topicShareProject && topicShare && (

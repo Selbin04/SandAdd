@@ -96,7 +96,7 @@ export default function ShareProjectModal({
     }
   };
 
-  const publish = () => {
+  const publish = async () => {
     if (target !== "post" && target !== "groups" && target !== "messages") {
       setError("That share target isn’t available yet.");
       return;
@@ -114,73 +114,81 @@ export default function ShareProjectModal({
       return;
     }
 
-    const author = readAuthorProfile();
-    const body = caption.trim() || `Finished ${project?.name || "a project"}`;
-    let { works, sharedProject } = buildSharePayloadFromProject(project);
-    if (works.length > 0) {
-      const includeWorks = window.confirm(
-        'Include “What the works to do in this project” in this post?'
-      );
-      if (!includeWorks) {
-        works = [];
-        // Declined works → no Add to Progress on the post
+    setBusy(true);
+    setError("");
+    try {
+      const author = readAuthorProfile();
+      const body = caption.trim() || `Finished ${project?.name || "a project"}`;
+      let { works, sharedProject } = await buildSharePayloadFromProject(project);
+      if (works.length > 0) {
+        const includeWorks = window.confirm(
+          'Include “What the works to do in this project” in this post?'
+        );
+        if (!includeWorks) {
+          works = [];
+          // Declined works → no Add to Progress on the post
+          sharedProject = null;
+        }
+      } else {
+        // No works to share → don't offer Add to Progress
         sharedProject = null;
       }
-    } else {
-      // No works to share → don't offer Add to Progress
-      sharedProject = null;
-    }
-    const base = {
-      id: `user-${Date.now()}`,
-      name: author.name,
-      handle: author.handle,
-      initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      body,
-      projectId: project?._id || null,
-      projectName: project?.name || "",
-      topicId: topicId || null,
-      works,
-      sharedProject,
-      proof,
-      createdAt: new Date().toISOString(),
-      isUser: true,
-    };
-
-    if (target === "groups") {
-      const post = {
-        ...base,
-        meta: `finished · ${project?.name || "project"} · ${selectedGroup?.name || "group"}`,
-        groupId,
-        groupName: selectedGroup?.name || "",
-      };
-      addGroupPost(groupId, post);
-      onPosted?.(post, { target, groupId });
-    } else if (target === "messages") {
-      const message = {
-        id: `share-${Date.now()}`,
-        from: "me",
-        text: body,
-        proof,
+      const base = {
+        id: `user-${Date.now()}`,
+        name: author.name,
+        handle: author.handle,
+        initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
+        body,
+        projectId: project?._id || null,
         projectName: project?.name || "",
         topicId: topicId || null,
         works,
         sharedProject,
+        proof,
         createdAt: new Date().toISOString(),
+        isUser: true,
       };
-      addSharedMessage(threadId, message);
-      onPosted?.(message, { target, threadId });
-    } else {
-      const post = {
-        ...base,
-        meta: `finished · ${project?.name || "project"}`,
-        groupId: null,
-        groupName: "",
-      };
-      addUserPost(post);
-      onPosted?.(post, { target });
-    }
 
-    onClose?.();
+      if (target === "groups") {
+        const post = {
+          ...base,
+          meta: `finished · ${project?.name || "project"} · ${selectedGroup?.name || "group"}`,
+          groupId,
+          groupName: selectedGroup?.name || "",
+        };
+        addGroupPost(groupId, post);
+        onPosted?.(post, { target, groupId });
+      } else if (target === "messages") {
+        const message = {
+          id: `share-${Date.now()}`,
+          from: "me",
+          text: body,
+          proof,
+          projectName: project?.name || "",
+          topicId: topicId || null,
+          works,
+          sharedProject,
+          createdAt: new Date().toISOString(),
+        };
+        addSharedMessage(threadId, message);
+        onPosted?.(message, { target, threadId });
+      } else {
+        const post = {
+          ...base,
+          meta: `finished · ${project?.name || "project"}`,
+          groupId: null,
+          groupName: "",
+        };
+        addUserPost(post);
+        onPosted?.(post, { target });
+      }
+
+      onClose?.();
+    } catch (err) {
+      setError(err.message || "Could not share.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const backFromProof = () => {

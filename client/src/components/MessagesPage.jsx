@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
+import { WorkSourceControl } from "./SourceMedia.jsx";
 import "./MessagesPage.css";
 
 const SANDADD_ID = "sandadd";
@@ -110,7 +111,8 @@ function MessageBubble({ msg }) {
                 {works.map((w) => (
                   <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
                     <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
-                    {w.text}
+                    <span className="messages-work-text">{w.text}</span>
+                    <WorkSourceControl work={w} />
                   </li>
                 ))}
               </ul>

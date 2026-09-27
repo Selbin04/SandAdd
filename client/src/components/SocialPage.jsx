@@ -15,7 +15,21 @@ import {
   readAuthorProfile,
 } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
+import {
+  WorkSourceControl,
+  normalizeSourceUrl,
+  workHasSource,
+} from "./SourceMedia.jsx";
 import "./SocialPage.css";
+
+function newDraftWork() {
+  return {
+    id: `dw-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    text: "",
+    source: "",
+    sourceProof: null,
+  };
+}
 
 const SAMPLE_FEED = [
   {
@@ -255,11 +269,17 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
               </p>
               <ul className="social-shared-project-works">
                 {works.map((w) => (
-                  <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
-                    <span className="social-work-tick" aria-hidden="true">
-                      {w.done ? "✓" : "○"}
-                    </span>
-                    {w.text}
+                  <li
+                    key={w.id || w.text}
+                    className={`social-work-row ${w.done ? "is-done" : ""}`}
+                  >
+                    <div className="social-work-main">
+                      <span className="social-work-tick" aria-hidden="true">
+                        {w.done ? "✓" : "○"}
+                      </span>
+                      <span className="social-work-text">{w.text}</span>
+                      {workHasSource(w) ? <WorkSourceControl work={w} /> : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -305,8 +325,11 @@ export default function SocialPage({
   const [busy, setBusy] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [projectName, setProjectName] = useState("");
-  const [projectWorks, setProjectWorks] = useState("");
+  const [draftWorks, setDraftWorks] = useState(() => [newDraftWork()]);
   const [sharedProject, setSharedProject] = useState(null);
+  const [workFileBusyId, setWorkFileBusyId] = useState(null);
+  const workFileRef = useRef(null);
+  const pendingWorkFileIdRef = useRef(null);
   const [addedTemplateIds, setAddedTemplateIds] = useState(
     () => new Set(loadAddedTemplateIds())
   );
@@ -344,7 +367,7 @@ export default function SocialPage({
     setPostError("");
     setShowProjectForm(false);
     setProjectName("");
-    setProjectWorks("");
+    setDraftWorks([newDraftWork()]);
     setSharedProject(null);
   }, [openGroupId, section]);
 
@@ -354,8 +377,15 @@ export default function SocialPage({
     setSharedProject(null);
     setShowProjectForm(false);
     setProjectName("");
-    setProjectWorks("");
+    setDraftWorks([newDraftWork()]);
     setPostError("");
+  };
+
+  const resetProjectCompose = () => {
+    setSharedProject(null);
+    setProjectName("");
+    setDraftWorks([newDraftWork()]);
+    setShowProjectForm(false);
   };
 
   const applyProjectToCompose = () => {
@@ -363,12 +393,59 @@ export default function SocialPage({
     try {
       const next = buildSharedProject({
         name: projectName,
-        worksText: projectWorks,
+        works: draftWorks
+          .map((w) => ({
+            id: w.id,
+            text: w.text,
+            source: normalizeSourceUrl(w.source),
+            sourceProof: w.sourceProof,
+          }))
+          .filter((w) => String(w.text || "").trim()),
       });
       setSharedProject(next);
       setShowProjectForm(false);
     } catch (err) {
       setPostError(err.message || "Could not add project");
+    }
+  };
+
+  const updateDraftWork = (id, patch) => {
+    setDraftWorks((list) =>
+      list.map((w) => (w.id === id ? { ...w, ...patch } : w))
+    );
+  };
+
+  const addDraftWork = () => {
+    setDraftWorks((list) => [...list, newDraftWork()]);
+  };
+
+  const removeDraftWork = (id) => {
+    setDraftWorks((list) => {
+      const next = list.filter((w) => w.id !== id);
+      return next.length ? next : [newDraftWork()];
+    });
+  };
+
+  const pickWorkFile = (workId) => {
+    pendingWorkFileIdRef.current = workId;
+    workFileRef.current?.click();
+  };
+
+  const onWorkFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const workId = pendingWorkFileIdRef.current;
+    pendingWorkFileIdRef.current = null;
+    if (!file || !workId) return;
+    setWorkFileBusyId(workId);
+    setPostError("");
+    try {
+      const proof = await fileToProof(file);
+      updateDraftWork(workId, { sourceProof: proof, source: "" });
+    } catch (err) {
+      setPostError(err.message || "Could not attach source file");
+    } finally {
+      setWorkFileBusyId(null);
     }
   };
 
@@ -556,10 +633,7 @@ export default function SocialPage({
         onClick={() => {
           setPostError("");
           if (sharedProject) {
-            setSharedProject(null);
-            setProjectName("");
-            setProjectWorks("");
-            setShowProjectForm(false);
+            resetProjectCompose();
             return;
           }
           setShowProjectForm((v) => !v);
@@ -580,17 +654,85 @@ export default function SocialPage({
         maxLength={80}
         aria-label="Project name"
       />
-      <textarea
-        value={projectWorks}
-        onChange={(e) => setProjectWorks(e.target.value)}
-        placeholder="Works to do (one per line, optional)"
-        rows={3}
-        maxLength={800}
-        aria-label="Project works"
-      />
-      <button type="button" className="social-project-compose-save" onClick={applyProjectToCompose}>
-        Add project to post
-      </button>
+      <p className="social-project-works-label">
+        What the works to do in this project
+      </p>
+      <ul className="social-project-works-edit">
+        {draftWorks.map((work, index) => (
+          <li key={work.id}>
+            <div className="social-project-work-row">
+              <input
+                type="text"
+                value={work.text}
+                onChange={(e) => updateDraftWork(work.id, { text: e.target.value })}
+                placeholder={`Work ${index + 1}`}
+                maxLength={80}
+                aria-label={`Work ${index + 1}`}
+              />
+              <button
+                type="button"
+                className="social-project-work-remove"
+                onClick={() => removeDraftWork(work.id)}
+                aria-label={`Remove work ${index + 1}`}
+              >
+                ×
+              </button>
+            </div>
+            <input
+              type="url"
+              value={work.source}
+              onChange={(e) =>
+                updateDraftWork(work.id, {
+                  source: e.target.value,
+                  sourceProof: e.target.value ? null : work.sourceProof,
+                })
+              }
+              placeholder="Source URL (optional)"
+              maxLength={500}
+              aria-label={`Source link for work ${index + 1}`}
+            />
+            <div className="social-project-work-source-actions">
+              <button
+                type="button"
+                className="social-project-work-file"
+                disabled={workFileBusyId === work.id}
+                onClick={() => pickWorkFile(work.id)}
+              >
+                {work.sourceProof
+                  ? work.sourceProof.name || "File attached"
+                  : workFileBusyId === work.id
+                    ? "Uploading…"
+                    : "Attach source file"}
+              </button>
+              {work.sourceProof ? (
+                <button
+                  type="button"
+                  className="social-project-work-clear-file"
+                  onClick={() => updateDraftWork(work.id, { sourceProof: null })}
+                >
+                  Clear file
+                </button>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="social-project-compose-actions">
+        <button
+          type="button"
+          className="social-project-work-add"
+          onClick={addDraftWork}
+        >
+          Add work
+        </button>
+        <button
+          type="button"
+          className="social-project-compose-save"
+          onClick={applyProjectToCompose}
+        >
+          Add project to post
+        </button>
+      </div>
     </div>
   ) : null;
 
@@ -605,6 +747,13 @@ export default function SocialPage({
 
   return (
     <section className="social-page" aria-label="Social">
+      <input
+        ref={workFileRef}
+        type="file"
+        accept={PROOF_ACCEPT}
+        hidden
+        onChange={onWorkFileChange}
+      />
       {!openGroup && (
         <div className="social-tabs-row">
           <div className="social-tabs" role="tablist" aria-label="Social sections">

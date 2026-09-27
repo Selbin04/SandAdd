@@ -249,7 +249,8 @@
 
 .profile-post-works li {
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: 4px;
   font-size: 12px;
@@ -258,6 +259,20 @@
 
 .profile-post-works li.is-done {
   color: var(--muted);
+}
+
+.profile-work-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-post-works .work-source {
+  margin-left: auto;
+}
+
+.profile-post-works .work-source.is-open {
+  flex: 1 1 100%;
+  margin-left: 22px;
 }
 
 .profile-post-works-empty {

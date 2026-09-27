@@ -48,11 +48,28 @@ function parseProjectInput(body, { partial = false } = {}) {
     if (!Array.isArray(body.topics)) {
       return { error: "topics must be an array" };
     }
-    result.topics = body.topics.slice(0, 80).map((topic, index) => ({
-      id: String(topic?.id || `${Date.now()}-${index}`),
-      text: String(topic?.text ?? "").trim().slice(0, 80),
-      done: Boolean(topic?.done),
-    })).filter((topic) => topic.text);
+    result.topics = body.topics.slice(0, 80).map((topic, index) => {
+      const text = String(topic?.text ?? "").trim().slice(0, 80);
+      if (!text) return null;
+      const proof = topic?.sourceProof;
+      let sourceProof = null;
+      if (proof && typeof proof === "object" && (proof.mediaId || proof.name)) {
+        sourceProof = {
+          mediaId: String(proof.mediaId || ""),
+          name: String(proof.name || "").slice(0, 120),
+          type: String(proof.type || "").slice(0, 80),
+          size: Number(proof.size) || 0,
+          hasMedia: Boolean(proof.hasMedia || proof.mediaId || proof.dataUrl),
+        };
+      }
+      return {
+        id: String(topic?.id || `${Date.now()}-${index}`),
+        text,
+        done: Boolean(topic?.done),
+        source: String(topic?.source ?? "").trim().slice(0, 500),
+        sourceProof,
+      };
+    }).filter(Boolean);
   }
 
   if (body.bump !== undefined) {

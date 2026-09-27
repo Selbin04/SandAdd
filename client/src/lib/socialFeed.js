@@ -98,38 +98,143 @@ export function snapshotProjectWorks(project) {
       id: String(t.id || ""),
       text: String(t.text || "").trim().slice(0, 80),
       done: Boolean(t.done),
+      source: String(t.source || "").trim().slice(0, 500),
+      sourceProof: t.sourceProof
+        ? {
+            mediaId: t.sourceProof.mediaId || null,
+            name: t.sourceProof.name || "",
+            type: t.sourceProof.type || "",
+            size: t.sourceProof.size || 0,
+            hasMedia: Boolean(
+              t.sourceProof.hasMedia ||
+                t.sourceProof.mediaId ||
+                t.sourceProof.dataUrl
+            ),
+            ...(t.sourceProof.dataUrl
+              ? { dataUrl: t.sourceProof.dataUrl }
+              : {}),
+          }
+        : null,
     }))
     .filter((t) => t.text);
 }
 
+export function lightSourceProof(proof) {
+  if (!proof) return null;
+  return {
+    mediaId: proof.mediaId || null,
+    name: proof.name || "",
+    type: proof.type || "",
+    size: proof.size || 0,
+    hasMedia: Boolean(proof.dataUrl || proof.mediaId),
+  };
+}
+
+export async function persistTopicSourceProof(proof) {
+  if (!proof) return;
+  await persistProofMedia(proof);
+}
+
+export async function restoreTopicSourceProof(proof) {
+  return restoreProofMedia(proof);
+}
+
+/** Rehydrate source files on project topics from IndexedDB. */
+export async function restoreProjectsTopicMedia(projects) {
+  if (!Array.isArray(projects)) return [];
+  return Promise.all(
+    projects.map(async (project) => {
+      const topics = Array.isArray(project.topics) ? project.topics : [];
+      if (!topics.some((t) => t?.sourceProof?.mediaId || t?.sourceProof?.hasMedia)) {
+        return project;
+      }
+      const nextTopics = await Promise.all(
+        topics.map(async (t) => {
+          if (!t?.sourceProof) return t;
+          const sourceProof = await restoreProofMedia(t.sourceProof);
+          return { ...t, sourceProof };
+        })
+      );
+      return { ...project, topics: nextTopics };
+    })
+  );
+}
+
+/** Persist any in-memory source files for topics, return API-safe topics. */
+export async function prepareTopicsForSave(topics) {
+  const list = Array.isArray(topics) ? topics : [];
+  const prepared = [];
+  for (const t of list) {
+    if (t?.sourceProof?.dataUrl && t.sourceProof.mediaId) {
+      await persistProofMedia(t.sourceProof);
+    }
+    prepared.push({
+      ...t,
+      source: String(t.source || "").trim().slice(0, 500),
+      sourceProof: lightSourceProof(t.sourceProof),
+    });
+  }
+  return prepared;
+}
+
 /** Build a shareable project payload for a social post. */
-export function buildSharedProject({ name, worksText = "", durationMs = 30_000 }) {
+export function buildSharedProject({
+  name,
+  worksText = "",
+  works = null,
+  durationMs = 30_000,
+}) {
   const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) {
     throw new Error("Enter a project name");
   }
-  const works = String(worksText || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 20)
-    .map((text, index) => ({
-      id: `w-${Date.now()}-${index}`,
-      text: text.slice(0, 80),
-      done: false,
-    }));
+
+  let workList = [];
+  if (Array.isArray(works) && works.length > 0) {
+    workList = works
+      .map((w, index) => ({
+        id: String(w?.id || `w-${Date.now()}-${index}`),
+        text: String(w?.text || "").trim().slice(0, 80),
+        done: false,
+        source: String(w?.source || "").trim().slice(0, 500),
+        sourceProof: w?.sourceProof || null,
+      }))
+      .filter((w) => w.text)
+      .slice(0, 20);
+  } else {
+    workList = String(worksText || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 20)
+      .map((text, index) => ({
+        id: `w-${Date.now()}-${index}`,
+        text: text.slice(0, 80),
+        done: false,
+        source: "",
+        sourceProof: null,
+      }));
+  }
+
   return {
     templateId: `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     name: trimmed.slice(0, 80),
-    works,
+    works: workList,
     durationMs: durationMs || 30_000,
   };
 }
 
 /** Attach works (and cloneable project) when sharing a finished Progress project. */
-export function buildSharePayloadFromProject(project) {
+export async function buildSharePayloadFromProject(project) {
   if (!project?.name) return { works: [], sharedProject: null };
-  const works = snapshotProjectWorks(project);
+  let works = snapshotProjectWorks(project);
+  works = await Promise.all(
+    works.map(async (w) => {
+      if (!w.sourceProof) return w;
+      const sourceProof = await restoreProofMedia(w.sourceProof);
+      return { ...w, sourceProof };
+    })
+  );
   return {
     works,
     sharedProject: {
@@ -208,14 +313,50 @@ function lightProof(proof) {
   };
 }
 
+function lightWork(work) {
+  if (!work) return work;
+  return {
+    ...work,
+    source: String(work.source || "").trim().slice(0, 500),
+    sourceProof: lightProof(work.sourceProof),
+  };
+}
+
+function lightWorks(works) {
+  if (!Array.isArray(works)) return [];
+  return works.map(lightWork);
+}
+
 function lightPost(post) {
   if (!post) return post;
-  return { ...post, proof: lightProof(post.proof) };
+  const shared = post.sharedProject
+    ? {
+        ...post.sharedProject,
+        works: lightWorks(post.sharedProject.works),
+      }
+    : post.sharedProject;
+  return {
+    ...post,
+    proof: lightProof(post.proof),
+    works: lightWorks(post.works),
+    sharedProject: shared,
+  };
 }
 
 function lightMessage(msg) {
   if (!msg) return msg;
-  return { ...msg, proof: lightProof(msg.proof) };
+  const shared = msg.sharedProject
+    ? {
+        ...msg.sharedProject,
+        works: lightWorks(msg.sharedProject.works),
+      }
+    : msg.sharedProject;
+  return {
+    ...msg,
+    proof: lightProof(msg.proof),
+    works: lightWorks(msg.works),
+    sharedProject: shared,
+  };
 }
 
 function openMediaDb() {
@@ -256,22 +397,80 @@ async function idbSet(storeName, key, value) {
 }
 
 function ensureProofId(postOrMsg, prefix) {
-  if (!postOrMsg?.proof?.dataUrl && !postOrMsg?.proof?.mediaId) return postOrMsg;
-  if (postOrMsg.proof.mediaId) return postOrMsg;
+  if (!postOrMsg?.proof?.dataUrl && !postOrMsg?.proof?.mediaId) {
+    return ensureWorkSourceIds(postOrMsg, prefix);
+  }
+  const withProof = postOrMsg.proof.mediaId
+    ? postOrMsg
+    : {
+        ...postOrMsg,
+        proof: {
+          ...postOrMsg.proof,
+          mediaId: `${prefix}-${postOrMsg.id || Date.now()}`,
+        },
+      };
+  return ensureWorkSourceIds(withProof, prefix);
+}
+
+function ensureWorkSourceIds(postOrMsg, prefix) {
+  if (!postOrMsg) return postOrMsg;
+  const stamp = (works, tag) => {
+    if (!Array.isArray(works)) return works;
+    return works.map((w, index) => {
+      if (!w?.sourceProof?.dataUrl && !w?.sourceProof?.mediaId) return w;
+      if (w.sourceProof.mediaId) return w;
+      return {
+        ...w,
+        sourceProof: {
+          ...w.sourceProof,
+          mediaId: `${prefix}-${tag}-${postOrMsg.id || Date.now()}-${index}`,
+        },
+      };
+    });
+  };
+  const works = stamp(postOrMsg.works, "w");
+  const sharedWorks = stamp(postOrMsg.sharedProject?.works, "sw");
   return {
     ...postOrMsg,
-    proof: {
-      ...postOrMsg.proof,
-      mediaId: `${prefix}-${postOrMsg.id || Date.now()}`,
-    },
+    works,
+    sharedProject: postOrMsg.sharedProject
+      ? { ...postOrMsg.sharedProject, works: sharedWorks }
+      : postOrMsg.sharedProject,
   };
 }
 
 function pickRicherProof(a, b) {
   if (a?.dataUrl && !b?.dataUrl) return a;
   if (b?.dataUrl && !a?.dataUrl) return b;
-  if (a?.dataUrl || b?.dataUrl) return { ...(b || {}), ...(a || {}), dataUrl: (a?.dataUrl || b?.dataUrl) };
+  if (a?.dataUrl || b?.dataUrl) {
+    return { ...(b || {}), ...(a || {}), dataUrl: a?.dataUrl || b?.dataUrl };
+  }
+  if (a?.mediaId || b?.mediaId || a?.hasMedia || b?.hasMedia) {
+    return { ...(b || {}), ...(a || {}) };
+  }
   return a || b || null;
+}
+
+function mergeWorksPreferMedia(aWorks, bWorks) {
+  const listA = Array.isArray(aWorks) ? aWorks : [];
+  const listB = Array.isArray(bWorks) ? bWorks : [];
+  if (!listA.length) return listB;
+  if (!listB.length) return listA;
+  const map = new Map();
+  for (const w of listB) {
+    const key = String(w?.id || w?.text || "");
+    if (key) map.set(key, w);
+  }
+  return listA.map((w) => {
+    const key = String(w?.id || w?.text || "");
+    const prev = map.get(key);
+    if (!prev) return w;
+    return {
+      ...prev,
+      ...w,
+      sourceProof: pickRicherProof(w.sourceProof, prev.sourceProof),
+    };
+  });
 }
 
 function mergeByIdPreferMedia(memoryList, storedList) {
@@ -288,10 +487,24 @@ function mergeByIdPreferMedia(memoryList, storedList) {
       map.set(id, item);
       continue;
     }
+    const works = mergeWorksPreferMedia(item.works, prev.works);
+    const sharedWorks = mergeWorksPreferMedia(
+      item.sharedProject?.works,
+      prev.sharedProject?.works
+    );
     map.set(id, {
       ...prev,
       ...item,
       proof: pickRicherProof(item.proof, prev.proof),
+      works,
+      sharedProject:
+        item.sharedProject || prev.sharedProject
+          ? {
+              ...(prev.sharedProject || {}),
+              ...(item.sharedProject || {}),
+              works: sharedWorks,
+            }
+          : null,
     });
   }
   const preferredOrder = (memoryList?.length ? memoryList : storedList) || [];
@@ -341,21 +554,49 @@ async function restoreProofMedia(proof) {
   }
 }
 
+async function restoreWorksMedia(works) {
+  if (!Array.isArray(works)) return [];
+  return Promise.all(
+    works.map(async (w) => {
+      if (!w?.sourceProof) return w;
+      const sourceProof = await restoreProofMedia(w.sourceProof);
+      return { ...w, sourceProof };
+    })
+  );
+}
+
 async function restoreListMedia(list) {
   if (!Array.isArray(list)) return [];
   return Promise.all(
     list.map(async (item) => {
-      if (!item?.proof) return item;
-      const proof = await restoreProofMedia(item.proof);
-      return { ...item, proof };
+      const proof = item?.proof ? await restoreProofMedia(item.proof) : item?.proof;
+      const works = await restoreWorksMedia(item?.works);
+      const sharedWorks = await restoreWorksMedia(item?.sharedProject?.works);
+      return {
+        ...item,
+        proof,
+        works,
+        sharedProject: item?.sharedProject
+          ? { ...item.sharedProject, works: sharedWorks }
+          : item?.sharedProject,
+      };
     })
   );
+}
+
+async function persistWorksMedia(works) {
+  if (!Array.isArray(works)) return;
+  for (const w of works) {
+    if (w?.sourceProof?.dataUrl) await persistProofMedia(w.sourceProof);
+  }
 }
 
 async function persistListMedia(list) {
   if (!Array.isArray(list)) return;
   for (const item of list) {
     if (item?.proof?.dataUrl) await persistProofMedia(item.proof);
+    await persistWorksMedia(item?.works);
+    await persistWorksMedia(item?.sharedProject?.works);
   }
 }
 
@@ -416,6 +657,8 @@ export function addUserPost(post) {
   const next = [nextPost, ...loadUserPosts()];
   saveUserPosts(next);
   if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
+  void persistWorksMedia(nextPost.works);
+  void persistWorksMedia(nextPost.sharedProject?.works);
   return next;
 }
 
@@ -554,6 +797,8 @@ export function addGroupPost(groupId, post) {
   map[groupId] = [nextPost, ...list];
   saveAllGroupPosts(map);
   if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
+  void persistWorksMedia(nextPost.works);
+  void persistWorksMedia(nextPost.sharedProject?.works);
   return map[groupId];
 }
 
@@ -595,6 +840,8 @@ export function addSharedMessage(threadId, message) {
   map[threadId] = [...list, nextMsg];
   saveAllMessageShares(map);
   if (nextMsg.proof?.dataUrl) void persistProofMedia(nextMsg.proof);
+  void persistWorksMedia(nextMsg.works);
+  void persistWorksMedia(nextMsg.sharedProject?.works);
   return map[threadId];
 }
 

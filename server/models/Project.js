@@ -15,6 +15,8 @@ const projectSchema = new mongoose.Schema(
           id: { type: String, required: true },
           text: { type: String, required: true, trim: true, maxlength: 80 },
           done: { type: Boolean, default: true },
+          source: { type: String, default: "", trim: true, maxlength: 500 },
+          sourceProof: { type: mongoose.Schema.Types.Mixed, default: null },
         },
       ],
       default: [],

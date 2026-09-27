@@ -7,6 +7,7 @@ import {
   updateUserPost,
 } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
+import { WorkSourceControl } from "./SourceMedia.jsx";
 import "./ProfilePage.css";
 
 const PROFILE_KEY = "sandadd.userProfile";
@@ -374,7 +375,8 @@ export default function ProfilePage({
                                     className={w.done ? "is-done" : ""}
                                   >
                                     <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
-                                    {w.text}
+                                    <span className="profile-work-text">{w.text}</span>
+                                    <WorkSourceControl work={w} />
                                   </li>
                                 ))}
                               </ul>
