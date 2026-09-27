@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import {
-  deleteUserPost,
+  deleteAuthoredPost,
   hydrateSocialFeeds,
-  loadUserPosts,
+  loadProfilePosts,
   updateUserPost,
 } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
@@ -107,7 +107,7 @@ export default function ProfilePage({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [section, setSection] = useState("posts");
-  const [posts, setPosts] = useState(() => loadUserPosts());
+  const [posts, setPosts] = useState(() => loadProfilePosts());
   const [editingPostId, setEditingPostId] = useState(null);
   const [editBody, setEditBody] = useState("");
   const [shareNote, setShareNote] = useState("");
@@ -118,13 +118,26 @@ export default function ProfilePage({
 
   useEffect(() => {
     let alive = true;
+    // Refresh whenever Profile mounts or Posts tab is selected
+    setPosts(loadProfilePosts());
     hydrateSocialFeeds().then((data) => {
-      if (alive) setPosts(data.userPosts || []);
+      if (!alive) return;
+      setPosts(data.profilePosts || loadProfilePosts());
     });
     return () => {
       alive = false;
     };
   }, [section]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        setPosts(loadProfilePosts());
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   const initial = profile.name.trim().slice(0, 1).toUpperCase() || "S";
 
@@ -163,14 +176,15 @@ export default function ProfilePage({
   const saveEditPost = (id) => {
     const body = editBody.trim();
     if (!body) return;
-    setPosts(updateUserPost(id, { body }));
+    updateUserPost(id, { body });
+    setPosts(loadProfilePosts());
     setEditingPostId(null);
     setEditBody("");
   };
 
   const removePost = (id) => {
     if (!window.confirm("Delete this post?")) return;
-    setPosts(deleteUserPost(id));
+    setPosts(deleteAuthoredPost(id));
     if (editingPostId === id) cancelEditPost();
   };
 

@@ -312,6 +312,23 @@ export function loadUserPosts() {
   return userPostsCache;
 }
 
+/** View posts + your group posts (for Profile). */
+export function loadProfilePosts() {
+  const view = loadUserPosts();
+  const groupMap = loadAllGroupPosts();
+  const fromGroups = [];
+  for (const list of Object.values(groupMap || {})) {
+    if (!Array.isArray(list)) continue;
+    for (const post of list) {
+      if (post?.isUser === true) fromGroups.push(post);
+    }
+  }
+  const merged = mergeByIdPreferMedia(view, fromGroups);
+  return merged.sort((a, b) =>
+    String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+  );
+}
+
 export function saveUserPosts(posts) {
   userPostsCache = posts;
   bumpFeedEpoch();
@@ -340,6 +357,23 @@ export function deleteUserPost(id) {
   const next = loadUserPosts().filter((p) => p.id !== id);
   saveUserPosts(next);
   return next;
+}
+
+/** Delete a post from View and any group feed (Profile delete). */
+export function deleteAuthoredPost(id) {
+  deleteUserPost(id);
+  const map = { ...loadAllGroupPosts() };
+  let changed = false;
+  for (const [gid, list] of Object.entries(map)) {
+    if (!Array.isArray(list)) continue;
+    const next = list.filter((p) => p.id !== id);
+    if (next.length !== list.length) {
+      map[gid] = next;
+      changed = true;
+    }
+  }
+  if (changed) saveAllGroupPosts(map);
+  return loadProfilePosts();
 }
 
 /** Count posts/messages linked to a topic (from tick → share flow). */
@@ -492,6 +526,11 @@ export function addSharedMessage(threadId, message) {
 
 /** Restore full media (including videos) from IndexedDB after reload. */
 export async function hydrateSocialFeeds() {
+  // Always seed from localStorage first so Profile/View don't start empty
+  if (userPostsCache === null) loadUserPosts();
+  if (groupPostsCache === null) loadAllGroupPosts();
+  if (messageSharesCache === null) loadAllMessageShares();
+
   try {
     const [userPosts, groupPosts, messageShares] = await Promise.all([
       idbGet("feeds", "userPosts"),
@@ -513,7 +552,7 @@ export async function hydrateSocialFeeds() {
       }
     }
     for (const gid of Object.keys(mergedGroups)) {
-      mergedGroups[gid] = await restoreListMedia(mergedGroups[gid]);
+      mergedGroups[gid] = await restoreListMedia(mergedGroups[gid] || []);
     }
     groupPostsCache = mergedGroups;
 
@@ -526,7 +565,7 @@ export async function hydrateSocialFeeds() {
       }
     }
     for (const tid of Object.keys(mergedMessages)) {
-      mergedMessages[tid] = await restoreListMedia(mergedMessages[tid]);
+      mergedMessages[tid] = await restoreListMedia(mergedMessages[tid] || []);
     }
     messageSharesCache = mergedMessages;
 
@@ -534,11 +573,15 @@ export async function hydrateSocialFeeds() {
     await persistListMedia(userPostsCache);
     for (const list of Object.values(groupPostsCache)) await persistListMedia(list);
     for (const list of Object.values(messageSharesCache)) await persistListMedia(list);
+
+    // Keep localStorage in sync with merged feed metadata
+    writeJson(FEED_KEY, (userPostsCache || []).map(lightPost));
   } catch {
     /* IDB blocked — memory + light localStorage only */
   }
   return {
     userPosts: loadUserPosts(),
+    profilePosts: loadProfilePosts(),
     groupPosts: loadAllGroupPosts(),
     messageShares: loadAllMessageShares(),
   };
