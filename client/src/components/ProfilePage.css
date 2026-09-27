@@ -505,3 +505,40 @@
   line-height: 1.55;
   color: var(--paper);
 }
+
+@media (max-width: 640px) {
+  .profile-page {
+    padding: 8px 0 36px;
+  }
+
+  .profile-hero {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .profile-avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 22px;
+    border-width: 2px;
+  }
+
+  .profile-hero h1 {
+    font-size: clamp(24px, 7vw, 32px);
+  }
+
+  .profile-follow-stats {
+    gap: 12px;
+    font-size: 12px;
+  }
+
+  .profile-card {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+
+  .profile-edit-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

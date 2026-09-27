@@ -133,3 +133,30 @@
   background: var(--blue-soft-2);
   border-color: var(--line);
 }
+
+@media (max-width: 640px) {
+  .daily-review-backdrop {
+    padding: 12px;
+    align-items: end;
+  }
+
+  .daily-review-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 20px 16px 16px;
+    border-radius: 14px;
+  }
+
+  .daily-review-card h2 {
+    font-size: 24px;
+  }
+
+  .daily-review-actions {
+    gap: 8px;
+  }
+
+  .daily-review-actions button {
+    padding: 11px 12px;
+    font-size: 11px;
+  }
+}

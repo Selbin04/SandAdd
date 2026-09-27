@@ -381,6 +381,7 @@
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
+    padding: 8px 0 36px;
   }
 
   .messages-list {
@@ -390,5 +391,23 @@
 
   .messages-chat {
     height: min(55vh, 420px);
+  }
+
+  .messages-compose {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .messages-list {
+    max-height: 140px;
+  }
+
+  .messages-chat {
+    height: min(50vh, 360px);
+  }
+
+  .messages-bubble-wrap .messages-bubble {
+    max-width: 92%;
   }
 }

@@ -151,3 +151,27 @@
   opacity: 0.7;
   cursor: wait;
 }
+
+@media (max-width: 640px) {
+  .auth-page {
+    padding: 24px 14px 36px;
+    align-content: start;
+    min-height: 100dvh;
+  }
+
+  .auth-shell {
+    gap: 20px;
+  }
+
+  .auth-mark {
+    height: 44px;
+  }
+
+  .auth-wordmark {
+    font-size: 28px;
+  }
+
+  .auth-card {
+    padding: 18px 16px 16px;
+  }
+}

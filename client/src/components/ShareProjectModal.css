@@ -255,3 +255,17 @@
 .share-cancel:hover {
   color: var(--paper);
 }
+
+@media (max-width: 640px) {
+  .share-backdrop {
+    padding: 10px;
+    align-items: end;
+  }
+
+  .share-card {
+    width: 100%;
+    max-height: min(90dvh, calc(100vh - 20px));
+    padding: 14px;
+    border-radius: 12px;
+  }
+}

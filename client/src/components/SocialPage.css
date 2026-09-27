@@ -141,6 +141,43 @@
   }
 }
 
+@media (max-width: 640px) {
+  .social-page {
+    padding: 8px 0 36px;
+  }
+
+  .social-card {
+    padding: 12px 14px;
+    border-radius: 10px;
+  }
+
+  .social-card-top {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .social-tabs button {
+    padding: 9px 10px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+
+  .social-project-compose,
+  .social-group-compose {
+    padding: 10px;
+  }
+
+  .social-project-compose input,
+  .social-project-compose textarea,
+  .social-group-compose textarea {
+    font-size: 14px;
+  }
+
+  .social-actions button {
+    min-height: 36px;
+  }
+}
+
 .social-view {
   display: flex;
   flex-direction: column;

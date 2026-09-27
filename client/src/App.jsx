@@ -922,37 +922,16 @@ export default function App() {
         />
       ) : (
       <div className="layout">
-        <div className="left-col">
-          <div id="selected-panel">
-            <SelectedStack
-              projects={selectedProjects}
-              activeId={activeId}
-              onSelect={handleSelect}
-              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
-            />
-          </div>
-          <div id="projects-panel">
-            <ProjectPanel
-              title="Projects"
-              projects={regularProjects}
-              activeId={activeId}
-              storage={storage}
-              showStorage
-              showCreate
-              newName={newName}
-              onNewName={setNewName}
-              onCreate={handleCreate}
-              onSelect={handleSelect}
-              onDelete={handleDelete}
-              onToggleImportant={handleToggleImportant}
-              importantAction="add"
-              emptyText="Create a project, pour as you work, then save another. Star a project to move it to Important. Double-click a project to list what work to do."
-              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
-            />
-          </div>
+        <div id="selected-panel" className="layout-selected">
+          <SelectedStack
+            projects={selectedProjects}
+            activeId={activeId}
+            onSelect={handleSelect}
+            onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
+          />
         </div>
 
-        <main className="stage" id="stage">
+        <main className="stage layout-stage" id="stage">
           <p className="active-project">
             {activeName ? `Working on ${activeName}` : "No project yet — pour or save one"}
           </p>
@@ -1014,7 +993,27 @@ export default function App() {
           {apiError && <p className="api-error">{apiError}</p>}
         </main>
 
-        <div className="right-col" id="important-panel">
+        <div id="projects-panel" className="layout-projects">
+          <ProjectPanel
+            title="Projects"
+            projects={regularProjects}
+            activeId={activeId}
+            storage={storage}
+            showStorage
+            showCreate
+            newName={newName}
+            onNewName={setNewName}
+            onCreate={handleCreate}
+            onSelect={handleSelect}
+            onDelete={handleDelete}
+            onToggleImportant={handleToggleImportant}
+            importantAction="add"
+            emptyText="Create a project, pour as you work, then save another. Star a project to move it to Important. Double-click a project to list what work to do."
+            onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
+          />
+        </div>
+
+        <div className="layout-important" id="important-panel">
           <ProjectPanel
             title="Important"
             projects={importantProjects}
@@ -1023,7 +1022,7 @@ export default function App() {
             onDelete={handleDelete}
             onToggleImportant={handleToggleImportant}
             importantAction="remove"
-            emptyText="Star a project on the left to keep it here. Use up to 5 stars to set priority."
+            emptyText="Star a project to keep it here. Use up to 5 stars to set priority."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
             onSetStars={handleSetStars}
           />

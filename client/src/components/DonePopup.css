@@ -423,3 +423,19 @@
 [data-theme="light"] .done-list li {
   background: var(--blue-soft-2);
 }
+
+@media (max-width: 640px) {
+  .done-card {
+    width: min(280px, calc(100vw - 12px));
+    padding: 10px;
+  }
+
+  .done-source-tabs {
+    gap: 4px;
+  }
+
+  .done-source-tabs button {
+    font-size: 10px;
+    padding: 5px 2px;
+  }
+}

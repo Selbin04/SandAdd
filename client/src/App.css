@@ -220,9 +220,32 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr 300px;
-  gap: 20px;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) minmax(180px, 1fr);
+  grid-template-areas:
+    "selected stage projects"
+    "important stage projects";
+  gap: 16px;
   align-items: start;
+}
+
+.layout-selected {
+  grid-area: selected;
+  min-width: 0;
+}
+
+.layout-stage {
+  grid-area: stage;
+  min-width: 0;
+}
+
+.layout-projects {
+  grid-area: projects;
+  min-width: 0;
+}
+
+.layout-important {
+  grid-area: important;
+  min-width: 0;
 }
 
 .panel {
@@ -434,6 +457,12 @@
   gap: 8px;
   max-height: 520px;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.project-list::-webkit-scrollbar {
+  display: none;
 }
 
 .project-list li {
@@ -584,6 +613,11 @@
 
 .selected-panel {
   min-height: 160px;
+}
+
+.layout-selected .panel,
+.layout-important .panel {
+  min-height: 0;
 }
 
 .active-project {
@@ -827,15 +861,40 @@
 
 @media (max-width: 980px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 1.15fr) minmax(0, 1fr);
+    grid-template-areas:
+      "selected stage projects"
+      "important stage projects";
+    gap: 10px;
   }
 
-  .left-col {
-    order: 3;
+  .layout-selected .panel,
+  .layout-projects .panel,
+  .layout-important .panel {
+    min-height: 0;
+    padding: 10px;
   }
 
-  .right-col {
-    order: 4;
+  .layout-stage .active-project {
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .layout-stage .glass-wrap {
+    max-width: 160px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .layout-stage .status,
+  .layout-stage .api-error {
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .layout-stage .progress-done {
+    width: 100%;
+    max-width: 200px;
   }
 
   .navbar-inner {
@@ -863,14 +922,75 @@
 }
 
 @media (max-width: 640px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 1.2fr) minmax(0, 1fr);
+    grid-template-areas:
+      "selected stage projects"
+      "important stage projects";
+    gap: 8px;
+  }
+
+  .layout-selected .panel,
+  .layout-projects .panel,
+  .layout-important .panel {
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .layout-selected .panel-head h2,
+  .layout-projects .panel-head h2,
+  .layout-important .panel-head h2 {
+    font-size: 11px;
+  }
+
+  .layout-selected .empty,
+  .layout-projects .empty {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .layout-selected .project-copy strong,
+  .layout-projects .project-copy strong {
+    font-size: 11px;
+  }
+
+  .layout-selected .project-copy span,
+  .layout-projects .project-copy span {
+    font-size: 9px;
+  }
+
+  .layout-projects .new-project {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .layout-projects .new-project input {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .layout-projects .storage-pill {
+    display: none;
+  }
+
+  .layout-stage .glass-wrap {
+    max-width: 130px;
+  }
+
+  .layout-stage .pour-col {
+    width: 100px;
+  }
+
   .glass-row {
     flex-direction: column;
+    gap: 4px;
   }
 
   .pipe {
     transform: rotate(90deg);
-    width: 72px;
-    margin: 4px 0;
+    width: 56px;
+    margin: 2px 0;
   }
 
   .navbar-links button {
