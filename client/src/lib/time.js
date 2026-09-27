@@ -29,3 +29,12 @@ export function fillLabel(elapsedMs, durationMs) {
   if (p >= 0.98) return "Finished";
   return `${Math.round(p * 100)}% done`;
 }
+
+/** Progress from ticked works: 2 works → each tick = 50%, untick reverses. */
+export function elapsedFromWorks(topics, durationMs) {
+  const list = Array.isArray(topics) ? topics : [];
+  const duration = Number(durationMs) || 0;
+  if (list.length === 0 || duration <= 0) return 0;
+  const done = list.filter((t) => t?.done).length;
+  return Math.min(duration, Math.round((done / list.length) * duration));
+}

@@ -10,7 +10,14 @@ function readTheme() {
   }
 }
 
-export default function Navbar({ storage, activeName, page, onNavigate }) {
+export default function Navbar({
+  storage,
+  activeName,
+  page,
+  onNavigate,
+  onLogout,
+  userName,
+}) {
   const [theme, setTheme] = useState(readTheme);
 
   useEffect(() => {
@@ -111,7 +118,7 @@ export default function Navbar({ storage, activeName, page, onNavigate }) {
             className={`profile-btn ${page === "profile" ? "is-active" : ""}`}
             aria-label="Open profile"
             aria-current={page === "profile" ? "page" : undefined}
-            title="Profile"
+            title={userName || "Profile"}
             onClick={() => onNavigate("profile")}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -122,6 +129,16 @@ export default function Navbar({ storage, activeName, page, onNavigate }) {
               />
             </svg>
           </button>
+          {onLogout ? (
+            <button
+              type="button"
+              className="logout-btn"
+              onClick={onLogout}
+              title="Sign out"
+            >
+              Sign out
+            </button>
+          ) : null}
         </div>
       </div>
     </nav>

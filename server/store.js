@@ -48,21 +48,45 @@ function sortByWorked(list) {
 }
 
 export const memoryStore = {
-  async list() {
-    return sortByWorked(projects);
+  async list(ownerId) {
+    const uid = String(ownerId || "");
+    return sortByWorked(projects.filter((p) => String(p.ownerId || "") === uid));
   },
 
-  async create({ name, durationMs, elapsedMs = 0, completed = false }) {
+  /** One-time: give pre-auth projects to the first signed-in user who loads them. */
+  async claimOrphans(ownerId) {
+    const uid = String(ownerId || "");
+    if (!uid) return 0;
+    let claimed = 0;
+    for (const p of projects) {
+      if (!p.ownerId) {
+        p.ownerId = uid;
+        claimed += 1;
+      }
+    }
+    if (claimed) persist();
+    return claimed;
+  },
+
+  async create({
+    ownerId,
+    name,
+    durationMs,
+    elapsedMs = 0,
+    completed = false,
+    topics = [],
+  }) {
     const now = new Date();
     const doc = {
       _id: String(nextId++),
+      ownerId: String(ownerId || ""),
       name,
       durationMs,
       elapsedMs,
       completed: Boolean(completed),
       important: false,
       stars: 0,
-      topics: [],
+      topics: Array.isArray(topics) ? topics : [],
       createdAt: now,
       updatedAt: now,
       lastWorkedAt: now,
@@ -72,8 +96,11 @@ export const memoryStore = {
     return doc;
   },
 
-  async update(id, patch) {
-    const doc = projects.find((p) => p._id === id);
+  async update(id, patch, ownerId) {
+    const uid = String(ownerId || "");
+    const doc = projects.find(
+      (p) => p._id === id && String(p.ownerId || "") === uid
+    );
     if (!doc) return null;
     if (patch.name !== undefined) doc.name = patch.name;
     if (patch.durationMs !== undefined) doc.durationMs = patch.durationMs;
@@ -90,8 +117,11 @@ export const memoryStore = {
     return doc;
   },
 
-  async remove(id) {
-    const index = projects.findIndex((p) => p._id === id);
+  async remove(id, ownerId) {
+    const uid = String(ownerId || "");
+    const index = projects.findIndex(
+      (p) => p._id === id && String(p.ownerId || "") === uid
+    );
     if (index === -1) return null;
     const [removed] = projects.splice(index, 1);
     persist();

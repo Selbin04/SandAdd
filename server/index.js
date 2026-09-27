@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import projectRoutes from "./routes/projects.js";
+import authRoutes, { requireAuth } from "./routes/auth.js";
 
 const PORT = Number(process.env.PORT) || 5000;
 const MONGO_URI =
@@ -40,7 +41,9 @@ async function start() {
   }
 
   app.locals.useMemory = useMemory;
-  app.use("/api/projects", projectRoutes(useMemory));
+  app.use("/api/auth", authRoutes(useMemory));
+  // Projects require a signed-in session
+  app.use("/api/projects", requireAuth(useMemory), projectRoutes(useMemory));
 
   app.listen(PORT, () => {
     console.log(`Hourglass API running on http://localhost:${PORT}`);

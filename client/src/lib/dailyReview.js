@@ -3,7 +3,7 @@ const SELECTED_KEY = "hourglass.dailySelected";
 const WORKS_KEY = "hourglass.dailyWorks";
 const FORCE_KEY = "hourglass.dailyReviewForce";
 /** Bump this number to show the morning review one more time after deploy/refresh. */
-const FORCE_VERSION = 6;
+const FORCE_VERSION = 7;
 
 export function todayKey() {
   const d = new Date();

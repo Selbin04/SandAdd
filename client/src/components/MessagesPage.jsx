@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
 import "./MessagesPage.css";
@@ -86,11 +86,38 @@ function ThreadAvatar({ thread }) {
 }
 
 function MessageBubble({ msg }) {
+  const works = Array.isArray(msg.works)
+    ? msg.works
+    : Array.isArray(msg.sharedProject?.works)
+      ? msg.sharedProject.works
+      : [];
+  const projectTitle = msg.sharedProject?.name || msg.projectName;
+
   return (
     <div className={`messages-bubble-wrap ${msg.from === "me" ? "is-mine" : "is-theirs"}`}>
       <p className={`messages-bubble ${msg.from === "me" ? "is-mine" : "is-theirs"}`}>
         {msg.text}
       </p>
+      {projectTitle || works.length > 0 ? (
+        <div className="messages-works">
+          {projectTitle ? (
+            <p className="messages-works-project">{projectTitle}</p>
+          ) : null}
+          {works.length > 0 ? (
+            <>
+              <p className="messages-works-label">What the works to do in this project</p>
+              <ul>
+                {works.map((w) => (
+                  <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
+                    <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
+                    {w.text}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <ProofMedia proof={msg.proof} className="messages-proof" />
     </div>
   );
@@ -100,6 +127,7 @@ export default function MessagesPage({ initialThreadId = null }) {
   const [activeId, setActiveId] = useState(initialThreadId || SANDADD_ID);
   const [draft, setDraft] = useState("");
   const [extraByThread, setExtraByThread] = useState({});
+  const bubblesRef = useRef(null);
   const [sharedByThread, setSharedByThread] = useState(() => {
     const start = {};
     THREADS.forEach((t) => {
@@ -133,17 +161,41 @@ export default function MessagesPage({ initialThreadId = null }) {
   const active = THREADS.find((t) => t.id === activeId) || THREADS[0];
   const extras = extraByThread[activeId] || [];
   const shared = sharedByThread[activeId] || [];
-  const messages = [...(active.messages || []), ...extras, ...shared];
+  const messageTime = (msg) => {
+    if (msg?.createdAt) {
+      const t = Date.parse(msg.createdAt);
+      if (!Number.isNaN(t)) return t;
+    }
+    const digits = String(msg?.id || "").replace(/\D/g, "");
+    const fromId = digits ? Number(digits.slice(-13)) : 0;
+    return Number.isFinite(fromId) ? fromId : 0;
+  };
+  const messages = [
+    ...(active.messages || []),
+    ...[...extras, ...shared].sort((a, b) => messageTime(a) - messageTime(b)),
+  ];
+
+  useEffect(() => {
+    const el = bubblesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [activeId, messages.length]);
 
   const send = (e) => {
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
+    const now = Date.now();
     setExtraByThread((prev) => ({
       ...prev,
       [activeId]: [
         ...(prev[activeId] || []),
-        { id: `local-${Date.now()}`, from: "me", text },
+        {
+          id: `local-${now}`,
+          from: "me",
+          text,
+          createdAt: new Date(now).toISOString(),
+        },
       ],
     }));
     setDraft("");
@@ -186,7 +238,8 @@ export default function MessagesPage({ initialThreadId = null }) {
           </div>
         </header>
 
-        <div className="messages-bubbles">
+        <div className="messages-bubbles" ref={bubblesRef}>
+          <div className="messages-bubbles-spacer" aria-hidden="true" />
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}

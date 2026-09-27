@@ -347,6 +347,43 @@ export default function ProfilePage({
                       ) : (
                         <p className="profile-post-body">{post.body}</p>
                       )}
+                      {(() => {
+                        const works = Array.isArray(post.sharedProject?.works)
+                          ? post.sharedProject.works
+                          : Array.isArray(post.works)
+                            ? post.works
+                            : [];
+                        if (!works.length && !post.sharedProject?.name && !post.projectName) {
+                          return null;
+                        }
+                        return (
+                          <div className="profile-post-works">
+                            {(post.sharedProject?.name || post.projectName) && (
+                              <p className="profile-post-works-name">
+                                {post.sharedProject?.name || post.projectName}
+                              </p>
+                            )}
+                            <p className="profile-post-works-label">
+                              What the works to do in this project
+                            </p>
+                            {works.length > 0 ? (
+                              <ul>
+                                {works.map((w) => (
+                                  <li
+                                    key={w.id || w.text}
+                                    className={w.done ? "is-done" : ""}
+                                  >
+                                    <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
+                                    {w.text}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="profile-post-works-empty">No works listed</p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <ProofMedia proof={post.proof} className="profile-post-proof" />
                       <div className="profile-post-actions">
                         <button

@@ -396,8 +396,10 @@
 
 .social-group-compose-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+  align-items: center;
 }
 
 .social-group-attach {
@@ -411,9 +413,138 @@
   text-transform: uppercase;
 }
 
-.social-group-attach:hover {
+.social-group-attach.is-active {
   border-color: var(--brass);
   color: var(--brass);
+}
+
+.social-project-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ink-2, var(--surface-strong));
+}
+
+.social-project-compose input,
+.social-project-compose textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: var(--input-bg, var(--panel));
+  color: var(--paper);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.social-project-compose-save {
+  align-self: flex-start;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.social-project-chip {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.social-project-chip strong {
+  color: var(--paper);
+}
+
+.social-shared-project {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-strong, var(--ink-2));
+}
+
+.social-shared-project-label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.social-shared-project-name {
+  display: block;
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--paper);
+}
+
+.social-shared-project-label.is-works {
+  margin-top: 10px;
+}
+
+.social-shared-project-works {
+  margin: 8px 0 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.social-shared-project-works li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+  color: var(--paper);
+}
+
+.social-shared-project-works li.is-done {
+  color: var(--muted);
+}
+
+.social-work-tick {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  color: var(--brass);
+  font-size: 11px;
+}
+
+.social-shared-project-empty {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.social-shared-project-add {
+  margin-top: 12px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.social-shared-project-add:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .social-group-post-btn {

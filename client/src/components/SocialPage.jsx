@@ -2,12 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addGroupPost,
   addUserPost,
+  buildSharedProject,
   createCustomGroup,
   fileToProof,
   hydrateSocialFeeds,
+  loadAddedTemplateIds,
   loadCustomGroups,
   loadGroupPosts,
   loadUserPosts,
+  markTemplateAdded,
   PROOF_ACCEPT,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
@@ -208,7 +211,18 @@ function PostActions({ postId, liked, onLike }) {
   );
 }
 
-function FeedCard({ item, liked, onLike }) {
+function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingTemplateId }) {
+  const shared = item.sharedProject;
+  const works = Array.isArray(shared?.works)
+    ? shared.works
+    : Array.isArray(item.works)
+      ? item.works
+      : [];
+  const alreadyAdded =
+    shared?.templateId && addedTemplateIds?.has(String(shared.templateId));
+  const adding =
+    shared?.templateId && addingTemplateId === String(shared.templateId);
+
   return (
     <article className="social-card">
       <div className="social-card-top">
@@ -221,13 +235,62 @@ function FeedCard({ item, liked, onLike }) {
         </div>
       </div>
       <p>{item.body}</p>
+      {works.length > 0 || shared ? (
+        <div className="social-shared-project">
+          {shared?.name ? (
+            <>
+              <p className="social-shared-project-label">Shared project</p>
+              <strong className="social-shared-project-name">{shared.name}</strong>
+            </>
+          ) : item.projectName ? (
+            <>
+              <p className="social-shared-project-label">Project</p>
+              <strong className="social-shared-project-name">{item.projectName}</strong>
+            </>
+          ) : null}
+          {works.length > 0 ? (
+            <>
+              <p className="social-shared-project-label is-works">
+                What the works to do in this project
+              </p>
+              <ul className="social-shared-project-works">
+                {works.map((w) => (
+                  <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
+                    <span className="social-work-tick" aria-hidden="true">
+                      {w.done ? "✓" : "○"}
+                    </span>
+                    {w.text}
+                  </li>
+                ))}
+              </ul>
+              {shared ? (
+                <button
+                  type="button"
+                  className="social-shared-project-add"
+                  disabled={alreadyAdded || adding || !onAddProject}
+                  onClick={() => onAddProject?.(shared)}
+                >
+                  {alreadyAdded
+                    ? "Added to Progress"
+                    : adding
+                      ? "Adding…"
+                      : "Add to Progress"}
+                </button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <ProofMedia proof={item.proof} />
       <PostActions postId={item.id} liked={liked} onLike={onLike} />
     </article>
   );
 }
 
-export default function SocialPage({ initialGroupId = null }) {
+export default function SocialPage({
+  initialGroupId = null,
+  onAddSharedProject = null,
+}) {
   const [section, setSection] = useState(initialGroupId ? "groups" : "view");
   const [openGroupId, setOpenGroupId] = useState(initialGroupId);
   const [likedIds, setLikedIds] = useState(() => new Set());
@@ -240,6 +303,14 @@ export default function SocialPage({ initialGroupId = null }) {
   const [proofName, setProofName] = useState("");
   const [postError, setPostError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectWorks, setProjectWorks] = useState("");
+  const [sharedProject, setSharedProject] = useState(null);
+  const [addedTemplateIds, setAddedTemplateIds] = useState(
+    () => new Set(loadAddedTemplateIds())
+  );
+  const [addingTemplateId, setAddingTemplateId] = useState(null);
   const [customGroups, setCustomGroups] = useState(() =>
     loadCustomGroups().map(toDisplayGroup)
   );
@@ -271,7 +342,52 @@ export default function SocialPage({ initialGroupId = null }) {
     setProof(null);
     setProofName("");
     setPostError("");
+    setShowProjectForm(false);
+    setProjectName("");
+    setProjectWorks("");
+    setSharedProject(null);
   }, [openGroupId, section]);
+
+  const clearComposeExtras = () => {
+    setProof(null);
+    setProofName("");
+    setSharedProject(null);
+    setShowProjectForm(false);
+    setProjectName("");
+    setProjectWorks("");
+    setPostError("");
+  };
+
+  const applyProjectToCompose = () => {
+    setPostError("");
+    try {
+      const next = buildSharedProject({
+        name: projectName,
+        worksText: projectWorks,
+      });
+      setSharedProject(next);
+      setShowProjectForm(false);
+    } catch (err) {
+      setPostError(err.message || "Could not add project");
+    }
+  };
+
+  const handleAddSharedProject = async (template) => {
+    if (!template?.templateId || !onAddSharedProject) return;
+    const id = String(template.templateId);
+    if (addedTemplateIds.has(id)) return;
+    setAddingTemplateId(id);
+    setPostError("");
+    try {
+      await onAddSharedProject(template);
+      markTemplateAdded(id);
+      setAddedTemplateIds(new Set(loadAddedTemplateIds()));
+    } catch (err) {
+      setPostError(err.message || "Could not add project to Progress");
+    } finally {
+      setAddingTemplateId(null);
+    }
+  };
 
   const groups = useMemo(
     () => [...customGroups, ...SEED_GROUPS.map(toDisplayGroup)],
@@ -349,49 +465,78 @@ export default function SocialPage({ initialGroupId = null }) {
     }
   };
 
+  const resolveWorksForPost = (projectShare) => {
+    if (!projectShare) return { works: [], sharedProject: null };
+    let works = Array.isArray(projectShare.works) ? [...projectShare.works] : [];
+    let nextShare = { ...projectShare, works };
+    if (works.length > 0) {
+      const includeWorks = window.confirm(
+        'Include “What the works to do in this project” in this post?'
+      );
+      if (!includeWorks) {
+        // Declined → no works list and no Add to Progress
+        return { works: [], sharedProject: null };
+      }
+    } else {
+      // No works to share → don't offer Add to Progress
+      nextShare = null;
+    }
+    return { works, sharedProject: nextShare };
+  };
+
   const submitViewPost = (e) => {
     e.preventDefault();
     const body = draft.trim();
-    if (!body) {
-      setPostError("Write something to post.");
+    if (!body && !sharedProject) {
+      setPostError("Write something or add a project to post.");
       return;
     }
     const author = readAuthorProfile();
+    const attachedName = sharedProject?.name || "";
+    const { works, sharedProject: projectShare } = resolveWorksForPost(sharedProject);
     const post = {
       id: `view-${Date.now()}`,
       name: author.name,
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      meta: "just now",
-      body,
+      meta: projectShare ? "shared a project · just now" : "just now",
+      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
       proof: proof || null,
+      works,
+      sharedProject: projectShare,
+      projectName: projectShare ? attachedName : "",
       createdAt: new Date().toISOString(),
       isUser: true,
     };
     setViewPosts(addUserPost(post));
     setDraft("");
-    setProof(null);
-    setProofName("");
-    setPostError("");
+    clearComposeExtras();
   };
 
   const submitGroupPost = (e) => {
     e.preventDefault();
     if (!openGroupId || !openGroup) return;
     const body = draft.trim();
-    if (!body) {
-      setPostError("Write something to post.");
+    if (!body && !sharedProject) {
+      setPostError("Write something or add a project to post.");
       return;
     }
     const author = readAuthorProfile();
+    const attachedName = sharedProject?.name || "";
+    const { works, sharedProject: projectShare } = resolveWorksForPost(sharedProject);
     const post = {
       id: `group-${Date.now()}`,
       name: author.name,
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      meta: `in ${openGroup.name}`,
-      body,
+      meta: projectShare
+        ? `shared a project · ${openGroup.name}`
+        : `in ${openGroup.name}`,
+      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
       proof: proof || null,
+      works,
+      sharedProject: projectShare,
+      projectName: projectShare ? attachedName : "",
       createdAt: new Date().toISOString(),
       isUser: true,
       groupId: openGroupId,
@@ -399,10 +544,64 @@ export default function SocialPage({ initialGroupId = null }) {
     };
     setGroupUserPosts(addGroupPost(openGroupId, post));
     setDraft("");
-    setProof(null);
-    setProofName("");
-    setPostError("");
+    clearComposeExtras();
   };
+
+  const composeExtras = (
+    <>
+      <button
+        type="button"
+        className={`social-group-attach ${showProjectForm || sharedProject ? "is-active" : ""}`}
+        disabled={busy}
+        onClick={() => {
+          setPostError("");
+          if (sharedProject) {
+            setSharedProject(null);
+            setProjectName("");
+            setProjectWorks("");
+            setShowProjectForm(false);
+            return;
+          }
+          setShowProjectForm((v) => !v);
+        }}
+      >
+        {sharedProject ? "Remove project" : "Project"}
+      </button>
+    </>
+  );
+
+  const projectComposePanel = showProjectForm ? (
+    <div className="social-project-compose">
+      <input
+        type="text"
+        value={projectName}
+        onChange={(e) => setProjectName(e.target.value)}
+        placeholder="Project name"
+        maxLength={80}
+        aria-label="Project name"
+      />
+      <textarea
+        value={projectWorks}
+        onChange={(e) => setProjectWorks(e.target.value)}
+        placeholder="Works to do (one per line, optional)"
+        rows={3}
+        maxLength={800}
+        aria-label="Project works"
+      />
+      <button type="button" className="social-project-compose-save" onClick={applyProjectToCompose}>
+        Add project to post
+      </button>
+    </div>
+  ) : null;
+
+  const sharedProjectChip = sharedProject ? (
+    <p className="social-project-chip">
+      Project ready: <strong>{sharedProject.name}</strong>
+      {sharedProject.works?.length
+        ? ` · ${sharedProject.works.length} work${sharedProject.works.length === 1 ? "" : "s"}`
+        : ""}
+    </p>
+  ) : null;
 
   return (
     <section className="social-page" aria-label="Social">
@@ -493,10 +692,13 @@ export default function SocialPage({ initialGroupId = null }) {
               >
                 {proofName ? "Change file" : "Attach"}
               </button>
+              {composeExtras}
               <button type="submit" className="social-group-post-btn" disabled={busy}>
                 Post
               </button>
             </div>
+            {projectComposePanel}
+            {sharedProjectChip}
             {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
             <ProofMedia proof={proof} className="social-group-attach-preview" />
             {postError ? <p className="social-group-post-error">{postError}</p> : null}
@@ -508,6 +710,9 @@ export default function SocialPage({ initialGroupId = null }) {
                 item={item}
                 liked={likedIds.has(item.id)}
                 onLike={toggleLike}
+                onAddProject={handleAddSharedProject}
+                addedTemplateIds={addedTemplateIds}
+                addingTemplateId={addingTemplateId}
               />
             ))}
           </div>
@@ -544,10 +749,13 @@ export default function SocialPage({ initialGroupId = null }) {
               >
                 {proofName ? "Change file" : "Attach"}
               </button>
+              {composeExtras}
               <button type="submit" className="social-group-post-btn" disabled={busy}>
                 Post
               </button>
             </div>
+            {projectComposePanel}
+            {sharedProjectChip}
             {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
             <ProofMedia proof={proof} className="social-group-attach-preview" />
             {postError ? <p className="social-group-post-error">{postError}</p> : null}
@@ -559,6 +767,9 @@ export default function SocialPage({ initialGroupId = null }) {
                 item={item}
                 liked={likedIds.has(item.id)}
                 onLike={toggleLike}
+                onAddProject={handleAddSharedProject}
+                addedTemplateIds={addedTemplateIds}
+                addingTemplateId={addingTemplateId}
               />
             ))}
           </div>

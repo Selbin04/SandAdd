@@ -80,15 +80,34 @@ function asProject(doc) {
   };
 }
 
+function ownerIdOf(req) {
+  return String(req.user?.id || "");
+}
+
 export default function projectRoutes(useMemory) {
   const router = Router();
 
-  router.get("/", async (_req, res) => {
+  router.get("/", async (req, res) => {
     try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
       if (useMemory) {
-        return res.json((await memoryStore.list()).map(asProject));
+        await memoryStore.claimOrphans(ownerId);
+        return res.json((await memoryStore.list(ownerId)).map(asProject));
       }
-      const projects = await Project.find().sort({ lastWorkedAt: -1, createdAt: -1 }).limit(100);
+
+      // Legacy pre-auth projects: claim once for the first signed-in user
+      await Project.updateMany(
+        {
+          $or: [{ ownerId: { $exists: false } }, { ownerId: null }, { ownerId: "" }],
+        },
+        { $set: { ownerId } }
+      );
+
+      const projects = await Project.find({ ownerId })
+        .sort({ lastWorkedAt: -1, createdAt: -1 })
+        .limit(100);
       res.json(projects.map(asProject));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -97,13 +116,18 @@ export default function projectRoutes(useMemory) {
 
   router.post("/", async (req, res) => {
     try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
       const parsed = parseProjectInput(req.body);
       if (parsed.error) return res.status(400).json({ error: parsed.error });
 
       if (useMemory) {
-        return res.status(201).json(asProject(await memoryStore.create(parsed.value)));
+        return res
+          .status(201)
+          .json(asProject(await memoryStore.create({ ...parsed.value, ownerId })));
       }
-      const project = await Project.create(parsed.value);
+      const project = await Project.create({ ...parsed.value, ownerId });
       res.status(201).json(asProject(project));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -112,16 +136,23 @@ export default function projectRoutes(useMemory) {
 
   router.patch("/:id", async (req, res) => {
     try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
       const parsed = parseProjectInput(req.body, { partial: true });
       if (parsed.error) return res.status(400).json({ error: parsed.error });
 
       if (useMemory) {
-        const updated = await memoryStore.update(req.params.id, parsed.value);
+        const updated = await memoryStore.update(
+          req.params.id,
+          parsed.value,
+          ownerId
+        );
         if (!updated) return res.status(404).json({ error: "Not found" });
         return res.json(asProject(updated));
       }
 
-      const current = await Project.findById(req.params.id);
+      const current = await Project.findOne({ _id: req.params.id, ownerId });
       if (!current) return res.status(404).json({ error: "Not found" });
 
       const currentDuration = current.durationMs ?? current.timeoutMs;
@@ -146,9 +177,11 @@ export default function projectRoutes(useMemory) {
         next.lastWorkedAt = new Date();
       }
 
-      const updated = await Project.findByIdAndUpdate(req.params.id, next, {
-        new: true,
-      });
+      const updated = await Project.findOneAndUpdate(
+        { _id: req.params.id, ownerId },
+        next,
+        { new: true }
+      );
       res.json(asProject(updated));
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -157,12 +190,18 @@ export default function projectRoutes(useMemory) {
 
   router.delete("/:id", async (req, res) => {
     try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
       if (useMemory) {
-        const removed = await memoryStore.remove(req.params.id);
+        const removed = await memoryStore.remove(req.params.id, ownerId);
         if (!removed) return res.status(404).json({ error: "Not found" });
         return res.json(asProject(removed));
       }
-      const removed = await Project.findByIdAndDelete(req.params.id);
+      const removed = await Project.findOneAndDelete({
+        _id: req.params.id,
+        ownerId,
+      });
       if (!removed) return res.status(404).json({ error: "Not found" });
       res.json(asProject(removed));
     } catch (err) {

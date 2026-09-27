@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
+import AuthPage from "./components/AuthPage.jsx";
 import Hourglass from "./components/Hourglass.jsx";
 import PourButton from "./components/PourButton.jsx";
 import ProjectPanel from "./components/ProjectPanel.jsx";
@@ -16,10 +17,20 @@ import {
   createProject,
   deleteProject,
   fetchHealth,
+  fetchMe,
   fetchProjects,
+  loginAccount,
+  logoutAccount,
+  registerAccount,
   updateProject,
 } from "./api.js";
-import { projectDuration } from "./lib/time.js";
+import {
+  clearAuthSession,
+  getAuthToken,
+  getAuthUser,
+  saveAuthSession,
+} from "./lib/auth.js";
+import { projectDuration, elapsedFromWorks } from "./lib/time.js";
 import {
   applyDailyReviewForce,
   clearDailyWorkIds,
@@ -71,6 +82,12 @@ function patchProject(list, project) {
 }
 
 export default function App() {
+  const [authUser, setAuthUser] = useState(() =>
+    getAuthToken() ? getAuthUser() : null
+  );
+  const [authReady, setAuthReady] = useState(() => !getAuthToken());
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [durationMs, setDurationMs] = useState(30_000);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pouring, setPouring] = useState(false);
@@ -102,17 +119,36 @@ export default function App() {
   const activeIdRef = useRef(null);
   const projectsRef = useRef([]);
   const pourIntentRef = useRef(false);
+  const pourTargetRef = useRef(null);
+  const topicPopupRef = useRef(null);
+  const worksPourBaselineRef = useRef(null);
+  const saveCurrentRef = useRef(null);
 
   pouringRef.current = pouring;
-  elapsedRef.current = elapsedMs;
+  topicPopupRef.current = topicPopup;
+  // Do not sync elapsedRef from state here — the pour RAF owns it while pouring.
+  // Syncing every render was resetting progress between frames.
+  if (!pouringRef.current && pourTargetRef.current == null) {
+    elapsedRef.current = elapsedMs;
+  }
   durationRef.current = durationMs;
   completedRef.current = completed;
   activeIdRef.current = activeId;
   projectsRef.current = projects;
 
   const applyProject = useCallback((project) => {
-    const duration = projectDuration(project);
-    const elapsed = Math.min(project.elapsedMs, duration);
+    let duration = projectDuration(project);
+    // Old shared-from-post templates used 30 minutes; pour looked frozen.
+    if (!duration || duration <= 0 || duration === 30 * 60 * 1000) {
+      duration = 30_000;
+    }
+    const topics = Array.isArray(project.topics) ? project.topics : [];
+    const rawElapsed = Number(project.elapsedMs) || 0;
+    // When works exist, sand follows tick ratio (e.g. 1/2 = 50%).
+    const elapsed =
+      topics.length > 0
+        ? elapsedFromWorks(topics, duration)
+        : Math.min(rawElapsed, duration);
     const done = elapsed >= duration;
     activeIdRef.current = project._id;
     durationRef.current = duration;
@@ -125,6 +161,22 @@ export default function App() {
     setElapsedMs(elapsed);
     setCompleted(done);
     setPouring(false);
+
+    // Persist corrected duration / works-based progress if stored value was wrong
+    if (
+      project.durationMs !== duration ||
+      (topics.length > 0 && Math.round(rawElapsed) !== elapsed)
+    ) {
+      void updateProject(project._id, {
+        durationMs: duration,
+        elapsedMs: elapsed,
+        completed: done,
+      })
+        .then((updated) => {
+          setProjects((list) => patchProject(list, updated));
+        })
+        .catch(() => {});
+    }
   }, []);
 
   const snapshot = useCallback(
@@ -154,6 +206,7 @@ export default function App() {
     },
     [snapshot]
   );
+  saveCurrentRef.current = saveCurrent;
 
   const finishDailyReview = useCallback(() => {
     setReviewQueue([]);
@@ -228,15 +281,85 @@ export default function App() {
           setReviewIndex(0);
         }
       }
-    } catch {
+    } catch (err) {
+      const msg = err?.message || "";
+      if (/sign in|session/i.test(msg)) {
+        setAuthUser(null);
+        return;
+      }
       setApiError("API offline — start the Express server on port 5000.");
     }
   }, [applyProject]);
 
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    const onCleared = () => setAuthUser(null);
+    window.addEventListener("sandadd:auth-cleared", onCleared);
+    return () => window.removeEventListener("sandadd:auth-cleared", onCleared);
+  }, []);
 
+  useEffect(() => {
+    let alive = true;
+    const token = getAuthToken();
+    if (!token) {
+      setAuthReady(true);
+      setAuthUser(null);
+      return undefined;
+    }
+    fetchMe()
+      .then((data) => {
+        if (!alive) return;
+        saveAuthSession({ token, user: data.user });
+        setAuthUser(data.user);
+      })
+      .catch(() => {
+        if (!alive) return;
+        clearAuthSession();
+        setAuthUser(null);
+      })
+      .finally(() => {
+        if (alive) setAuthReady(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+    loadProjects();
+  }, [authUser, loadProjects]);
+
+  const handleAuthSubmit = async ({ mode, name, email, password }) => {
+    setAuthBusy(true);
+    setAuthError("");
+    try {
+      const data =
+        mode === "register"
+          ? await registerAccount({ name, email, password })
+          : await loginAccount({ email, password });
+      saveAuthSession(data);
+      setAuthUser(data.user);
+      reviewStartedRef.current = false;
+    } catch (err) {
+      setAuthError(err.message || "Could not authenticate.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutAccount();
+    } catch {
+      clearAuthSession();
+    }
+    setAuthUser(null);
+    setProjects([]);
+    setActiveId(null);
+    setActiveName("");
+    setPage("progress");
+    reviewStartedRef.current = false;
+  };
   useEffect(() => {
     let raf;
     let last = performance.now();
@@ -244,7 +367,41 @@ export default function App() {
     const tick = (now) => {
       const dt = now - last;
       last = now;
-      if (pouringRef.current && !completedRef.current) {
+      const duration = durationRef.current;
+      const target = pourTargetRef.current;
+
+      if (target != null && duration > 0) {
+        const cur = elapsedRef.current;
+        const diff = target - cur;
+        // Slow auto-pour from works ticks (~8s for a full glass)
+        const rate = Math.max(duration / 8000, 0.15);
+        const stepBudget = rate * dt;
+
+        if (Math.abs(diff) <= stepBudget || Math.abs(diff) < 1) {
+          elapsedRef.current = target;
+          setElapsedMs(target);
+          pourTargetRef.current = null;
+          pouringRef.current = false;
+          setPouring(false);
+          const done = target >= duration - 0.5;
+          completedRef.current = done;
+          setCompleted(done);
+          // Save quietly — no chime for works-based pour
+          void saveCurrentRef.current?.(true);
+        } else {
+          const next = cur + Math.sign(diff) * stepBudget;
+          elapsedRef.current = next;
+          setElapsedMs(next);
+          completedRef.current = false;
+          setCompleted(false);
+          // Stream only while sand is falling (progress up)
+          const shouldPour = diff > 0;
+          if (pouringRef.current !== shouldPour) {
+            pouringRef.current = shouldPour;
+            setPouring(shouldPour);
+          }
+        }
+      } else if (pouringRef.current && !completedRef.current) {
         const next = Math.min(elapsedRef.current + dt, durationRef.current);
         elapsedRef.current = next;
         setElapsedMs(next);
@@ -299,6 +456,8 @@ export default function App() {
       await ensureProject();
       if (pourIntentRef.current && !completedRef.current) {
         setApiError("");
+        // Set ref immediately so RAF starts pouring before React re-renders
+        pouringRef.current = true;
         setPouring(true);
       }
     } catch (err) {
@@ -308,6 +467,7 @@ export default function App() {
 
   const stopPour = () => {
     pourIntentRef.current = false;
+    pouringRef.current = false;
     setPouring(false);
     saveCurrent(true);
   };
@@ -392,7 +552,8 @@ export default function App() {
     await saveCurrent(true);
   };
 
-  const progress = Math.min(1, elapsedMs / durationMs);
+  const progress =
+    durationMs > 0 ? Math.min(1, elapsedMs / durationMs) : 0;
   const shareProject =
     (shareSeed?.projectId &&
       projects.find((p) => p._id === shareSeed.projectId)) ||
@@ -440,7 +601,15 @@ export default function App() {
     const spaceRight = window.innerWidth - rect.right;
     const x = spaceRight > width + 16 ? rect.right + gap : rect.left - width - gap;
 
+    pourTargetRef.current = null;
+    pouringRef.current = false;
+    setPouring(false);
     applyProject(project);
+
+    worksPourBaselineRef.current = {
+      projectId: project._id,
+      fromElapsed: elapsedRef.current,
+    };
 
     if (view === "today") {
       setTopicPopup({
@@ -462,6 +631,95 @@ export default function App() {
     });
   };
 
+  const startWorksPour = useCallback((projectId) => {
+    const project = projectsRef.current.find((p) => p._id === projectId);
+    if (!project) return;
+
+    let duration = projectDuration(project);
+    if (!duration || duration <= 0 || duration === 30 * 60 * 1000) {
+      duration = 30_000;
+    }
+    const topics = Array.isArray(project.topics) ? project.topics : [];
+    const target = elapsedFromWorks(topics, duration);
+    const baseline = worksPourBaselineRef.current;
+    const fromElapsed =
+      baseline?.projectId === projectId
+        ? baseline.fromElapsed
+        : activeIdRef.current === projectId
+          ? elapsedRef.current
+          : Number(project.elapsedMs) || 0;
+
+    worksPourBaselineRef.current = null;
+    pourTargetRef.current = null;
+    pouringRef.current = false;
+    setPouring(false);
+
+    activeIdRef.current = projectId;
+    durationRef.current = duration;
+    elapsedRef.current = fromElapsed;
+    completedRef.current = false;
+    setActiveId(projectId);
+    setActiveName(project.name);
+    setDurationMs(duration);
+    setElapsedMs(fromElapsed);
+    setCompleted(false);
+
+    if (Math.abs(target - fromElapsed) < 1) {
+      elapsedRef.current = target;
+      setElapsedMs(target);
+      const done = topics.length > 0 && target >= duration - 0.5;
+      completedRef.current = done;
+      setCompleted(done);
+      return;
+    }
+
+    pourTargetRef.current = target;
+  }, []);
+
+  const closeTopicPopup = useCallback(() => {
+    const id = topicPopupRef.current?.projectId;
+    setTopicPopup(null);
+    if (id) startWorksPour(id);
+  }, [startWorksPour]);
+
+  const applyWorksProgress = useCallback(
+    async (projectId, topics) => {
+      const project = projectsRef.current.find((p) => p._id === projectId);
+      if (!project) return null;
+      const duration = projectDuration(project) || durationRef.current || 30_000;
+      const elapsedMs = elapsedFromWorks(topics, duration);
+      const completed = topics.length > 0 && elapsedMs >= duration;
+      const popupOpen = topicPopupRef.current?.projectId === projectId;
+      try {
+        const updated = await updateProject(projectId, {
+          topics,
+          durationMs: duration,
+          elapsedMs,
+          completed,
+        });
+        setProjects((list) => patchProject(list, updated));
+        setApiError("");
+
+        // While the works popup is open, keep the glass still — pour on close
+        if (activeIdRef.current === projectId && !popupOpen) {
+          pourTargetRef.current = null;
+          pouringRef.current = false;
+          elapsedRef.current = elapsedMs;
+          durationRef.current = duration;
+          completedRef.current = completed;
+          setPouring(false);
+          setElapsedMs(elapsedMs);
+          setDurationMs(duration);
+          setCompleted(completed);
+        }
+        return updated;
+      } catch (err) {
+        setApiError(err.message);
+        return null;
+      }
+    },
+    []
+  );
   const handleAddTopic = async (projectId, text) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
     if (!project) return;
@@ -473,13 +731,7 @@ export default function App() {
         done: false,
       },
     ];
-    try {
-      const updated = await updateProject(projectId, { topics });
-      setProjects((list) => patchProject(list, updated));
-      setApiError("");
-    } catch (err) {
-      setApiError(err.message);
-    }
+    await applyWorksProgress(projectId, topics);
   };
 
   const handleToggleTopic = async (projectId, topicId) => {
@@ -503,19 +755,13 @@ export default function App() {
     const topics = (project.topics || []).map((t) =>
       t.id === topicId ? { ...t, done: !t.done } : t
     );
-    try {
-      const updated = await updateProject(projectId, { topics });
-      setProjects((list) => patchProject(list, updated));
-      setApiError("");
-      if (markingDone) {
-        const topic = (updated.topics || topics).find((t) => t.id === topicId);
-        setTopicShare({
-          projectId,
-          topic: topic || { ...current, done: true },
-        });
-      }
-    } catch (err) {
-      setApiError(err.message);
+    const updated = await applyWorksProgress(projectId, topics);
+    if (updated && markingDone) {
+      const topic = (updated.topics || topics).find((t) => t.id === topicId);
+      setTopicShare({
+        projectId,
+        topic: topic || { ...current, done: true },
+      });
     }
   };
 
@@ -523,13 +769,7 @@ export default function App() {
     const project = projectsRef.current.find((p) => p._id === projectId);
     if (!project) return;
     const topics = (project.topics || []).filter((t) => t.id !== topicId);
-    try {
-      const updated = await updateProject(projectId, { topics });
-      setProjects((list) => patchProject(list, updated));
-      setApiError("");
-    } catch (err) {
-      setApiError(err.message);
-    }
+    await applyWorksProgress(projectId, topics);
   };
 
   const popupProject = topicPopup
@@ -542,12 +782,33 @@ export default function App() {
     ? projects.find((p) => p._id === worksPickerId)
     : null;
 
+  if (!authReady) {
+    return (
+      <div className="app auth-boot" aria-busy="true">
+        <p className="auth-boot-text">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <AuthPage
+        busy={authBusy}
+        error={authError}
+        onClearError={() => setAuthError("")}
+        onAuthed={handleAuthSubmit}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <Navbar
         storage={storage}
         activeName={activeName}
         page={page}
+        userName={authUser.name}
+        onLogout={handleLogout}
         onNavigate={(next) => {
           if (next !== "social") setSocialGroupId(null);
           if (next !== "messages") setMessagesThreadId(null);
@@ -556,7 +817,29 @@ export default function App() {
       />
 
       {page === "social" ? (
-        <SocialPage key={socialGroupId || "social"} initialGroupId={socialGroupId} />
+        <SocialPage
+          key={socialGroupId || "social"}
+          initialGroupId={socialGroupId}
+          onAddSharedProject={async (template) => {
+            const durationMs = durationRef.current || 30_000;
+            const created = await createProject({
+              name: template.name,
+              durationMs,
+              elapsedMs: 0,
+              completed: false,
+              topics: Array.isArray(template.works)
+                ? template.works.map((w, index) => ({
+                    id: w.id || `t-${Date.now()}-${index}`,
+                    text: w.text,
+                    done: false,
+                  }))
+                : [],
+            });
+            setProjects((list) => upsertProject(list, created));
+            applyProject(created);
+            setPage("progress");
+          }}
+        />
       ) : page === "messages" ? (
         <MessagesPage
           key={messagesThreadId || "messages"}
@@ -705,7 +988,7 @@ export default function App() {
           y={topicPopup.y}
           mode={topicPopup.mode || "all"}
           topicIds={topicPopup.topicIds}
-          onClose={() => setTopicPopup(null)}
+          onClose={closeTopicPopup}
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}
           onToggle={handleToggleTopic}
@@ -717,8 +1000,9 @@ export default function App() {
           onClose={() => setTopicShare(null)}
           onShare={(proof) => {
             const topicText = topicShare.topic?.text || "a work item";
+            const projectId = topicShare.projectId;
             setShareSeed({
-              projectId: topicShare.projectId,
+              projectId,
               topicId: topicShare.topic?.id || null,
               proof,
               caption: `Finished: ${topicText}`,
@@ -726,6 +1010,7 @@ export default function App() {
             setTopicShare(null);
             setTopicPopup(null);
             setShareOpen(true);
+            if (projectId) startWorksPour(projectId);
           }}
         />
       )}

@@ -5,6 +5,7 @@ import {
   addGroupPost,
   addSharedMessage,
   addUserPost,
+  buildSharePayloadFromProject,
   fileToProof,
   getShareGroups,
   readAuthorProfile,
@@ -115,6 +116,20 @@ export default function ShareProjectModal({
 
     const author = readAuthorProfile();
     const body = caption.trim() || `Finished ${project?.name || "a project"}`;
+    let { works, sharedProject } = buildSharePayloadFromProject(project);
+    if (works.length > 0) {
+      const includeWorks = window.confirm(
+        'Include “What the works to do in this project” in this post?'
+      );
+      if (!includeWorks) {
+        works = [];
+        // Declined works → no Add to Progress on the post
+        sharedProject = null;
+      }
+    } else {
+      // No works to share → don't offer Add to Progress
+      sharedProject = null;
+    }
     const base = {
       id: `user-${Date.now()}`,
       name: author.name,
@@ -124,6 +139,8 @@ export default function ShareProjectModal({
       projectId: project?._id || null,
       projectName: project?.name || "",
       topicId: topicId || null,
+      works,
+      sharedProject,
       proof,
       createdAt: new Date().toISOString(),
       isUser: true,
@@ -146,6 +163,8 @@ export default function ShareProjectModal({
         proof,
         projectName: project?.name || "",
         topicId: topicId || null,
+        works,
+        sharedProject,
         createdAt: new Date().toISOString(),
       };
       addSharedMessage(threadId, message);

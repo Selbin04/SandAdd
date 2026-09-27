@@ -3,6 +3,7 @@ const GROUP_FEED_KEY = "sandadd.groupPosts";
 const CUSTOM_GROUPS_KEY = "sandadd.customGroups";
 const PROFILE_KEY = "sandadd.userProfile";
 const MESSAGE_SHARE_KEY = "sandadd.messageShares";
+const ADDED_TEMPLATES_KEY = "sandadd.addedProjectTemplates";
 const DB_NAME = "sandadd.media";
 const DB_VERSION = 2;
 
@@ -65,6 +66,79 @@ export function createCustomGroup({ name, blurb = "" }) {
   };
   saveCustomGroups([group, ...loadCustomGroups()]);
   return group;
+}
+
+export function loadAddedTemplateIds() {
+  try {
+    const raw = localStorage.getItem(ADDED_TEMPLATES_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markTemplateAdded(templateId) {
+  if (!templateId) return;
+  const id = String(templateId);
+  const next = Array.from(new Set([...loadAddedTemplateIds(), id]));
+  try {
+    localStorage.setItem(ADDED_TEMPLATES_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Snapshot a project's works list for posts / messages. */
+export function snapshotProjectWorks(project) {
+  const topics = Array.isArray(project?.topics) ? project.topics : [];
+  return topics
+    .map((t) => ({
+      id: String(t.id || ""),
+      text: String(t.text || "").trim().slice(0, 80),
+      done: Boolean(t.done),
+    }))
+    .filter((t) => t.text);
+}
+
+/** Build a shareable project payload for a social post. */
+export function buildSharedProject({ name, worksText = "", durationMs = 30_000 }) {
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  if (!trimmed) {
+    throw new Error("Enter a project name");
+  }
+  const works = String(worksText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 20)
+    .map((text, index) => ({
+      id: `w-${Date.now()}-${index}`,
+      text: text.slice(0, 80),
+      done: false,
+    }));
+  return {
+    templateId: `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    name: trimmed.slice(0, 80),
+    works,
+    durationMs: durationMs || 30_000,
+  };
+}
+
+/** Attach works (and cloneable project) when sharing a finished Progress project. */
+export function buildSharePayloadFromProject(project) {
+  if (!project?.name) return { works: [], sharedProject: null };
+  const works = snapshotProjectWorks(project);
+  return {
+    works,
+    sharedProject: {
+      templateId: `fin-${project._id || "p"}-${Date.now()}`,
+      name: project.name,
+      works,
+      durationMs: project.durationMs || project.timeoutMs || 30_000,
+    },
+  };
 }
 
 const DEFAULT_PROFILE = {
