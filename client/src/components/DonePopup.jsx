@@ -336,7 +336,7 @@ export default function DonePopup({
         <p className="done-hint">
           {todayMode
             ? "Works to do today"
-            : "What the works to do in this project"}
+            : "What the works to do"}
         </p>
 
         {topics.length === 0 ? (

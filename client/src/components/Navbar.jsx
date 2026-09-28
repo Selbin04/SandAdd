@@ -101,8 +101,8 @@ export default function Navbar({
 
         <div className="navbar-meta">
           <span className={`storage-pill ${storage}`}>{storage}</span>
-          <span className="navbar-active" title={activeName || "No project"}>
-            {activeName || "No project"}
+          <span className="navbar-active" title={activeName || "No work"}>
+            {activeName || "No work"}
           </span>
           <button
             type="button"

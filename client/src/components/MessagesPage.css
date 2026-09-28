@@ -21,6 +21,12 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.messages-list::-webkit-scrollbar {
+  display: none;
 }
 
 .messages-thread {
@@ -165,6 +171,12 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.messages-bubbles::-webkit-scrollbar {
+  display: none;
 }
 
 .messages-bubbles-spacer {

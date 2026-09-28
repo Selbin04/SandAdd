@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
 import { WorkSourceControl } from "./SourceMedia.jsx";
@@ -106,7 +106,7 @@ function MessageBubble({ msg }) {
           ) : null}
           {works.length > 0 ? (
             <>
-              <p className="messages-works-label">What the works to do in this project</p>
+              <p className="messages-works-label">What the works to do</p>
               <ul>
                 {works.map((w) => (
                   <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
@@ -130,6 +130,7 @@ export default function MessagesPage({ initialThreadId = null }) {
   const [draft, setDraft] = useState("");
   const [extraByThread, setExtraByThread] = useState({});
   const bubblesRef = useRef(null);
+  const endRef = useRef(null);
   const [sharedByThread, setSharedByThread] = useState(() => {
     const start = {};
     THREADS.forEach((t) => {
@@ -176,12 +177,19 @@ export default function MessagesPage({ initialThreadId = null }) {
     ...(active.messages || []),
     ...[...extras, ...shared].sort((a, b) => messageTime(a) - messageTime(b)),
   ];
+  const messagesKey = messages.map((m) => m.id).join("|");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = bubblesRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [activeId, messages.length]);
+    const end = endRef.current;
+    const jump = () => {
+      if (el) el.scrollTop = el.scrollHeight;
+      end?.scrollIntoView({ block: "end" });
+    };
+    jump();
+    const frame = requestAnimationFrame(jump);
+    return () => cancelAnimationFrame(frame);
+  }, [activeId, messagesKey]);
 
   const send = (e) => {
     e.preventDefault();
@@ -245,6 +253,7 @@ export default function MessagesPage({ initialThreadId = null }) {
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
+          <div ref={endRef} aria-hidden="true" />
         </div>
 
         <form className="messages-compose" onSubmit={send}>

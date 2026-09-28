@@ -37,7 +37,7 @@ export default function PourButton({
       </button>
 
       <button type="button" className="reset" onClick={onReset}>
-        Reset this project
+        Reset this work
       </button>
 
       <p className="pour-caption">

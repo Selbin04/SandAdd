@@ -9,7 +9,7 @@ export default function SelectedStack({ projects, activeId, onSelect, onOpenTopi
       </header>
       {projects.length === 0 ? (
         <p className="empty">
-          Projects and today&apos;s works from the morning review appear here. Double-click to see today&apos;s works.
+          Works and today&apos;s list from the morning review appear here. Double-click to see today&apos;s list.
         </p>
       ) : (
         <ul className="project-list">

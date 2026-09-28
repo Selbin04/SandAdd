@@ -157,6 +157,23 @@
   color: var(--muted);
 }
 
+.share-remove-proof {
+  display: block;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.share-remove-proof:hover {
+  color: var(--danger);
+}
+
 .share-preview {
   display: block;
   width: 100%;

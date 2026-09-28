@@ -30,11 +30,8 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
   };
 
   const openShareTab = () => {
-    if (!proof) {
-      setError("Attach proof before sharing.");
-      return;
-    }
-    onShare?.(proof);
+    setError("");
+    onShare?.(proof || null);
   };
 
   return (
@@ -47,7 +44,7 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
       >
         <h2 id="topic-share-title">Share progress?</h2>
         <p className="topic-share-copy">
-          If you want to share your progress, attach the proof.
+          Share this progress. Proof is optional.
         </p>
         {topic?.text ? (
           <p className="topic-share-topic">
@@ -63,7 +60,27 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
           onChange={onFileChange}
         />
 
-        {proofName ? <p className="topic-share-file">{proofName}</p> : null}
+        {proofName ? (
+          <>
+            <p className="topic-share-file">{proofName}</p>
+            <button
+              type="button"
+              className="topic-share-remove"
+              disabled={busy}
+              onClick={() => {
+                setProof(null);
+                setProofName("");
+                setError("");
+              }}
+            >
+              Remove proof
+            </button>
+          </>
+        ) : (
+          <p className="topic-share-file is-muted">
+            Optional — image, video, or PDF
+          </p>
+        )}
         <ProofMedia proof={proof} className="topic-share-preview" />
         {error ? <p className="topic-share-error">{error}</p> : null}
 
@@ -74,7 +91,7 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
             disabled={busy}
             onClick={() => fileRef.current?.click()}
           >
-            {proofName ? "Change" : "Attach"}
+            {proofName ? "Change" : "Add proof"}
           </button>
           <button type="button" className="topic-share-close" onClick={onClose}>
             Close

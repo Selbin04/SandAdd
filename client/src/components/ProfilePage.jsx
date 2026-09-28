@@ -280,7 +280,7 @@ export default function ProfilePage({
       <div className="profile-card">
         <h2>About you</h2>
         <p>
-          This is your SandAdd user profile — separate from any project you pour
+          This is your SandAdd user profile — separate from any work you pour
           into. Your name here is who you are on Social and Messages.
         </p>
       </div>
@@ -311,7 +311,7 @@ export default function ProfilePage({
           className={section === "projects" ? "is-active" : ""}
           onClick={() => setSection("projects")}
         >
-          Projects
+          Works
         </button>
       </div>
 
@@ -365,7 +365,7 @@ export default function ProfilePage({
                               </p>
                             )}
                             <p className="profile-post-works-label">
-                              What the works to do in this project
+                              What the works to do
                             </p>
                             {works.length > 0 ? (
                               <ul>
@@ -423,7 +423,7 @@ export default function ProfilePage({
         ) : section === "saved" ? (
           <p className="profile-empty">No any saved to show</p>
         ) : projects.length === 0 ? (
-          <p className="profile-empty">No any projects to show</p>
+          <p className="profile-empty">No works to show</p>
         ) : (
           <ul className="profile-project-list">
             {projects.map((project) => {

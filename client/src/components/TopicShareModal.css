@@ -49,6 +49,28 @@
   word-break: break-all;
 }
 
+.topic-share-file.is-muted {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.topic-share-remove {
+  display: block;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.topic-share-remove:hover {
+  color: var(--danger);
+}
+
 .topic-share-preview {
   display: block;
   width: 100%;

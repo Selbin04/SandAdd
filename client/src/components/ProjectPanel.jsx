@@ -38,7 +38,7 @@ export default function ProjectPanel({
           <input
             type="text"
             maxLength={80}
-            placeholder="New project name"
+            placeholder="New work name"
             value={newName}
             onChange={(e) => onNewName(e.target.value)}
           />

@@ -44,7 +44,7 @@ const SAMPLE_FEED = [
     initial: "M",
     name: "Maya",
     meta: "poured 2 hr · API rewrite",
-    body: "Three important projects cleared before noon. Hourglass never lied.",
+    body: "Three important works cleared before noon. Hourglass never lied.",
   },
   {
     id: "3",
@@ -253,19 +253,19 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
         <div className="social-shared-project">
           {shared?.name ? (
             <>
-              <p className="social-shared-project-label">Shared project</p>
+              <p className="social-shared-project-label">Shared work</p>
               <strong className="social-shared-project-name">{shared.name}</strong>
             </>
           ) : item.projectName ? (
             <>
-              <p className="social-shared-project-label">Project</p>
+              <p className="social-shared-project-label">Work</p>
               <strong className="social-shared-project-name">{item.projectName}</strong>
             </>
           ) : null}
           {works.length > 0 ? (
             <>
               <p className="social-shared-project-label is-works">
-                What the works to do in this project
+                What the works to do
               </p>
               <ul className="social-shared-project-works">
                 {works.map((w) => (
@@ -405,7 +405,7 @@ export default function SocialPage({
       setSharedProject(next);
       setShowProjectForm(false);
     } catch (err) {
-      setPostError(err.message || "Could not add project");
+      setPostError(err.message || "Could not add work");
     }
   };
 
@@ -460,7 +460,7 @@ export default function SocialPage({
       markTemplateAdded(id);
       setAddedTemplateIds(new Set(loadAddedTemplateIds()));
     } catch (err) {
-      setPostError(err.message || "Could not add project to Progress");
+      setPostError(err.message || "Could not add work to Progress");
     } finally {
       setAddingTemplateId(null);
     }
@@ -548,7 +548,7 @@ export default function SocialPage({
     let nextShare = { ...projectShare, works };
     if (works.length > 0) {
       const includeWorks = window.confirm(
-        'Include “What the works to do in this project” in this post?'
+        'Include “What the works to do” in this post?'
       );
       if (!includeWorks) {
         // Declined → no works list and no Add to Progress
@@ -565,7 +565,7 @@ export default function SocialPage({
     e.preventDefault();
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a project to post.");
+      setPostError("Write something or add a work to post.");
       return;
     }
     const author = readAuthorProfile();
@@ -576,8 +576,8 @@ export default function SocialPage({
       name: author.name,
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      meta: projectShare ? "shared a project · just now" : "just now",
-      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
+      meta: projectShare ? "shared a work · just now" : "just now",
+      body: body || (attachedName ? `Shared work: ${attachedName}` : ""),
       proof: proof || null,
       works,
       sharedProject: projectShare,
@@ -595,7 +595,7 @@ export default function SocialPage({
     if (!openGroupId || !openGroup) return;
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a project to post.");
+      setPostError("Write something or add a work to post.");
       return;
     }
     const author = readAuthorProfile();
@@ -607,9 +607,9 @@ export default function SocialPage({
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
       meta: projectShare
-        ? `shared a project · ${openGroup.name}`
+        ? `shared a work · ${openGroup.name}`
         : `in ${openGroup.name}`,
-      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
+      body: body || (attachedName ? `Shared work: ${attachedName}` : ""),
       proof: proof || null,
       works,
       sharedProject: projectShare,
@@ -639,7 +639,7 @@ export default function SocialPage({
           setShowProjectForm((v) => !v);
         }}
       >
-        {sharedProject ? "Remove project" : "Project"}
+        {sharedProject ? "Remove work" : "Work"}
       </button>
     </>
   );
@@ -650,12 +650,12 @@ export default function SocialPage({
         type="text"
         value={projectName}
         onChange={(e) => setProjectName(e.target.value)}
-        placeholder="Project name"
+        placeholder="Work name"
         maxLength={80}
-        aria-label="Project name"
+        aria-label="Work name"
       />
       <p className="social-project-works-label">
-        What the works to do in this project
+        What the works to do
       </p>
       <ul className="social-project-works-edit">
         {draftWorks.map((work, index) => (
@@ -730,7 +730,7 @@ export default function SocialPage({
           className="social-project-compose-save"
           onClick={applyProjectToCompose}
         >
-          Add project to post
+          Add work to post
         </button>
       </div>
     </div>
@@ -738,7 +738,7 @@ export default function SocialPage({
 
   const sharedProjectChip = sharedProject ? (
     <p className="social-project-chip">
-      Project ready: <strong>{sharedProject.name}</strong>
+      Work ready: <strong>{sharedProject.name}</strong>
       {sharedProject.works?.length
         ? ` · ${sharedProject.works.length} work${sharedProject.works.length === 1 ? "" : "s"}`
         : ""}

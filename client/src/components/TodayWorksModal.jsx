@@ -25,12 +25,12 @@ export default function TodayWorksModal({ project, onConfirm, onSkip }) {
         <p className="today-works-eyebrow">Works for today</p>
         <h2 id="today-works-title">{project.name}</h2>
         <p className="today-works-hint">
-          Pick which works to do on this project today
+          Pick which works to do today
         </p>
 
         {topics.length === 0 ? (
           <p className="today-works-empty">
-            No works listed yet. Add them by double-clicking this project in Important or Projects.
+            No works listed yet. Add them by double-clicking this work in Important or Works.
           </p>
         ) : (
           <ul className="today-works-list">

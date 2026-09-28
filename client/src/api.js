@@ -63,7 +63,7 @@ export async function fetchProjects() {
   const res = await fetch(`${API}/projects`, {
     headers: authHeaders(),
   });
-  return readJson(res, "Could not load projects");
+  return readJson(res, "Could not load works");
 }
 
 export async function createProject(payload) {
@@ -72,7 +72,7 @@ export async function createProject(payload) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  return readJson(res, "Could not create project");
+  return readJson(res, "Could not create work");
 }
 
 export async function updateProject(id, payload) {
@@ -81,7 +81,7 @@ export async function updateProject(id, payload) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  return readJson(res, "Could not save project");
+  return readJson(res, "Could not save work");
 }
 
 export async function deleteProject(id) {
@@ -89,5 +89,5 @@ export async function deleteProject(id) {
     method: "DELETE",
     headers: authHeaders(),
   });
-  return readJson(res, "Could not delete project");
+  return readJson(res, "Could not delete work");
 }

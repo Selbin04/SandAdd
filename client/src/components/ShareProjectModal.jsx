@@ -16,7 +16,7 @@ import "./ShareProjectModal.css";
 const TARGETS = [
   { id: "post", label: "Post", hint: "Share to Social → View", ready: true },
   { id: "groups", label: "Groups", hint: "Share into a group feed", ready: true },
-  { id: "messages", label: "Messages", hint: "Send proof in a chat", ready: true },
+  { id: "messages", label: "Messages", hint: "Send in a chat", ready: true },
 ];
 
 export default function ShareProjectModal({
@@ -109,20 +109,16 @@ export default function ShareProjectModal({
       setError("Pick a chat first.");
       return;
     }
-    if (!proof) {
-      setError("Attach a proof file before posting.");
-      return;
-    }
 
     setBusy(true);
     setError("");
     try {
       const author = readAuthorProfile();
-      const body = caption.trim() || `Finished ${project?.name || "a project"}`;
+      const body = caption.trim() || `Finished ${project?.name || "a work"}`;
       let { works, sharedProject } = await buildSharePayloadFromProject(project);
       if (works.length > 0) {
         const includeWorks = window.confirm(
-          'Include “What the works to do in this project” in this post?'
+          'Include “What the works to do” in this post?'
         );
         if (!includeWorks) {
           works = [];
@@ -144,7 +140,7 @@ export default function ShareProjectModal({
         topicId: topicId || null,
         works,
         sharedProject,
-        proof,
+        proof: proof || null,
         createdAt: new Date().toISOString(),
         isUser: true,
       };
@@ -152,7 +148,7 @@ export default function ShareProjectModal({
       if (target === "groups") {
         const post = {
           ...base,
-          meta: `finished · ${project?.name || "project"} · ${selectedGroup?.name || "group"}`,
+          meta: `finished · ${project?.name || "work"} · ${selectedGroup?.name || "group"}`,
           groupId,
           groupName: selectedGroup?.name || "",
         };
@@ -175,7 +171,7 @@ export default function ShareProjectModal({
       } else {
         const post = {
           ...base,
-          meta: `finished · ${project?.name || "project"}`,
+          meta: `finished · ${project?.name || "work"}`,
           groupId: null,
           groupName: "",
         };
@@ -207,22 +203,22 @@ export default function ShareProjectModal({
 
   const proofHint =
     target === "groups"
-      ? `Add a proof, then post to ${selectedGroup?.name || "the group"}.`
+      ? `Write a caption (proof optional), then post to ${selectedGroup?.name || "the group"}.`
       : target === "messages"
-        ? `Add a proof, then send to ${selectedThread?.name || "the chat"}.`
-        : "Add a proof that you finished this project, then post it to Social View.";
+        ? `Write a caption (proof optional), then send to ${selectedThread?.name || "the chat"}.`
+        : "Write a caption to share this work. Proof is optional.";
 
   return (
     <div className="share-backdrop" onMouseDown={onClose} role="presentation">
       <div
         className="share-card"
         role="dialog"
-        aria-label="Share completed project"
+        aria-label="Share completed work"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="share-head">
           <h2>Share</h2>
-          <p>{project?.name || "Completed project"}</p>
+          <p>{project?.name || "Completed work"}</p>
         </header>
 
         {step === "target" ? (
@@ -266,7 +262,7 @@ export default function ShareProjectModal({
                 <span className="share-num">{i + 1}</span>
                 <span>
                   <strong>{group.name}</strong>
-                  <small>Share proof into this group</small>
+                  <small>Share into this group</small>
                 </span>
               </button>
             ))}
@@ -297,7 +293,7 @@ export default function ShareProjectModal({
                     {thread.name}
                     {thread.official ? " · Team" : ""}
                   </strong>
-                  <small>Send proof in this conversation</small>
+                  <small>Send in this conversation</small>
                 </span>
               </button>
             ))}
@@ -331,13 +327,27 @@ export default function ShareProjectModal({
                 disabled={busy}
                 onClick={() => fileRef.current?.click()}
               >
-                {proofName ? "Change proof file" : "Select proof from files"}
+                {proofName ? "Change proof file" : "Add proof (optional)"}
               </button>
               {proofName ? (
-                <p className="share-file-name">{proofName}</p>
+                <>
+                  <p className="share-file-name">{proofName}</p>
+                  <button
+                    type="button"
+                    className="share-remove-proof"
+                    disabled={busy}
+                    onClick={() => {
+                      setProof(null);
+                      setProofName("");
+                      setError("");
+                    }}
+                  >
+                    Remove proof
+                  </button>
+                </>
               ) : (
                 <p className="share-file-name is-muted">
-                  Image, video, or PDF — videos up to 20 MB
+                  Optional — image, video, or PDF (videos up to 20 MB)
                 </p>
               )}
               <ProofMedia proof={proof} className="share-preview" />

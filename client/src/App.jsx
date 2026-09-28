@@ -443,7 +443,7 @@ export default function App() {
     if (activeIdRef.current) return activeIdRef.current;
     const count = projectsRef.current.length + 1;
     const created = await createProject({
-      name: `Project ${count}`,
+      name: `Work ${count}`,
       durationMs: durationRef.current,
       elapsedMs: 0,
       completed: false,
@@ -480,7 +480,7 @@ export default function App() {
     try {
       await saveCurrent(false);
       const count = projectsRef.current.length + 1;
-      const name = newName.trim() || `Project ${count}`;
+      const name = newName.trim() || `Work ${count}`;
       const created = await createProject({
         name,
         durationMs: durationRef.current,
@@ -933,7 +933,7 @@ export default function App() {
 
         <main className="stage layout-stage" id="stage">
           <p className="active-project">
-            {activeName ? `Working on ${activeName}` : "No project yet — pour or save one"}
+            {activeName ? `Working on ${activeName}` : "No work yet — pour or save one"}
           </p>
           <div className="glass-row">
             <div className="glass-wrap">
@@ -983,19 +983,19 @@ export default function App() {
 
           <p className="status">
             {completed
-              ? `${activeName || "This project"} is finished.`
+              ? `${activeName || "This work"} is finished.`
               : pouring
-                ? `Marking progress on ${activeName || "a new project"}…`
+                ? `Marking progress on ${activeName || "a new work"}…`
                 : elapsedMs > 0
                   ? "Paused — progress is saved. Hold POUR to continue."
-                  : "Idle — hold POUR to mark work on this project."}
+                  : "Idle — hold POUR to mark progress on this work."}
           </p>
           {apiError && <p className="api-error">{apiError}</p>}
         </main>
 
         <div id="projects-panel" className="layout-projects">
           <ProjectPanel
-            title="Projects"
+            title="Works"
             projects={regularProjects}
             activeId={activeId}
             storage={storage}
@@ -1008,7 +1008,7 @@ export default function App() {
             onDelete={handleDelete}
             onToggleImportant={handleToggleImportant}
             importantAction="add"
-            emptyText="Create a project, pour as you work, then save another. Star a project to move it to Important. Double-click a project to list what work to do."
+            emptyText="Create a work, pour as you go, then save another. Star a work to move it to Important. Double-click a work to list what to do."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
           />
         </div>
@@ -1022,7 +1022,7 @@ export default function App() {
             onDelete={handleDelete}
             onToggleImportant={handleToggleImportant}
             importantAction="remove"
-            emptyText="Star a project to keep it here. Use up to 5 stars to set priority."
+            emptyText="Star a work to keep it here. Use up to 5 stars to set priority."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
             onSetStars={handleSetStars}
           />
@@ -1070,7 +1070,7 @@ export default function App() {
             setShareSeed({
               projectId,
               topicId: topicShare.topic?.id || null,
-              proof,
+              proof: proof || null,
               caption: `Finished: ${topicText}`,
             });
             setTopicShare(null);
