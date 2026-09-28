@@ -75,6 +75,11 @@ export const memoryStore = {
     elapsedMs = 0,
     completed = false,
     topics = [],
+    originId = null,
+    originMode = null,
+    tasksLocked = false,
+    sharedTemplateId = null,
+    folderId = null,
   }) {
     const now = new Date();
     const doc = {
@@ -87,6 +92,11 @@ export const memoryStore = {
       important: false,
       stars: 0,
       topics: Array.isArray(topics) ? topics : [],
+      originId: originId ? String(originId) : null,
+      originMode: originMode === "assign" || originMode === "follow" ? originMode : null,
+      tasksLocked: Boolean(tasksLocked || originId),
+      sharedTemplateId: sharedTemplateId ? String(sharedTemplateId) : null,
+      folderId: folderId ? String(folderId) : null,
       createdAt: now,
       updatedAt: now,
       lastWorkedAt: now,
@@ -109,6 +119,15 @@ export const memoryStore = {
     if (patch.important !== undefined) doc.important = Boolean(patch.important);
     if (patch.stars !== undefined) doc.stars = patch.stars;
     if (patch.topics !== undefined) doc.topics = patch.topics;
+    if (patch.originId !== undefined) doc.originId = patch.originId;
+    if (patch.originMode !== undefined) doc.originMode = patch.originMode;
+    if (patch.tasksLocked !== undefined) doc.tasksLocked = Boolean(patch.tasksLocked);
+    if (patch.sharedTemplateId !== undefined) {
+      doc.sharedTemplateId = patch.sharedTemplateId;
+    }
+    if (patch.folderId !== undefined) {
+      doc.folderId = patch.folderId ? String(patch.folderId) : null;
+    }
     if (doc.elapsedMs > doc.durationMs) doc.elapsedMs = doc.durationMs;
     doc.completed = doc.elapsedMs >= doc.durationMs;
     if (patch.bump) doc.lastWorkedAt = new Date();

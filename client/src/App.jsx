@@ -11,8 +11,12 @@ import TodayWorksModal from "./components/TodayWorksModal.jsx";
 import SocialPage from "./components/SocialPage.jsx";
 import MessagesPage from "./components/MessagesPage.jsx";
 import ProfilePage from "./components/ProfilePage.jsx";
+import UserProfilePage from "./components/UserProfilePage.jsx";
 import ShareProjectModal from "./components/ShareProjectModal.jsx";
 import TopicShareModal from "./components/TopicShareModal.jsx";
+import WorkShareModal from "./components/WorkShareModal.jsx";
+import FolderPanel from "./components/FolderPanel.jsx";
+import CreateFolderModal from "./components/CreateFolderModal.jsx";
 import {
   createProject,
   deleteProject,
@@ -47,8 +51,30 @@ import {
   deleteSharesForTopic,
   persistTopicSourceProof,
   prepareTopicsForSave,
+  readAuthorProfile,
   restoreProjectsTopicMedia,
+  unmarkTemplatesForDeletedProject,
 } from "./lib/socialFeed.js";
+import {
+  applyLiveProgress,
+  followerTopicsNeedSync,
+  getLiveWork,
+  isLiveWorkDeleted,
+  isTasksLocked,
+  liveOriginKey,
+  mergeFollowerTopics,
+  publishLiveWork,
+  reportLiveTopicProgress,
+  subscribeLiveSync,
+  unpublishLiveWork,
+} from "./lib/liveWorks.js";
+import {
+  applyFolderMembership,
+  createFolder,
+  deleteFolder,
+  loadFolders,
+  setWorkFolder,
+} from "./lib/folders.js";
 import "./App.css";
 
 function playChime() {
@@ -111,8 +137,11 @@ export default function App() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSeed, setShareSeed] = useState(null);
   const [topicShare, setTopicShare] = useState(null);
+  const [workShare, setWorkShare] = useState(null); // { project, mode }
   const [socialGroupId, setSocialGroupId] = useState(null);
   const [messagesThreadId, setMessagesThreadId] = useState(null);
+  const [folders, setFolders] = useState([]);
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const reviewStartedRef = useRef(false);
 
   const pouringRef = useRef(false);
@@ -267,7 +296,164 @@ export default function App() {
     try {
       const [health, list] = await Promise.all([fetchHealth(), fetchProjects()]);
       setStorage(health.storage || "file");
-      const withMedia = await restoreProjectsTopicMedia(list);
+      let withMedia = await restoreProjectsTopicMedia(list);
+
+      const synced = [];
+      for (const project of withMedia) {
+        if (!project.originId) {
+          // Creator work that was shared: pull follower ticks into the list
+          const live = getLiveWork(project._id);
+          if (live && !live.deleted) {
+            const topics = applyLiveProgress(project.topics || [], project._id);
+            const changed = topics.some((t) => {
+              const prev = (project.topics || []).find((x) => x.id === t.id);
+              return Boolean(prev?.done) !== Boolean(t.done);
+            });
+            if (changed) {
+              const duration = projectDuration(project) || live.durationMs || 30_000;
+              const elapsedMs = elapsedFromWorks(topics, duration);
+              const completed = topics.length > 0 && elapsedMs >= duration;
+              try {
+                const topicsForSave = await prepareTopicsForSave(topics);
+                const updated = await updateProject(project._id, {
+                  topics: topicsForSave,
+                  durationMs: duration,
+                  elapsedMs,
+                  completed,
+                });
+                const mergedTopics = (updated.topics || topicsForSave).map((t) => {
+                  const local = topics.find((x) => x.id === t.id);
+                  if (local?.sourceProof?.dataUrl) {
+                    return {
+                      ...t,
+                      sourceProof: { ...t.sourceProof, ...local.sourceProof },
+                    };
+                  }
+                  return { ...t, done: Boolean(local?.done ?? t.done) };
+                });
+                const merged = { ...updated, topics: mergedTopics };
+                synced.push(merged);
+                if (activeIdRef.current === project._id) {
+                  applyProject(merged);
+                }
+                continue;
+              } catch {
+                synced.push({ ...project, topics, elapsedMs, completed });
+                continue;
+              }
+            }
+          }
+          synced.push(project);
+          continue;
+        }
+
+        // Creator deleted the source work → remove from this Progress list
+        if (isLiveWorkDeleted(project.originId)) {
+          try {
+            await deleteProject(project._id);
+          } catch {
+            /* ignore */
+          }
+          unmarkTemplatesForDeletedProject(project);
+          setSelectedIds((ids) => {
+            const next = ids.filter((id) => id !== project._id);
+            saveDailySelectedIds(next);
+            return next;
+          });
+          clearDailyWorkIds(project._id);
+          continue;
+        }
+
+        const live = getLiveWork(project.originId);
+        if (!live?.works) {
+          synced.push({ ...project, tasksLocked: true });
+          continue;
+        }
+        const topics = mergeFollowerTopics(
+          project.topics,
+          live.works,
+          project.originId
+        );
+        const duration = projectDuration(project) || live.durationMs || 30_000;
+        const elapsedMs = elapsedFromWorks(topics, duration);
+        const completed = topics.length > 0 && elapsedMs >= duration;
+        const name = live.name || project.name;
+        const needsSync = followerTopicsNeedSync(
+          project.topics,
+          live.works,
+          project.originId
+        );
+        const elapsedChanged =
+          Math.abs((Number(project.elapsedMs) || 0) - elapsedMs) > 0.5 ||
+          Boolean(project.completed) !== completed ||
+          (live.name && live.name !== project.name);
+        if (!needsSync && !elapsedChanged) {
+          synced.push({
+            ...project,
+            name,
+            topics,
+            tasksLocked: true,
+            originId: project.originId,
+            originMode: project.originMode || live.mode || "follow",
+          });
+          continue;
+        }
+        try {
+          const topicsForSave = await prepareTopicsForSave(topics);
+          const updated = await updateProject(project._id, {
+            name,
+            topics: topicsForSave,
+            durationMs: duration,
+            elapsedMs,
+            completed,
+            originId: project.originId,
+            originMode: project.originMode || live.mode || "follow",
+            tasksLocked: true,
+          });
+          const mergedTopics = (updated.topics || topicsForSave).map((t) => {
+            const local = topics.find((x) => x.id === t.id);
+            if (local?.sourceProof?.dataUrl) {
+              return {
+                ...t,
+                done: Boolean(local?.done ?? t.done),
+                sourceProof: { ...t.sourceProof, ...local.sourceProof },
+              };
+            }
+            return {
+              ...t,
+              done: Boolean(local?.done ?? t.done),
+              text: local?.text || t.text,
+              source: local?.source ?? t.source,
+            };
+          });
+          synced.push({
+            ...updated,
+            topics: mergedTopics,
+            tasksLocked: true,
+            originId: project.originId,
+            originMode: project.originMode || live.mode || "follow",
+          });
+          if (activeIdRef.current === project._id) {
+            const activeMerged = synced[synced.length - 1];
+            applyProject(activeMerged);
+          }
+        } catch {
+          synced.push({
+            ...project,
+            name,
+            topics,
+            elapsedMs,
+            completed,
+            tasksLocked: true,
+          });
+        }
+      }
+      withMedia = synced;
+
+      const uid = getAuthUser()?.id;
+      if (uid) {
+        withMedia = applyFolderMembership(uid, withMedia);
+      }
       setProjects(withMedia);
       setApiError("");
       if (!activeIdRef.current && withMedia[0]) applyProject(withMedia[0]);
@@ -294,6 +480,54 @@ export default function App() {
       setApiError("API offline — start the Express server on port 5000.");
     }
   }, [applyProject]);
+
+  useEffect(() => {
+    if (!authUser?.id) {
+      setFolders([]);
+      return;
+    }
+    setFolders(loadFolders(authUser.id));
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    if (!authUser) return undefined;
+
+    let syncTimer = null;
+    const requestSync = () => {
+      if (syncTimer) return;
+      syncTimer = window.setTimeout(() => {
+        syncTimer = null;
+        loadProjects();
+      }, 250);
+    };
+
+    const onStorage = (e) => {
+      if (e.key === "sandadd.liveWorks" || e.key === "sandadd.liveWorkProgress") {
+        requestSync();
+      }
+    };
+    const onFocus = () => requestSync();
+    const unsub = subscribeLiveSync(requestSync);
+    const poll = window.setInterval(() => {
+      const list = projectsRef.current || [];
+      const cares = list.some((p) => {
+        if (p.originId) return true;
+        const live = getLiveWork(p._id);
+        return Boolean(live && !live.deleted);
+      });
+      if (cares) requestSync();
+    }, 2500);
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      unsub();
+      window.clearInterval(poll);
+      if (syncTimer) window.clearTimeout(syncTimer);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadProjects, authUser]);
 
   useEffect(() => {
     const onCleared = () => setAuthUser(null);
@@ -522,11 +756,46 @@ export default function App() {
 
   const handleDelete = async (id) => {
     try {
+      const deleting = projectsRef.current.find((p) => p._id === id);
+
+      // Tell followers this origin was removed (only for creator-owned works)
+      if (deleting && !isTasksLocked(deleting)) {
+        unpublishLiveWork(id);
+      }
+
+      // Reset sender post button: "Added to Progress" → "Add to Progress"
+      if (deleting) {
+        unmarkTemplatesForDeletedProject(deleting);
+      }
+
       await deleteProject(id);
-      const remaining = projectsRef.current.filter((p) => p._id !== id);
+
+      // Also drop any local follower copies of this origin (same account edge case)
+      const followerCopies = projectsRef.current.filter(
+        (p) => p._id !== id && String(p.originId || "") === String(id)
+      );
+      for (const copy of followerCopies) {
+        try {
+          await deleteProject(copy._id);
+          clearDailyWorkIds(copy._id);
+          unmarkTemplatesForDeletedProject(copy);
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const removeIds = new Set([id, ...followerCopies.map((p) => p._id)]);
+      const remaining = projectsRef.current.filter((p) => !removeIds.has(p._id));
       setProjects(remaining);
-      setTopicPopup((open) => (open?.projectId === id ? null : open));
-      if (activeIdRef.current === id) {
+      setSelectedIds((ids) => {
+        const next = ids.filter((sid) => !removeIds.has(sid));
+        saveDailySelectedIds(next);
+        return next;
+      });
+      setTopicPopup((open) => (open?.projectId && removeIds.has(open.projectId) ? null : open));
+      clearDailyWorkIds(id);
+
+      if (activeIdRef.current && removeIds.has(activeIdRef.current)) {
         if (remaining[0]) applyProject(remaining[0]);
         else {
           activeIdRef.current = null;
@@ -563,7 +832,9 @@ export default function App() {
       projects.find((p) => p._id === shareSeed.projectId)) ||
     projects.find((p) => p._id === activeId) ||
     (activeName ? { _id: activeId, name: activeName } : null);
-  const regularProjects = projects.filter((p) => !p.important);
+  const regularProjects = projects.filter(
+    (p) => !p.important && !p.folderId
+  );
   const importantProjects = projects
     .filter((p) => p.important)
     .sort((a, b) => {
@@ -593,6 +864,84 @@ export default function App() {
     try {
       const updated = await updateProject(project._id, { stars });
       setProjects((list) => patchProject(list, updated));
+      setApiError("");
+    } catch (err) {
+      setApiError(err.message);
+    }
+  };
+
+  const handleCreateFolder = async ({ name, workIds = [] } = {}) => {
+    if (!authUser?.id) throw new Error("Sign in to create folders");
+    const folder = createFolder(authUser.id, name);
+    setFolders(loadFolders(authUser.id));
+    setCreateFolderOpen(false);
+
+    const ids = Array.isArray(workIds) ? workIds : [];
+    for (const id of ids) {
+      const project = projectsRef.current.find((p) => p._id === id);
+      if (!project) continue;
+      setWorkFolder(authUser.id, project._id, folder.id);
+      setProjects((list) =>
+        patchProject(list, { ...project, folderId: folder.id })
+      );
+      try {
+        const updated = await updateProject(project._id, {
+          folderId: folder.id,
+        });
+        setProjects((list) =>
+          patchProject(list, {
+            ...updated,
+            folderId: updated.folderId || folder.id,
+          })
+        );
+      } catch {
+        /* local membership already saved */
+      }
+    }
+    setApiError("");
+    return folder;
+  };
+
+  const handleMoveToFolder = async (project, folderId) => {
+    const nextId = folderId || null;
+    if (authUser?.id) setWorkFolder(authUser.id, project._id, nextId);
+    // Move in UI immediately so the folder box updates right away
+    setProjects((list) =>
+      patchProject(list, { ...project, folderId: nextId })
+    );
+    try {
+      const updated = await updateProject(project._id, {
+        folderId: nextId,
+      });
+      setProjects((list) =>
+        patchProject(list, { ...updated, folderId: updated.folderId ?? nextId })
+      );
+      setApiError("");
+    } catch (err) {
+      setApiError(err.message);
+    }
+  };
+
+  const handleDeleteFolder = async (folder) => {
+    if (!authUser?.id || !folder?.id) return;
+    const inFolder = projects.filter((p) => p.folderId === folder.id);
+    try {
+      for (const project of inFolder) {
+        setWorkFolder(authUser.id, project._id, null);
+        setProjects((list) =>
+          patchProject(list, { ...project, folderId: null })
+        );
+        try {
+          const updated = await updateProject(project._id, { folderId: null });
+          setProjects((list) =>
+            patchProject(list, { ...updated, folderId: null })
+          );
+        } catch {
+          /* local clear already applied */
+        }
+      }
+      deleteFolder(authUser.id, folder.id);
+      setFolders(loadFolders(authUser.id));
       setApiError("");
     } catch (err) {
       setApiError(err.message);
@@ -714,6 +1063,18 @@ export default function App() {
         setProjects((list) => patchProject(list, merged));
         setApiError("");
 
+        // Push creator edits to followers (only if this work was shared)
+        if (!isTasksLocked(merged)) {
+          const live = getLiveWork(merged._id);
+          if (live && !live.deleted) {
+            publishLiveWork(
+              merged,
+              live.mode || "follow",
+              readAuthorProfile()
+            );
+          }
+        }
+
         // While the works popup is open, keep the glass still — pour on close
         if (activeIdRef.current === projectId && !popupOpen) {
           pourTargetRef.current = null;
@@ -736,7 +1097,7 @@ export default function App() {
   );
   const handleAddTopic = async (projectId, text, sourceInfo = {}) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
-    if (!project) return;
+    if (!project || isTasksLocked(project)) return;
     const source =
       typeof sourceInfo === "string"
         ? sourceInfo
@@ -760,7 +1121,7 @@ export default function App() {
 
   const handleSetTopicSource = async (projectId, topicId, sourceInfo = {}) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
-    if (!project) return;
+    if (!project || isTasksLocked(project)) return;
     const source =
       typeof sourceInfo === "string"
         ? sourceInfo
@@ -800,6 +1161,17 @@ export default function App() {
     const topics = (project.topics || []).map((t) =>
       t.id === topicId ? { ...t, done: !t.done } : t
     );
+
+    const originKey = liveOriginKey(project);
+    if (originKey) {
+      reportLiveTopicProgress(
+        originKey,
+        topicId,
+        markingDone,
+        readAuthorProfile()
+      );
+    }
+
     const updated = await applyWorksProgress(projectId, topics);
     if (updated && markingDone) {
       const topic = (updated.topics || topics).find((t) => t.id === topicId);
@@ -812,7 +1184,7 @@ export default function App() {
 
   const handleRemoveTopic = async (projectId, topicId) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
-    if (!project) return;
+    if (!project || isTasksLocked(project)) return;
     const topics = (project.topics || []).filter((t) => t.id !== topicId);
     await applyWorksProgress(projectId, topics);
   };
@@ -866,7 +1238,8 @@ export default function App() {
           key={socialGroupId || "social"}
           initialGroupId={socialGroupId}
           onAddSharedProject={async (template) => {
-            const durationMs = durationRef.current || 30_000;
+            const durationMs =
+              template.durationMs || durationRef.current || 30_000;
             const topics = Array.isArray(template.works)
               ? template.works.map((w, index) => ({
                   id: w.id || `t-${Date.now()}-${index}`,
@@ -881,12 +1254,30 @@ export default function App() {
                 await persistTopicSourceProof(t.sourceProof);
               }
             }
+            const liveOrigin =
+              template.originId ||
+              (String(template.templateId || "").startsWith("live-")
+                ? String(template.templateId).slice(5)
+                : null);
+            const shareMode =
+              template.shareMode === "assign" ? "assign" : liveOrigin ? "follow" : null;
+            const locked = Boolean(liveOrigin || template.tasksLocked || template.live);
             const created = await createProject({
               name: template.name,
               durationMs,
               elapsedMs: 0,
               completed: false,
               topics: await prepareTopicsForSave(topics),
+              sharedTemplateId: template.templateId
+                ? String(template.templateId)
+                : null,
+              ...(liveOrigin
+                ? {
+                    originId: liveOrigin,
+                    originMode: shareMode || "follow",
+                    tasksLocked: true,
+                  }
+                : {}),
             });
             const merged = {
               ...created,
@@ -900,6 +1291,11 @@ export default function App() {
                 }
                 return t;
               }),
+              originId: liveOrigin || created.originId || null,
+              originMode: shareMode || created.originMode || null,
+              tasksLocked: locked || Boolean(created.tasksLocked),
+              sharedTemplateId:
+                template.templateId || created.sharedTemplateId || null,
             };
             setProjects((list) => upsertProject(list, merged));
             applyProject(merged);
@@ -912,6 +1308,8 @@ export default function App() {
           initialThreadId={messagesThreadId}
         />
       ) : page === "profile" ? (
+        <UserProfilePage />
+      ) : page === "portfolio" ? (
         <ProfilePage
           projects={projects}
           activeId={activeId}
@@ -967,7 +1365,7 @@ export default function App() {
             >
               <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
             </div>
-            {completed && (
+            {activeId ? (
               <button
                 type="button"
                 className="share-done-btn"
@@ -978,7 +1376,7 @@ export default function App() {
               >
                 Share
               </button>
-            )}
+            ) : null}
           </div>
 
           <p className="status">
@@ -1010,7 +1408,38 @@ export default function App() {
             importantAction="add"
             emptyText="Create a work, pour as you go, then save another. Star a work to move it to Important. Double-click a work to list what to do."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
+            onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
+            onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
+            folders={folders}
+            onMoveToFolder={handleMoveToFolder}
+            onCreateFolder={() => setCreateFolderOpen(true)}
           />
+          {folders.map((folder) => (
+            <FolderPanel
+              key={folder.id}
+              folder={folder}
+              projects={projects.filter(
+                (p) => !p.important && p.folderId === folder.id
+              )}
+              addableWorks={regularProjects}
+              activeId={activeId}
+              folders={folders}
+              onSelect={handleSelect}
+              onDelete={handleDelete}
+              onToggleImportant={handleToggleImportant}
+              onOpenTopics={(project, rect) =>
+                handleOpenTopics(project, rect, "all")
+              }
+              onShareFollow={(project) =>
+                setWorkShare({ project, mode: "follow" })
+              }
+              onShareAssign={(project) =>
+                setWorkShare({ project, mode: "assign" })
+              }
+              onMoveToFolder={handleMoveToFolder}
+              onDeleteFolder={handleDeleteFolder}
+            />
+          ))}
         </div>
 
         <div className="layout-important" id="important-panel">
@@ -1025,6 +1454,10 @@ export default function App() {
             emptyText="Star a work to keep it here. Use up to 5 stars to set priority."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
             onSetStars={handleSetStars}
+            onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
+            onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
+            folders={folders}
+            onMoveToFolder={handleMoveToFolder}
           />
         </div>
       </div>
@@ -1053,11 +1486,35 @@ export default function App() {
           y={topicPopup.y}
           mode={topicPopup.mode || "all"}
           topicIds={topicPopup.topicIds}
+          readOnlyTasks={isTasksLocked(popupProject)}
           onClose={closeTopicPopup}
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}
           onToggle={handleToggleTopic}
           onSetSource={handleSetTopicSource}
+        />
+      )}
+      {workShare?.project && (
+        <WorkShareModal
+          project={workShare.project}
+          mode={workShare.mode || "follow"}
+          onClose={() => setWorkShare(null)}
+          onShared={(meta) => {
+            setWorkShare(null);
+            if (meta?.target === "groups" && meta.groupId) {
+              setSocialGroupId(meta.groupId);
+              setMessagesThreadId(null);
+              setPage("social");
+            } else if (meta?.target === "messages" && meta.threadId) {
+              setMessagesThreadId(meta.threadId);
+              setSocialGroupId(null);
+              setPage("messages");
+            } else {
+              setSocialGroupId(null);
+              setMessagesThreadId(null);
+              setPage("social");
+            }
+          }}
         />
       )}
       {topicShareProject && topicShare && (
@@ -1080,6 +1537,13 @@ export default function App() {
           }}
         />
       )}
+      {createFolderOpen ? (
+        <CreateFolderModal
+          onClose={() => setCreateFolderOpen(false)}
+          onCreate={handleCreateFolder}
+          works={regularProjects}
+        />
+      ) : null}
       {shareOpen && (
         <ShareProjectModal
           project={shareProject}

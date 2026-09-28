@@ -200,6 +200,7 @@ export default function DonePopup({
   onSetSource,
   mode = "all",
   topicIds = null,
+  readOnlyTasks = false,
 }) {
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -336,14 +337,18 @@ export default function DonePopup({
         <p className="done-hint">
           {todayMode
             ? "Works to do today"
-            : "What the works to do"}
+            : readOnlyTasks
+              ? "Tasks sync from the creator — you can tick them, but not edit or add"
+              : "What the works to do"}
         </p>
 
         {topics.length === 0 ? (
           <p className="done-empty">
             {todayMode
               ? "No works picked for today."
-              : "No works yet. Add one below."}
+              : readOnlyTasks
+                ? "No tasks yet. Wait for the creator to add some."
+                : "No works yet. Add one below."}
           </p>
         ) : (
           <ul className="done-list">
@@ -387,14 +392,22 @@ export default function DonePopup({
                         if (isOpen) closePanel();
                         else openPanel(topic);
                       }}
-                      disabled={busyFile}
-                      title={hasSource ? sourceLabel || "Source" : "Add source"}
+                      disabled={busyFile || (readOnlyTasks && !hasSource)}
+                      title={
+                        readOnlyTasks
+                          ? hasSource
+                            ? sourceLabel || "Source"
+                            : "No source"
+                          : hasSource
+                            ? sourceLabel || "Source"
+                            : "Add source"
+                      }
                       aria-expanded={isOpen}
                       aria-label={`Source for ${topic.text}`}
                     >
                       Source
                     </button>
-                    {!todayMode && (
+                    {!todayMode && !readOnlyTasks && (
                       <button
                         type="button"
                         className="ghost"
@@ -418,24 +431,28 @@ export default function DonePopup({
                         >
                           Open
                         </button>
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={sourceTab === "link"}
-                          className={sourceTab === "link" ? "is-active" : ""}
-                          onClick={() => setSourceTab("link")}
-                        >
-                          Link
-                        </button>
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={sourceTab === "file"}
-                          className={sourceTab === "file" ? "is-active" : ""}
-                          onClick={() => setSourceTab("file")}
-                        >
-                          File
-                        </button>
+                        {!readOnlyTasks ? (
+                          <>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={sourceTab === "link"}
+                              className={sourceTab === "link" ? "is-active" : ""}
+                              onClick={() => setSourceTab("link")}
+                            >
+                              Link
+                            </button>
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={sourceTab === "file"}
+                              className={sourceTab === "file" ? "is-active" : ""}
+                              onClick={() => setSourceTab("file")}
+                            >
+                              File
+                            </button>
+                          </>
+                        ) : null}
                       </div>
 
                       {sourceTab === "open" ? (
@@ -475,7 +492,7 @@ export default function DonePopup({
                         </div>
                       ) : null}
 
-                      {sourceTab === "link" ? (
+                      {sourceTab === "link" && !readOnlyTasks ? (
                         <div className="done-source-pane">
                           <input
                             type="url"
@@ -494,7 +511,7 @@ export default function DonePopup({
                         </div>
                       ) : null}
 
-                      {sourceTab === "file" ? (
+                      {sourceTab === "file" && !readOnlyTasks ? (
                         <div className="done-source-pane">
                           <p className="done-source-meta">
                             Upload image, video, or PDF
@@ -525,7 +542,7 @@ export default function DonePopup({
 
         {sourceError ? <p className="done-source-error">{sourceError}</p> : null}
 
-        {!todayMode && (
+        {!todayMode && !readOnlyTasks && (
           <form
             className="done-add"
             onSubmit={(e) => {

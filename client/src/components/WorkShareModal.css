@@ -1,0 +1,138 @@
+.work-share-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--overlay);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.work-share-card {
+  width: min(420px, 100%);
+  max-height: min(90vh, 640px);
+  overflow: auto;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.work-share-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.work-share-head p {
+  margin: 6px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--paper);
+}
+
+.work-share-blurb {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.work-share-hint {
+  margin: 14px 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.work-share-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.work-share-target {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  color: var(--paper);
+  text-align: left;
+  cursor: pointer;
+}
+
+.work-share-target:hover:not(:disabled) {
+  border-color: var(--brass);
+}
+
+.work-share-target:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.work-share-target strong {
+  display: block;
+  font-size: 14px;
+}
+
+.work-share-target small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.work-share-num {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--blue-soft);
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.work-share-back {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.work-share-back:hover {
+  color: var(--brass);
+}
+
+.work-share-error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.work-share-cancel {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.work-share-cancel:hover {
+  color: var(--paper);
+}

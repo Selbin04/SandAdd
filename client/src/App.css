@@ -241,6 +241,22 @@
 .layout-projects {
   grid-area: projects;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: min(78vh, 900px);
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.layout-projects::-webkit-scrollbar {
+  display: none;
+}
+
+.layout-projects .panel {
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 .layout-important {
@@ -456,13 +472,7 @@
   flex-direction: column;
   gap: 8px;
   max-height: 520px;
-  overflow: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.project-list::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
 }
 
 .project-list li {
@@ -520,11 +530,26 @@
 }
 
 .project-copy strong {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.work-lock-pill {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--brass);
+  background: var(--blue-soft);
 }
 
 .project-copy span {

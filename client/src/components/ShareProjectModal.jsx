@@ -143,6 +143,7 @@ export default function ShareProjectModal({
         proof: proof || null,
         createdAt: new Date().toISOString(),
         isUser: true,
+        kind: "finished",
       };
 
       if (target === "groups") {
@@ -165,6 +166,7 @@ export default function ShareProjectModal({
           works,
           sharedProject,
           createdAt: new Date().toISOString(),
+          kind: "finished",
         };
         addSharedMessage(threadId, message);
         onPosted?.(message, { target, threadId });

@@ -1,4 +1,6 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
+import { isTasksLocked } from "../lib/liveWorks.js";
+import WorkMenu from "./WorkMenu.jsx";
 
 export default function ProjectPanel({
   title,
@@ -17,14 +19,30 @@ export default function ProjectPanel({
   emptyText,
   onOpenTopics,
   onSetStars,
+  onShareFollow,
+  onShareAssign,
+  folders = [],
+  onMoveToFolder,
+  onCreateFolder,
 }) {
   return (
     <aside className={`panel projects-panel ${importantAction === "remove" ? "important-panel" : ""}`}>
       <header className="panel-head">
         <h2>{title}</h2>
-        {showStorage && (
-          <span className={`storage-pill ${storage}`}>{storage}</span>
-        )}
+        <div className="panel-head-actions">
+          {showStorage && (
+            <span className={`storage-pill ${storage}`}>{storage}</span>
+          )}
+          {onCreateFolder ? (
+            <button
+              type="button"
+              className="create-folder-btn"
+              onClick={onCreateFolder}
+            >
+              Create new folder
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {showCreate && (
@@ -56,6 +74,7 @@ export default function ProjectPanel({
             const duration = projectDuration(p);
             const progress = fillProgress(p.elapsedMs, duration);
             const active = p._id === activeId;
+            const locked = isTasksLocked(p);
             const markLabel =
               importantAction === "add"
                 ? `Add ${p.name} to important`
@@ -77,7 +96,14 @@ export default function ProjectPanel({
                     <span className="mini-sand" style={{ height: `${progress * 100}%` }} />
                   </span>
                   <span className="project-copy">
-                    <strong>{p.name}</strong>
+                    <strong>
+                      {p.name}
+                      {locked ? (
+                        <span className="work-lock-pill" title="Tasks sync from creator">
+                          {p.originMode === "assign" ? "Assigned" : "Following"}
+                        </span>
+                      ) : null}
+                    </strong>
                     <span>{fillLabel(p.elapsedMs, duration)}</span>
                     {importantAction === "remove" && (
                       <span
@@ -103,14 +129,23 @@ export default function ProjectPanel({
                     )}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => onDelete(p._id)}
-                  aria-label={`Delete ${p.name}`}
-                >
-                  ×
-                </button>
+                <WorkMenu
+                  workName={p.name}
+                  onShareFollow={
+                    locked ? undefined : () => onShareFollow?.(p)
+                  }
+                  onShareAssign={
+                    locked ? undefined : () => onShareAssign?.(p)
+                  }
+                  folders={folders}
+                  currentFolderId={p.folderId || null}
+                  onMoveToFolder={
+                    onMoveToFolder
+                      ? (folderId) => onMoveToFolder(p, folderId)
+                      : undefined
+                  }
+                  onDelete={() => onDelete(p._id)}
+                />
                 <button
                   type="button"
                   className={`mark-important ${importantAction === "remove" ? "is-on" : ""}`}

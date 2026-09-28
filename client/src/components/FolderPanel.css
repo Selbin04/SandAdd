@@ -1,0 +1,76 @@
+.folder-panel {
+  margin-top: 12px;
+  border-style: dashed;
+}
+
+.folder-panel-head h2 {
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 14px;
+}
+
+.folder-delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.folder-delete-btn:hover {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+}
+
+.folder-add-work {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.folder-add-work select {
+  flex: 1;
+  min-width: 0;
+  background: var(--input-bg);
+  color: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.panel-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.create-folder-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--brass);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.create-folder-btn:hover {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}

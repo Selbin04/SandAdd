@@ -21,6 +21,11 @@ const projectSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    originId: { type: String, default: null, index: true },
+    originMode: { type: String, default: null },
+    tasksLocked: { type: Boolean, default: false },
+    sharedTemplateId: { type: String, default: null },
+    folderId: { type: String, default: null, index: true },
     lastWorkedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

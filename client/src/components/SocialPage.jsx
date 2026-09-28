@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   addGroupPost,
   addUserPost,
@@ -36,6 +36,7 @@ const SAMPLE_FEED = [
     id: "1",
     initial: "A",
     name: "Alex",
+    handle: "alex",
     meta: "poured 45 min · Design system",
     body: "Closed the gap on the logo mark and shipped the navbar refresh.",
   },
@@ -43,6 +44,7 @@ const SAMPLE_FEED = [
     id: "2",
     initial: "M",
     name: "Maya",
+    handle: "maya",
     meta: "poured 2 hr · API rewrite",
     body: "Three important works cleared before noon. Hourglass never lied.",
   },
@@ -50,6 +52,7 @@ const SAMPLE_FEED = [
     id: "3",
     initial: "J",
     name: "Jordan",
+    handle: "jordan",
     meta: "poured 20 min · Writing",
     body: "Short session, one finished draft. Showing up counts.",
   },
@@ -225,7 +228,15 @@ function PostActions({ postId, liked, onLike }) {
   );
 }
 
-function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingTemplateId }) {
+function FeedCard({
+  item,
+  liked,
+  onLike,
+  onAddProject,
+  addedTemplateIds,
+  addingTemplateId,
+  onOpenProfile,
+}) {
   const shared = item.sharedProject;
   const works = Array.isArray(shared?.works)
     ? shared.works
@@ -237,14 +248,45 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
   const adding =
     shared?.templateId && addingTemplateId === String(shared.templateId);
 
+  const openProfile = () => {
+    onOpenProfile?.({
+      postId: item.id,
+      name: item.name || "User",
+      handle: item.handle || "",
+      initial:
+        item.initial ||
+        String(item.name || "U")
+          .trim()
+          .slice(0, 1)
+          .toUpperCase() ||
+        "U",
+      avatar: item.avatar || "",
+    });
+  };
+
   return (
     <article className="social-card">
       <div className="social-card-top">
-        <span className="social-avatar" aria-hidden="true">
-          {item.initial}
-        </span>
+        <button
+          type="button"
+          className="social-avatar social-avatar-btn"
+          onClick={openProfile}
+          aria-label={`Open ${item.name || "user"} profile`}
+        >
+          {item.avatar ? (
+            <img src={item.avatar} alt="" />
+          ) : (
+            item.initial
+          )}
+        </button>
         <div>
-          <strong>{item.name}</strong>
+          <button
+            type="button"
+            className="social-author-btn"
+            onClick={openProfile}
+          >
+            <strong>{item.name}</strong>
+          </button>
           <span className="social-meta">{item.meta}</span>
         </div>
       </div>
@@ -253,7 +295,13 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
         <div className="social-shared-project">
           {shared?.name ? (
             <>
-              <p className="social-shared-project-label">Shared work</p>
+              <p className="social-shared-project-label">
+                {shared.shareMode === "assign"
+                  ? "Assigned work"
+                  : shared.live || shared.originId
+                    ? "Follow this work"
+                    : "Shared work"}
+              </p>
               <strong className="social-shared-project-name">{shared.name}</strong>
             </>
           ) : item.projectName ? (
@@ -283,21 +331,29 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
                   </li>
                 ))}
               </ul>
-              {shared ? (
-                <button
-                  type="button"
-                  className="social-shared-project-add"
-                  disabled={alreadyAdded || adding || !onAddProject}
-                  onClick={() => onAddProject?.(shared)}
-                >
-                  {alreadyAdded
-                    ? "Added to Progress"
-                    : adding
-                      ? "Adding…"
-                      : "Add to Progress"}
-                </button>
-              ) : null}
             </>
+          ) : shared?.live || shared?.originId ? (
+            <p className="social-shared-project-label is-works">
+              Tasks will sync when the creator adds them
+            </p>
+          ) : null}
+          {shared ? (
+            <button
+              type="button"
+              className="social-shared-project-add"
+              disabled={alreadyAdded || adding || !onAddProject}
+              onClick={() => onAddProject?.(shared)}
+            >
+              {alreadyAdded
+                ? "Added to Progress"
+                : adding
+                  ? "Adding…"
+                  : shared.shareMode === "assign"
+                    ? "Accept assignment"
+                    : shared.live || shared.originId
+                      ? "Follow in Progress"
+                      : "Add to Progress"}
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -307,12 +363,79 @@ function FeedCard({ item, liked, onLike, onAddProject, addedTemplateIds, addingT
   );
 }
 
+function ViewProfilePanel({ profile, posts, onClose, style, fixed = false }) {
+  if (!profile) return null;
+  const initial =
+    profile.initial ||
+    String(profile.name || "U")
+      .trim()
+      .slice(0, 1)
+      .toUpperCase() ||
+    "U";
+  const handle =
+    profile.handle ||
+    String(profile.name || "user")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 24) ||
+    "user";
+
+  return (
+    <aside
+      className={`social-view-profile${fixed ? " is-fixed" : ""}`}
+      aria-label={`${profile.name} profile`}
+      style={style}
+    >
+      <header className="social-view-profile-head">
+        <h2>Profile</h2>
+        <button type="button" className="social-view-profile-close" onClick={onClose}>
+          Close
+        </button>
+      </header>
+      <div className="social-view-profile-hero">
+        <span className="social-view-profile-avatar" aria-hidden="true">
+          {profile.avatar ? <img src={profile.avatar} alt="" /> : initial}
+        </span>
+        <div>
+          <h3>{profile.name}</h3>
+          <p className="social-view-profile-handle">@{handle}</p>
+          <div className="social-view-profile-stats">
+            <span>
+              <strong>128</strong> followers
+            </span>
+            <span>
+              <strong>86</strong> following
+            </span>
+          </div>
+        </div>
+      </div>
+      <h4 className="social-view-profile-posts-title">View posts</h4>
+      {posts.length === 0 ? (
+        <p className="social-view-profile-empty">No posts from this profile</p>
+      ) : (
+        <ul className="social-view-profile-posts">
+          {posts.map((post) => (
+            <li key={post.id}>
+              <p className="social-meta">{post.meta}</p>
+              <p>{post.body}</p>
+              <ProofMedia proof={post.proof} className="social-view-profile-proof" />
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
+  );
+}
+
 export default function SocialPage({
   initialGroupId = null,
   onAddSharedProject = null,
 }) {
   const [section, setSection] = useState(initialGroupId ? "groups" : "view");
   const [openGroupId, setOpenGroupId] = useState(initialGroupId);
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [profileAnchor, setProfileAnchor] = useState(null);
+  const pageRef = useRef(null);
   const [likedIds, setLikedIds] = useState(() => new Set());
   const [groupUserPosts, setGroupUserPosts] = useState(() =>
     initialGroupId ? loadGroupPosts(initialGroupId) : []
@@ -333,6 +456,21 @@ export default function SocialPage({
   const [addedTemplateIds, setAddedTemplateIds] = useState(
     () => new Set(loadAddedTemplateIds())
   );
+
+  useEffect(() => {
+    const refresh = () => setAddedTemplateIds(new Set(loadAddedTemplateIds()));
+    const onStorage = (e) => {
+      if (e.key === "sandadd.addedProjectTemplates") refresh();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("sandadd:templates-changed", refresh);
+    // Refresh when returning to Social so delete-from-Progress is reflected
+    refresh();
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("sandadd:templates-changed", refresh);
+    };
+  }, []);
   const [addingTemplateId, setAddingTemplateId] = useState(null);
   const [customGroups, setCustomGroups] = useState(() =>
     loadCustomGroups().map(toDisplayGroup)
@@ -472,10 +610,73 @@ export default function SocialPage({
   );
   const feed = useMemo(() => [...viewPosts, ...SAMPLE_FEED], [viewPosts]);
   const openGroup = groups.find((g) => g.id === openGroupId) || null;
+  const profilePosts = useMemo(() => {
+    if (!viewingProfile) return [];
+    const handle = String(viewingProfile.handle || "")
+      .toLowerCase()
+      .replace(/^@/, "");
+    const name = String(viewingProfile.name || "").trim().toLowerCase();
+    return feed.filter((post) => {
+      const postHandle = String(post.handle || "")
+        .toLowerCase()
+        .replace(/^@/, "");
+      if (handle && postHandle && postHandle === handle) return true;
+      return String(post.name || "").trim().toLowerCase() === name;
+    });
+  }, [feed, viewingProfile]);
   const groupFeed = useMemo(
     () => [...groupUserPosts, ...(openGroup?.posts || [])],
     [groupUserPosts, openGroup]
   );
+
+  useLayoutEffect(() => {
+    if (!viewingProfile?.postId || section !== "view") {
+      setProfileAnchor(null);
+      return undefined;
+    }
+
+    const syncAnchor = () => {
+      const page = pageRef.current;
+      if (!page) return;
+      const row = page.querySelector(
+        `.social-feed-row[data-post-id="${viewingProfile.postId}"]`
+      );
+      if (!row) {
+        setProfileAnchor(null);
+        return;
+      }
+      const pageRect = page.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const gap = 16;
+      const available = pageRect.left - gap - 12;
+      if (available < 200) {
+        setProfileAnchor({ mode: "stack" });
+        return;
+      }
+      const width = Math.min(300, available);
+      const left = pageRect.left - gap - width;
+      const maxHeight = Math.min(520, window.innerHeight - 24);
+      const top = Math.min(
+        Math.max(12, rowRect.top),
+        Math.max(12, window.innerHeight - Math.min(maxHeight, 160))
+      );
+      setProfileAnchor({
+        mode: "side",
+        top,
+        left,
+        width,
+        maxHeight,
+      });
+    };
+
+    syncAnchor();
+    window.addEventListener("scroll", syncAnchor, true);
+    window.addEventListener("resize", syncAnchor);
+    return () => {
+      window.removeEventListener("scroll", syncAnchor, true);
+      window.removeEventListener("resize", syncAnchor);
+    };
+  }, [viewingProfile, section, feed]);
 
   const toggleLike = (id) => {
     setLikedIds((prev) => {
@@ -487,6 +688,7 @@ export default function SocialPage({
   };
 
   const goGroupsList = () => {
+    setViewingProfile(null);
     setSection("groups");
     setOpenGroupId(null);
   };
@@ -584,6 +786,7 @@ export default function SocialPage({
       projectName: projectShare ? attachedName : "",
       createdAt: new Date().toISOString(),
       isUser: true,
+      kind: "post",
     };
     setViewPosts(addUserPost(post));
     setDraft("");
@@ -618,6 +821,7 @@ export default function SocialPage({
       isUser: true,
       groupId: openGroupId,
       groupName: openGroup.name,
+      kind: "post",
     };
     setGroupUserPosts(addGroupPost(openGroupId, post));
     setDraft("");
@@ -746,7 +950,11 @@ export default function SocialPage({
   ) : null;
 
   return (
-    <section className="social-page" aria-label="Social">
+    <section
+      ref={pageRef}
+      className="social-page"
+      aria-label="Social"
+    >
       <input
         ref={workFileRef}
         type="file"
@@ -780,6 +988,7 @@ export default function SocialPage({
               aria-controls="social-panel-groups"
               className={section === "groups" ? "is-active" : ""}
               onClick={() => {
+                setViewingProfile(null);
                 goGroupsList();
               }}
             >
@@ -873,54 +1082,91 @@ export default function SocialPage({
           id="social-panel-view"
           aria-labelledby="social-tab-view"
         >
-          <form className="social-group-compose" onSubmit={submitViewPost}>
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Share an update…"
-              rows={3}
-              maxLength={280}
-              aria-label="Write a post"
-            />
-            <div className="social-group-compose-actions">
-              <input
-                ref={fileRef}
-                type="file"
-                accept={PROOF_ACCEPT}
-                hidden
-                onChange={onProofChange}
+          <div className="social-view-main">
+            <form className="social-group-compose" onSubmit={submitViewPost}>
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Share an update…"
+                rows={3}
+                maxLength={280}
+                aria-label="Write a post"
               />
-              <button
-                type="button"
-                className="social-group-attach"
-                disabled={busy}
-                onClick={() => fileRef.current?.click()}
-              >
-                {proofName ? "Change file" : "Attach"}
-              </button>
-              {composeExtras}
-              <button type="submit" className="social-group-post-btn" disabled={busy}>
-                Post
-              </button>
+              <div className="social-group-compose-actions">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={PROOF_ACCEPT}
+                  hidden
+                  onChange={onProofChange}
+                />
+                <button
+                  type="button"
+                  className="social-group-attach"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {proofName ? "Change file" : "Attach"}
+                </button>
+                {composeExtras}
+                <button type="submit" className="social-group-post-btn" disabled={busy}>
+                  Post
+                </button>
+              </div>
+              {projectComposePanel}
+              {sharedProjectChip}
+              {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
+              <ProofMedia proof={proof} className="social-group-attach-preview" />
+              {postError ? <p className="social-group-post-error">{postError}</p> : null}
+            </form>
+            <div className="social-feed">
+              {feed.map((item) => {
+                const showProfile =
+                  viewingProfile && viewingProfile.postId === item.id;
+                const stackProfile =
+                  showProfile && profileAnchor?.mode === "stack";
+                const sideProfile =
+                  showProfile && profileAnchor?.mode === "side";
+                return (
+                  <div
+                    key={item.id}
+                    data-post-id={item.id}
+                    className={`social-feed-row${showProfile ? " is-profile-open" : ""}`}
+                  >
+                    {stackProfile ? (
+                      <ViewProfilePanel
+                        profile={viewingProfile}
+                        posts={profilePosts}
+                        onClose={() => setViewingProfile(null)}
+                      />
+                    ) : null}
+                    {sideProfile ? (
+                      <ViewProfilePanel
+                        profile={viewingProfile}
+                        posts={profilePosts}
+                        onClose={() => setViewingProfile(null)}
+                        fixed
+                        style={{
+                          top: profileAnchor.top,
+                          left: profileAnchor.left,
+                          width: profileAnchor.width,
+                          maxHeight: profileAnchor.maxHeight,
+                        }}
+                      />
+                    ) : null}
+                    <FeedCard
+                      item={item}
+                      liked={likedIds.has(item.id)}
+                      onLike={toggleLike}
+                      onAddProject={handleAddSharedProject}
+                      addedTemplateIds={addedTemplateIds}
+                      addingTemplateId={addingTemplateId}
+                      onOpenProfile={setViewingProfile}
+                    />
+                  </div>
+                );
+              })}
             </div>
-            {projectComposePanel}
-            {sharedProjectChip}
-            {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
-            <ProofMedia proof={proof} className="social-group-attach-preview" />
-            {postError ? <p className="social-group-post-error">{postError}</p> : null}
-          </form>
-          <div className="social-feed">
-            {feed.map((item) => (
-              <FeedCard
-                key={item.id}
-                item={item}
-                liked={likedIds.has(item.id)}
-                onLike={toggleLike}
-                onAddProject={handleAddSharedProject}
-                addedTemplateIds={addedTemplateIds}
-                addingTemplateId={addingTemplateId}
-              />
-            ))}
           </div>
         </div>
       ) : (
@@ -962,7 +1208,10 @@ export default function SocialPage({
               key={group.id}
               type="button"
               className="social-card social-group-open"
-              onClick={() => setOpenGroupId(group.id)}
+              onClick={() => {
+                setViewingProfile(null);
+                setOpenGroupId(group.id);
+              }}
             >
               <div className="social-card-top">
                 <span className="social-avatar social-avatar-group" aria-hidden="true">

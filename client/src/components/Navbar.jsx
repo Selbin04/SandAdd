@@ -80,11 +80,11 @@ export default function Navbar({
           <li>
             <button
               type="button"
-              className={page === "profile" ? "is-active" : ""}
-              aria-current={page === "profile" ? "page" : undefined}
-              onClick={() => onNavigate("profile")}
+              className={page === "portfolio" ? "is-active" : ""}
+              aria-current={page === "portfolio" ? "page" : undefined}
+              onClick={() => onNavigate("portfolio")}
             >
-              Profile
+              Portfolio
             </button>
           </li>
           <li>

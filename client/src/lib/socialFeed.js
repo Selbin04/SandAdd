@@ -85,9 +85,29 @@ export function markTemplateAdded(templateId) {
   const next = Array.from(new Set([...loadAddedTemplateIds(), id]));
   try {
     localStorage.setItem(ADDED_TEMPLATES_KEY, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("sandadd:templates-changed"));
   } catch {
     /* ignore */
   }
+}
+
+export function unmarkTemplateAdded(templateId) {
+  if (!templateId) return;
+  const id = String(templateId);
+  const next = loadAddedTemplateIds().filter((x) => x !== id);
+  try {
+    localStorage.setItem(ADDED_TEMPLATES_KEY, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("sandadd:templates-changed"));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear "Added to Progress" for a deleted work (follow/assign/share). */
+export function unmarkTemplatesForDeletedProject(project) {
+  if (!project) return;
+  if (project.sharedTemplateId) unmarkTemplateAdded(project.sharedTemplateId);
+  if (project.originId) unmarkTemplateAdded(`live-${project.originId}`);
 }
 
 /** Snapshot a project's works list for posts / messages. */

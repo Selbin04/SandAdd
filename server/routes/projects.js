@@ -76,6 +76,36 @@ function parseProjectInput(body, { partial = false } = {}) {
     result.bump = Boolean(body.bump);
   }
 
+  if (body.originId !== undefined) {
+    const oid = body.originId == null || body.originId === ""
+      ? null
+      : String(body.originId).slice(0, 80);
+    result.originId = oid;
+  }
+
+  if (body.originMode !== undefined) {
+    const mode = String(body.originMode || "");
+    result.originMode = mode === "assign" || mode === "follow" ? mode : null;
+  }
+
+  if (body.tasksLocked !== undefined) {
+    result.tasksLocked = Boolean(body.tasksLocked);
+  }
+
+  if (body.sharedTemplateId !== undefined) {
+    result.sharedTemplateId =
+      body.sharedTemplateId == null || body.sharedTemplateId === ""
+        ? null
+        : String(body.sharedTemplateId).slice(0, 120);
+  }
+
+  if (body.folderId !== undefined) {
+    result.folderId =
+      body.folderId == null || body.folderId === ""
+        ? null
+        : String(body.folderId).slice(0, 80);
+  }
+
   if (result.durationMs !== undefined && result.elapsedMs !== undefined) {
     result.elapsedMs = Math.min(result.elapsedMs, result.durationMs);
     result.completed = result.elapsedMs >= result.durationMs;
@@ -94,6 +124,13 @@ function asProject(doc) {
     important: Boolean(obj.important),
     stars: Math.min(5, Math.max(0, Number(obj.stars) || 0)),
     topics: Array.isArray(obj.topics) ? obj.topics : [],
+    originId: obj.originId || null,
+    originMode: obj.originMode === "assign" || obj.originMode === "follow"
+      ? obj.originMode
+      : null,
+    tasksLocked: Boolean(obj.tasksLocked || obj.originId),
+    sharedTemplateId: obj.sharedTemplateId || null,
+    folderId: obj.folderId || null,
   };
 }
 
@@ -189,6 +226,21 @@ export default function projectRoutes(useMemory) {
       }
       if (parsed.value.topics !== undefined) {
         next.topics = parsed.value.topics;
+      }
+      if (parsed.value.originId !== undefined) {
+        next.originId = parsed.value.originId;
+      }
+      if (parsed.value.originMode !== undefined) {
+        next.originMode = parsed.value.originMode;
+      }
+      if (parsed.value.tasksLocked !== undefined) {
+        next.tasksLocked = parsed.value.tasksLocked;
+      }
+      if (parsed.value.sharedTemplateId !== undefined) {
+        next.sharedTemplateId = parsed.value.sharedTemplateId;
+      }
+      if (parsed.value.folderId !== undefined) {
+        next.folderId = parsed.value.folderId;
       }
       if (parsed.value.bump) {
         next.lastWorkedAt = new Date();
