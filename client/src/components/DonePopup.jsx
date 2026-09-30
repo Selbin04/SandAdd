@@ -201,6 +201,7 @@ export default function DonePopup({
   mode = "all",
   topicIds = null,
   readOnlyTasks = false,
+  inline = false,
 }) {
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -221,8 +222,8 @@ export default function DonePopup({
     : allTopics;
   const panelTopic = topics.find((t) => t.id === sourcePanelId) || null;
 
-  const left = Math.min(Math.max(8, x), window.innerWidth - 340);
-  const top = Math.min(Math.max(8, y), window.innerHeight - 360);
+  const left = inline ? 8 : Math.min(Math.max(8, x), window.innerWidth - 340);
+  const top = inline ? 8 : Math.min(Math.max(8, y), window.innerHeight - 360);
 
   useEffect(() => {
     if (!panelTopic) return;
@@ -304,8 +305,8 @@ export default function DonePopup({
 
   return (
     <div
-      className="done-backdrop"
-      onMouseDown={onClose}
+      className={inline ? "done-inline" : "done-backdrop"}
+      onMouseDown={inline ? undefined : onClose}
       role="presentation"
     >
       <input
@@ -323,24 +324,36 @@ export default function DonePopup({
         onChange={onAddFile}
       />
       <div
-        className="done-card"
-        style={{ left, top }}
+        className={`done-card ${inline ? "done-card-inline" : ""}`}
+        style={inline ? undefined : { left, top }}
         onMouseDown={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={
-          todayMode
-            ? `${project.name} works for today`
-            : `${project.name} works to do`
-        }
+        role={inline ? undefined : "dialog"}
+        aria-label={inline ? undefined : todayMode
+          ? `${project.name} works for today`
+          : `${project.name} works to do`}
       >
-        <p className="done-title">{project.name}</p>
-        <p className="done-hint">
-          {todayMode
-            ? "Works to do today"
-            : readOnlyTasks
-              ? "Tasks sync from the creator — you can tick them, but not edit or add"
-              : "What the works to do"}
-        </p>
+        <div className={inline ? "done-inline-head" : ""}>
+          <div>
+            <p className="done-title">{project.name}</p>
+            <p className="done-hint">
+              {todayMode
+                ? "Works to do today"
+                : readOnlyTasks
+                  ? "Tasks sync from the creator — you can tick them, but not edit or add"
+                  : "What the works to do"}
+            </p>
+          </div>
+          {inline ? (
+            <button
+              type="button"
+              className="done-inline-close"
+              onClick={onClose}
+              aria-label="Close work workspace"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
 
         {topics.length === 0 ? (
           <p className="done-empty">
@@ -565,7 +578,7 @@ export default function DonePopup({
               placeholder="e.g. Fix login"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              autoFocus
+              autoFocus={!inline}
             />
             <input
               type="url"

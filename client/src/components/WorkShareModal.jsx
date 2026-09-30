@@ -21,6 +21,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
   const [target, setTarget] = useState(null);
   const [groupId, setGroupId] = useState(null);
   const [threadId, setThreadId] = useState(null);
+  const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -33,11 +34,37 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
     ? "Assignees add this work to Progress. They get your task list updates and cannot edit or add tasks."
     : "Followers add this work to Progress. They get your task list updates and cannot edit or add tasks.";
 
-  const publish = async (nextTarget, nextGroupId, nextThreadId) => {
+  const defaultBody = () =>
+    isAssign
+      ? `Assigned work: ${project?.name || "work"}`
+      : `Follow this work: ${project?.name || "work"}`;
+
+  const goCompose = (nextTarget, nextGroupId = null, nextThreadId = null) => {
+    setTarget(nextTarget);
+    setGroupId(nextGroupId);
+    setThreadId(nextThreadId);
+    setError("");
+    setStep("compose");
+  };
+
+  const publish = async () => {
     if (!project?._id) {
       setError("No work to share.");
       return;
     }
+    if (target !== "post" && target !== "groups" && target !== "messages") {
+      setError("Pick where to share first.");
+      return;
+    }
+    if (target === "groups" && !groupId) {
+      setError("Pick a group first.");
+      return;
+    }
+    if (target === "messages" && !threadId) {
+      setError("Pick a chat first.");
+      return;
+    }
+
     setBusy(true);
     setError("");
     try {
@@ -45,9 +72,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       const sharedProject = buildLiveShareTemplate(project, mode, author);
       if (!sharedProject) throw new Error("Could not prepare share.");
 
-      const body = isAssign
-        ? `Assigned work: ${project.name}`
-        : `Follow this work: ${project.name}`;
+      const body = caption.trim() || defaultBody();
       const base = {
         id: `live-${Date.now()}`,
         name: author.name,
@@ -62,17 +87,18 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         createdAt: new Date().toISOString(),
         isUser: true,
         shareMode: mode,
+        kind: "post",
       };
 
-      if (nextTarget === "groups") {
-        addGroupPost(nextGroupId, {
+      if (target === "groups") {
+        addGroupPost(groupId, {
           ...base,
           meta: `${isAssign ? "assigned" : "follow"} · ${project.name} · ${selectedGroup?.name || "group"}`,
-          groupId: nextGroupId,
+          groupId,
           groupName: selectedGroup?.name || "",
         });
-      } else if (nextTarget === "messages") {
-        addSharedMessage(nextThreadId, {
+      } else if (target === "messages") {
+        addSharedMessage(threadId, {
           id: `live-msg-${Date.now()}`,
           from: "me",
           text: body,
@@ -92,7 +118,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         });
       }
 
-      onShared?.({ mode, target: nextTarget, groupId: nextGroupId, threadId: nextThreadId });
+      onShared?.({ mode, target, groupId, threadId });
       onClose?.();
     } catch (err) {
       setError(err.message || "Could not share.");
@@ -112,8 +138,22 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       setStep("pick-thread");
       return;
     }
-    void publish("post", null, null);
+    goCompose("post");
   };
+
+  const backFromCompose = () => {
+    setError("");
+    if (target === "groups") setStep("pick-group");
+    else if (target === "messages") setStep("pick-thread");
+    else setStep("target");
+  };
+
+  const submitLabel =
+    target === "groups"
+      ? `Post to ${selectedGroup?.name || "Group"}`
+      : target === "messages"
+        ? `Send to ${selectedThread?.name || "chat"}`
+        : "Post to View";
 
   return (
     <div className="work-share-backdrop" onMouseDown={onClose} role="presentation">
@@ -164,10 +204,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 type="button"
                 className="work-share-target"
                 disabled={busy}
-                onClick={() => {
-                  setGroupId(group.id);
-                  void publish("groups", group.id, null);
-                }}
+                onClick={() => goCompose("groups", group.id, null)}
               >
                 <span className="work-share-num">{i + 1}</span>
                 <span>
@@ -177,7 +214,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
               </button>
             ))}
           </div>
-        ) : (
+        ) : step === "pick-thread" ? (
           <div className="work-share-targets">
             <button
               type="button"
@@ -193,10 +230,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 type="button"
                 className="work-share-target"
                 disabled={busy}
-                onClick={() => {
-                  setThreadId(thread.id);
-                  void publish("messages", null, thread.id);
-                }}
+                onClick={() => goCompose("messages", null, thread.id)}
               >
                 <span className="work-share-num">{i + 1}</span>
                 <span>
@@ -210,6 +244,41 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 </span>
               </button>
             ))}
+          </div>
+        ) : (
+          <div className="work-share-compose">
+            <button type="button" className="work-share-back" onClick={backFromCompose}>
+              ← Back
+            </button>
+            <p className="work-share-hint">
+              Write something before sharing
+              {target === "groups"
+                ? ` to ${selectedGroup?.name || "the group"}`
+                : target === "messages"
+                  ? ` to ${selectedThread?.name || "the chat"}`
+                  : " to View"}
+              .
+            </p>
+            <label className="work-share-caption">
+              Write something
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={3}
+                maxLength={280}
+                placeholder={defaultBody()}
+                aria-label="Write something"
+                autoFocus
+              />
+            </label>
+            <button
+              type="button"
+              className="work-share-submit"
+              disabled={busy}
+              onClick={() => void publish()}
+            >
+              {busy ? "Sharing…" : submitLabel}
+            </button>
           </div>
         )}
 

@@ -1,6 +1,9 @@
+import { useState, useEffect } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
+
+const PLACEHOLDERS = ["New work name", "create new learning.."];
 
 export default function ProjectPanel({
   title,
@@ -18,6 +21,7 @@ export default function ProjectPanel({
   importantAction = "add",
   emptyText,
   onOpenTopics,
+  onOpenWork,
   onSetStars,
   onShareFollow,
   onShareAssign,
@@ -25,6 +29,15 @@ export default function ProjectPanel({
   onMoveToFolder,
   onCreateFolder,
 }) {
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <aside className={`panel projects-panel ${importantAction === "remove" ? "important-panel" : ""}`}>
       <header className="panel-head">
@@ -56,7 +69,7 @@ export default function ProjectPanel({
           <input
             type="text"
             maxLength={80}
-            placeholder="New work name"
+            placeholder={PLACEHOLDERS[placeholderIndex]}
             value={newName}
             onChange={(e) => onNewName(e.target.value)}
           />
@@ -129,6 +142,19 @@ export default function ProjectPanel({
                     )}
                   </span>
                 </button>
+                {onOpenWork ? (
+                  <button
+                    type="button"
+                    className="open-work-btn"
+                    aria-label={`Open ${p.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenWork(p);
+                    }}
+                  >
+                    Open
+                  </button>
+                ) : null}
                 <WorkMenu
                   workName={p.name}
                   onShareFollow={

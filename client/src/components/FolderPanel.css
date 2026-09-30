@@ -1,6 +1,11 @@
 .folder-panel {
   margin-top: 12px;
   border-style: dashed;
+  border-bottom: 1px solid var(--line);
+}
+
+.folder-panel .project-list {
+  max-height: none;
 }
 
 .folder-panel-head h2 {

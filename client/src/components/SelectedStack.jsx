@@ -1,6 +1,6 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 
-export default function SelectedStack({ projects, activeId, onSelect, onOpenTopics }) {
+export default function SelectedStack({ projects, activeId, onSelect, onOpenTopics, onOpenWork }) {
   return (
     <aside className="panel selected-panel">
       <header className="panel-head">
@@ -37,6 +37,17 @@ export default function SelectedStack({ projects, activeId, onSelect, onOpenTopi
                     <strong>{p.name}</strong>
                     <span>{fillLabel(p.elapsedMs, duration)}</span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className="open-work-btn"
+                  aria-label={`Open ${p.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenWork?.(p);
+                  }}
+                >
+                  Open
                 </button>
               </li>
             );

@@ -136,3 +136,63 @@
 .work-share-cancel:hover {
   color: var(--paper);
 }
+
+.work-share-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.work-share-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.work-share-caption textarea {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  color: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: normal;
+  text-transform: none;
+  resize: vertical;
+  min-height: 84px;
+}
+
+.work-share-caption textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+.work-share-submit {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--brass);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.work-share-submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.work-share-submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}

@@ -11,6 +11,7 @@ export default function FolderPanel({
   activeId,
   folders = [],
   onSelect,
+  onOpenWork,
   onDelete,
   onToggleImportant,
   onOpenTopics,
@@ -116,6 +117,17 @@ export default function FolderPanel({
                     </strong>
                     <span>{fillLabel(p.elapsedMs, duration)}</span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className="open-work-btn"
+                  aria-label={`Open ${p.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenWork?.(p);
+                  }}
+                >
+                  Open
                 </button>
                 <WorkMenu
                   workName={p.name}

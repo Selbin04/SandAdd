@@ -123,6 +123,8 @@ export default function App() {
   const [completed, setCompleted] = useState(false);
   const [projects, setProjects] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  const [openWorkId, setOpenWorkId] = useState(null);
+  const [workDrawerClosing, setWorkDrawerClosing] = useState(false);
   const [activeName, setActiveName] = useState("");
   const [newName, setNewName] = useState("");
   const [storage, setStorage] = useState("mongodb");
@@ -134,6 +136,7 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState(() => loadDailySelectedIds());
   const [worksPickerId, setWorksPickerId] = useState(null);
   const [page, setPage] = useState("progress");
+  const drawerOpen = page === "progress" && Boolean(openWorkId);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSeed, setShareSeed] = useState(null);
   const [topicShare, setTopicShare] = useState(null);
@@ -155,6 +158,49 @@ export default function App() {
   const topicPopupRef = useRef(null);
   const worksPourBaselineRef = useRef(null);
   const saveCurrentRef = useRef(null);
+  const workDrawerCloseTimerRef = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (workDrawerCloseTimerRef.current) {
+        window.clearTimeout(workDrawerCloseTimerRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const body = document.body;
+    const root = document.documentElement;
+    const scrollY = window.scrollY;
+    const previousStyles = {
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width,
+      bodyPaddingRight: body.style.paddingRight,
+      rootOverflow: root.style.overflow,
+    };
+    const scrollbarWidth = window.innerWidth - root.clientWidth;
+
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+    root.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousStyles.bodyOverflow;
+      body.style.position = previousStyles.bodyPosition;
+      body.style.top = previousStyles.bodyTop;
+      body.style.width = previousStyles.bodyWidth;
+      body.style.paddingRight = previousStyles.bodyPaddingRight;
+      root.style.overflow = previousStyles.rootOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [drawerOpen]);
 
   pouringRef.current = pouring;
   topicPopupRef.current = topicPopup;
@@ -601,6 +647,28 @@ export default function App() {
   useEffect(() => {
     let raf;
     let last = performance.now();
+    let lastProjectSync = 0;
+
+    const syncVisibleProgress = (elapsed, done, now) => {
+      if (!done && now - lastProjectSync < 100) return;
+      lastProjectSync = now;
+      const id = activeIdRef.current;
+      if (!id) return;
+      setProjects((list) => {
+        let changed = false;
+        const next = list.map((project) => {
+          if (
+            project._id !== id ||
+            (project.elapsedMs === elapsed && project.completed === done)
+          ) {
+            return project;
+          }
+          changed = true;
+          return { ...project, elapsedMs: elapsed, completed: done };
+        });
+        return changed ? next : list;
+      });
+    };
 
     const tick = (now) => {
       const dt = now - last;
@@ -624,12 +692,14 @@ export default function App() {
           const done = target >= duration - 0.5;
           completedRef.current = done;
           setCompleted(done);
+          syncVisibleProgress(target, done, now);
           // Save quietly — no chime for works-based pour
           void saveCurrentRef.current?.(true);
         } else {
           const next = cur + Math.sign(diff) * stepBudget;
           elapsedRef.current = next;
           setElapsedMs(next);
+          syncVisibleProgress(next, false, now);
           completedRef.current = false;
           setCompleted(false);
           // Stream only while sand is falling (progress up)
@@ -643,6 +713,7 @@ export default function App() {
         const next = Math.min(elapsedRef.current + dt, durationRef.current);
         elapsedRef.current = next;
         setElapsedMs(next);
+        syncVisibleProgress(next, next >= durationRef.current, now);
         if (next >= durationRef.current) {
           pouringRef.current = false;
           completedRef.current = true;
@@ -732,12 +803,39 @@ export default function App() {
 
   const handleSelect = async (project) => {
     if (project._id === activeIdRef.current) return;
+    if (workDrawerCloseTimerRef.current) {
+      window.clearTimeout(workDrawerCloseTimerRef.current);
+      workDrawerCloseTimerRef.current = null;
+    }
+    setWorkDrawerClosing(false);
+    setOpenWorkId(null);
     const worked = pouringRef.current;
     pourIntentRef.current = false;
     pouringRef.current = false;
     setPouring(false);
     await saveCurrent(worked);
     applyProject(project);
+  };
+
+  const handleOpenWork = async (project) => {
+    if (workDrawerCloseTimerRef.current) {
+      window.clearTimeout(workDrawerCloseTimerRef.current);
+      workDrawerCloseTimerRef.current = null;
+    }
+    setWorkDrawerClosing(false);
+    if (project._id !== activeIdRef.current) await handleSelect(project);
+    setOpenWorkId(project._id);
+  };
+
+  const handleCloseWork = () => {
+    if (!openWorkId || workDrawerClosing) return;
+    if (pouringRef.current) stopPour();
+    setWorkDrawerClosing(true);
+    workDrawerCloseTimerRef.current = window.setTimeout(() => {
+      setOpenWorkId(null);
+      setWorkDrawerClosing(false);
+      workDrawerCloseTimerRef.current = null;
+    }, 320);
   };
 
   const handleConfirmDailyWorks = (topicIds) => {
@@ -1036,7 +1134,7 @@ export default function App() {
   }, [startWorksPour]);
 
   const applyWorksProgress = useCallback(
-    async (projectId, topics) => {
+    async (projectId, topics, animateGlass = false) => {
       const project = projectsRef.current.find((p) => p._id === projectId);
       if (!project) return null;
       const duration = projectDuration(project) || durationRef.current || 30_000;
@@ -1077,15 +1175,21 @@ export default function App() {
 
         // While the works popup is open, keep the glass still — pour on close
         if (activeIdRef.current === projectId && !popupOpen) {
-          pourTargetRef.current = null;
           pouringRef.current = false;
-          elapsedRef.current = elapsedMs;
           durationRef.current = duration;
-          completedRef.current = completed;
           setPouring(false);
-          setElapsedMs(elapsedMs);
           setDurationMs(duration);
-          setCompleted(completed);
+          if (animateGlass && Math.abs(elapsedRef.current - elapsedMs) >= 1) {
+            pourTargetRef.current = elapsedMs;
+            completedRef.current = false;
+            setCompleted(false);
+          } else {
+            pourTargetRef.current = null;
+            elapsedRef.current = elapsedMs;
+            completedRef.current = completed;
+            setElapsedMs(elapsedMs);
+            setCompleted(completed);
+          }
         }
         return merged;
       } catch (err) {
@@ -1172,7 +1276,11 @@ export default function App() {
       );
     }
 
-    const updated = await applyWorksProgress(projectId, topics);
+    const updated = await applyWorksProgress(
+      projectId,
+      topics,
+      openWorkId === projectId
+    );
     if (updated && markingDone) {
       const topic = (updated.topics || topics).find((t) => t.id === topicId);
       setTopicShare({
@@ -1227,6 +1335,7 @@ export default function App() {
         userName={authUser.name}
         onLogout={handleLogout}
         onNavigate={(next) => {
+          if (next !== "progress" && openWorkId) handleCloseWork();
           if (next !== "social") setSocialGroupId(null);
           if (next !== "messages") setMessagesThreadId(null);
           setPage(next);
@@ -1320,76 +1429,37 @@ export default function App() {
         />
       ) : (
       <div className="layout">
-        <div id="selected-panel" className="layout-selected">
-          <SelectedStack
-            projects={selectedProjects}
-            activeId={activeId}
-            onSelect={handleSelect}
-            onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
-          />
-        </div>
-
-        <main className="stage layout-stage" id="stage">
-          <p className="active-project">
-            {activeName ? `Working on ${activeName}` : "No work yet — pour or save one"}
-          </p>
-          <div className="glass-row">
-            <div className="glass-wrap">
-              <Hourglass
-                progress={progress}
-                pouring={pouring}
-                finished={completed}
-              />
-            </div>
-            <PourButton
-              pouring={pouring}
-              disabled={completed}
-              onPress={startPour}
-              onRelease={stopPour}
-              onReset={reset}
+        <div className="layout-left">
+          <div id="selected-panel" className="layout-selected">
+            <SelectedStack
+              projects={selectedProjects}
+              activeId={activeId}
+              onSelect={handleSelect}
+              onOpenWork={handleOpenWork}
+              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
             />
           </div>
 
-          <div className="progress-done">
-            <div className="progress-done-label">
-              <span>Done</span>
-              <strong>{Math.round(progress * 100)}%</strong>
-            </div>
-            <div
-              className="progress-track"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progress * 100)}
-              aria-label="Progress done"
-            >
-              <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
-            </div>
-            {activeId ? (
-              <button
-                type="button"
-                className="share-done-btn"
-                onClick={() => {
-                  setShareSeed(null);
-                  setShareOpen(true);
-                }}
-              >
-                Share
-              </button>
-            ) : null}
+          <div className="layout-important" id="important-panel">
+            <ProjectPanel
+              title="Important"
+              projects={importantProjects}
+              activeId={activeId}
+              onSelect={handleSelect}
+              onOpenWork={handleOpenWork}
+              onDelete={handleDelete}
+              onToggleImportant={handleToggleImportant}
+              importantAction="remove"
+              emptyText="Star a work to keep it here. Use up to 5 stars to set priority."
+              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
+              onSetStars={handleSetStars}
+              onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
+              onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
+              folders={folders}
+              onMoveToFolder={handleMoveToFolder}
+            />
           </div>
-
-          <p className="status">
-            {completed
-              ? `${activeName || "This work"} is finished.`
-              : pouring
-                ? `Marking progress on ${activeName || "a new work"}…`
-                : elapsedMs > 0
-                  ? "Paused — progress is saved. Hold POUR to continue."
-                  : "Idle — hold POUR to mark progress on this work."}
-          </p>
-          {apiError && <p className="api-error">{apiError}</p>}
-        </main>
+        </div>
 
         <div id="projects-panel" className="layout-projects">
           <ProjectPanel
@@ -1403,10 +1473,11 @@ export default function App() {
             onNewName={setNewName}
             onCreate={handleCreate}
             onSelect={handleSelect}
+            onOpenWork={handleOpenWork}
             onDelete={handleDelete}
             onToggleImportant={handleToggleImportant}
             importantAction="add"
-            emptyText="Create a work, pour as you go, then save another. Star a work to move it to Important. Double-click a work to list what to do."
+            emptyText="Create a work and add tasks. Star a work to move it to Important. Double-click a work to list what to do."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
             onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
             onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
@@ -1425,6 +1496,7 @@ export default function App() {
               activeId={activeId}
               folders={folders}
               onSelect={handleSelect}
+              onOpenWork={handleOpenWork}
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
               onOpenTopics={(project, rect) =>
@@ -1442,26 +1514,81 @@ export default function App() {
           ))}
         </div>
 
-        <div className="layout-important" id="important-panel">
-          <ProjectPanel
-            title="Important"
-            projects={importantProjects}
-            activeId={activeId}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-            onToggleImportant={handleToggleImportant}
-            importantAction="remove"
-            emptyText="Star a work to keep it here. Use up to 5 stars to set priority."
-            onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
-            onSetStars={handleSetStars}
-            onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
-            onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
-            folders={folders}
-            onMoveToFolder={handleMoveToFolder}
-          />
-        </div>
       </div>
       )}
+      {(page === "progress" || workDrawerClosing) && openWorkId ? (
+        <div
+          className={`work-drawer-backdrop ${workDrawerClosing ? "is-closing" : ""}`}
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) handleCloseWork();
+          }}
+        >
+          <section
+            className="work-drawer"
+            role="dialog"
+            aria-modal="false"
+            aria-label={`${activeName || "Work"} workspace`}
+          >
+            <div className="work-drawer-stage">
+              <div className="work-drawer-glass-row">
+                <div className="glass-wrap">
+                  <Hourglass
+                    progress={progress}
+                    pouring={pouring}
+                    finished={completed}
+                  />
+                </div>
+                <PourButton
+                  pouring={pouring}
+                  disabled={completed}
+                  onPress={startPour}
+                  onRelease={stopPour}
+                  onReset={reset}
+                />
+              </div>
+              <div className="progress-done">
+                <div className="progress-done-label">
+                  <span>Progress</span>
+                  <strong>{Math.round(progress * 100)}%</strong>
+                </div>
+                <div
+                  className="progress-track"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(progress * 100)}
+                  aria-label="Progress done"
+                >
+                  <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="work-drawer-share-btn"
+                onClick={() => {
+                  setShareSeed(null);
+                  setShareOpen(true);
+                }}
+              >
+                Share Progress
+              </button>
+            </div>
+            <DonePopup
+              project={projects.find((project) => project._id === openWorkId)}
+              onClose={handleCloseWork}
+              onAdd={handleAddTopic}
+              onRemove={handleRemoveTopic}
+              onToggle={handleToggleTopic}
+              onSetSource={handleSetTopicSource}
+              readOnlyTasks={isTasksLocked(
+                projects.find((project) => project._id === openWorkId)
+              )}
+              inline
+            />
+          </section>
+        </div>
+      ) : null}
       {worksPickerProject && (
         <TodayWorksModal
           project={worksPickerProject}

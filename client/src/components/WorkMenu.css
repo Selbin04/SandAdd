@@ -41,6 +41,14 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
+.project-list .work-menu-list > li:not(.work-menu-section) {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .work-menu-list button {
   display: block;
   width: 100%;

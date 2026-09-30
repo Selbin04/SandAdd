@@ -4,6 +4,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import projectRoutes from "./routes/projects.js";
 import authRoutes, { requireAuth } from "./routes/auth.js";
+import createLiveWorksRouter from "./routes/liveWorks.js";
 
 const PORT = Number(process.env.PORT) || 5000;
 const MONGO_URI =
@@ -44,6 +45,7 @@ async function start() {
   app.use("/api/auth", authRoutes(useMemory));
   // Projects require a signed-in session
   app.use("/api/projects", requireAuth(useMemory), projectRoutes(useMemory));
+  app.use("/api/live-works", requireAuth(useMemory), createLiveWorksRouter());
 
   app.listen(PORT, () => {
     console.log(`Hourglass API running on http://localhost:${PORT}`);

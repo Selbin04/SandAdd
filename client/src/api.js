@@ -91,3 +91,44 @@ export async function deleteProject(id) {
   });
   return readJson(res, "Could not delete work");
 }
+
+export async function fetchLiveWorks(ids) {
+  const list = (Array.isArray(ids) ? ids : [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean);
+  if (list.length === 0) return { works: {}, progress: {} };
+  const params = new URLSearchParams({ ids: list.join(",") });
+  const res = await fetch(`${API}/live-works?${params}`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load live works");
+}
+
+export async function putLiveWork(originId, payload) {
+  const res = await fetch(`${API}/live-works/${encodeURIComponent(originId)}`, {
+    method: "PUT",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload || {}),
+  });
+  return readJson(res, "Could not publish live work");
+}
+
+export async function deleteLiveWork(originId) {
+  const res = await fetch(`${API}/live-works/${encodeURIComponent(originId)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not remove live work");
+}
+
+export async function putLiveWorkProgress(originId, payload) {
+  const res = await fetch(
+    `${API}/live-works/${encodeURIComponent(originId)}/progress`,
+    {
+      method: "PUT",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload || {}),
+    }
+  );
+  return readJson(res, "Could not sync live progress");
+}

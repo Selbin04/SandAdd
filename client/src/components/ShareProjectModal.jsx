@@ -307,12 +307,14 @@ export default function ShareProjectModal({
             </button>
             <p className="share-hint">{proofHint}</p>
             <label className="share-caption">
-              Caption
+              Write something
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
                 rows={3}
                 maxLength={280}
+                placeholder="Write something…"
+                aria-label="Write something"
               />
             </label>
             <div className="share-attach">
