@@ -94,7 +94,11 @@ async function main() {
     if (!mongoUri) {
       throw new Error("Set MONGODB_URL or MONGO_URI before checking or importing MongoDB.");
     }
-    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 });
+    const mongoOptions = { serverSelectionTimeoutMS: 8000 };
+    if (process.env.MONGODB_DATABASE) {
+      mongoOptions.dbName = process.env.MONGODB_DATABASE;
+    }
+    await mongoose.connect(mongoUri, mongoOptions);
   }
 
   const targetUsers = checkTarget

@@ -45,13 +45,14 @@ Copy `server/.env.example` to `server/.env` and change if you need:
 ```
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/hourglass
+MONGODB_DATABASE=Sandadd_prototype
 DATA_DIR=data
 PROJECTS_FILE=projects.json
 ```
 
 ## Preserve existing data when enabling MongoDB
 
-The server keeps existing JSON data in `server/data/`; connecting MongoDB does not delete or automatically import those files. Set `MONGODB_URL` or `MONGO_URI` in `server/.env`, then preview the local record counts without connecting to or changing MongoDB:
+The server keeps existing JSON data in `server/data/`; connecting MongoDB does not delete or automatically import those files. Set `MONGODB_URL` or `MONGO_URI` plus `MONGODB_DATABASE` in `server/.env`, then preview the local record counts without connecting to or changing MongoDB:
 
 ```bash
 cd server
@@ -77,7 +78,7 @@ The import skips matching accounts and previously imported records; it does not 
 The repository includes a Vercel serverless API and builds the React client from the repository root.
 
 1. Push the project to a GitHub repository and import it in Vercel with the repository root as the project root.
-2. Create a MongoDB Atlas database and set `MONGO_URI` in the Vercel project's Production environment variables. Use a database user limited to this database and keep the URI private.
+2. Create a MongoDB Atlas database and set `MONGODB_URL` (or `MONGO_URI`) and `MONGODB_DATABASE=Sandadd_prototype` in the Vercel project's Production environment variables. Use a database user limited to this database and keep the URI private.
 3. Deploy. Check `/api/health`; it should return `{"ok":true,"storage":"mongodb"}`. Register a test account, create a progress path, then sign out and back in to verify persistence.
 
 Do not deploy without `MONGO_URI`: production intentionally refuses to use the local JSON fallback because Vercel function files are not persistent. Social posts, group feeds, messages, and some preferences are currently stored in each browser, so those items do not yet sync between friends' accounts. Treat this as a hosted testing prototype, not a production launch.

@@ -11,8 +11,12 @@ let mongoConnectionPromise = null;
 async function connectMongo(uri) {
   if (mongoose.connection.readyState === 1) return;
   if (!mongoConnectionPromise) {
+    const options = { serverSelectionTimeoutMS: 5000 };
+    if (process.env.MONGODB_DATABASE) {
+      options.dbName = process.env.MONGODB_DATABASE;
+    }
     mongoConnectionPromise = mongoose
-      .connect(uri, { serverSelectionTimeoutMS: 5000 })
+      .connect(uri, options)
       .catch((error) => {
         mongoConnectionPromise = null;
         throw error;
