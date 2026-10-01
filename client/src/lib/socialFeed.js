@@ -206,7 +206,7 @@ export function buildSharedProject({
 }) {
   const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) {
-    throw new Error("Enter a work name");
+    throw new Error("Enter a project name");
   }
 
   let workList = [];

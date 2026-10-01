@@ -2,6 +2,11 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { memoryAuth } from "../authStore.js";
+import {
+  createSession as createAuthSession,
+  destroySession,
+  findSessionUserId,
+} from "../sessionStore.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -63,11 +68,11 @@ export default function authRoutes(useMemory) {
   }
 
   async function createSession(userId) {
-    return memoryAuth.createSession(userId);
+    return createAuthSession(userId, useMemory);
   }
 
   async function userFromToken(token) {
-    const userId = await memoryAuth.sessionUserId(token);
+    const userId = await findSessionUserId(token, useMemory);
     if (!userId) return null;
     return findById(userId);
   }
@@ -152,7 +157,7 @@ export default function authRoutes(useMemory) {
   router.post("/logout", async (req, res) => {
     try {
       const token = readBearer(req);
-      if (token) await memoryAuth.destroySession(token);
+      if (token) await destroySession(token, useMemory);
       return res.json({ ok: true });
     } catch (err) {
       console.error("logout failed", err);
@@ -171,7 +176,7 @@ export function requireAuth(useMemory) {
       if (!token) {
         return res.status(401).json({ error: "Sign in required." });
       }
-      const userId = await memoryAuth.sessionUserId(token);
+      const userId = await findSessionUserId(token, useMemory);
       if (!userId) {
         return res.status(401).json({ error: "Session expired. Sign in again." });
       }

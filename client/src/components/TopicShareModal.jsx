@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { PROOF_ACCEPT, fileToProof } from "../lib/socialFeed.js";
+import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import "./TopicShareModal.css";
 
@@ -105,6 +106,7 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
             Share
           </button>
         </div>
+        <FileUploadHint />
       </div>
     </div>
   );

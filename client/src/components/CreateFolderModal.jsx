@@ -43,7 +43,7 @@ export default function CreateFolderModal({ onClose, onCreate, works = [] }) {
       >
         <h2 id="folder-modal-title">Create new folder</h2>
         <p className="folder-modal-hint">
-          Name the box, then pick which works belong in it.
+          Name the box, then pick which projects belong in it.
         </p>
         <label className="folder-modal-field">
           Folder name
@@ -58,10 +58,10 @@ export default function CreateFolderModal({ onClose, onCreate, works = [] }) {
         </label>
 
         <div className="folder-modal-works">
-          <span className="folder-modal-works-label">Add works</span>
+          <span className="folder-modal-works-label">Add progress</span>
           {works.length === 0 ? (
             <p className="folder-modal-works-empty">
-              No unfiled works yet. Create works first, or add them later from the folder.
+              No unfiled progress yet. Create progress first, or add it later from the folder.
             </p>
           ) : (
             <ul className="folder-modal-works-list">

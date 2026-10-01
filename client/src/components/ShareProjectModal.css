@@ -234,6 +234,29 @@
   white-space: nowrap;
 }
 
+.share-progress-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+  color: var(--paper);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.4;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.share-progress-option input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 1px 0 0;
+  accent-color: var(--brass);
+}
+
 .share-submit {
   width: 100%;
   margin-top: 14px;

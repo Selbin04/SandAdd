@@ -163,9 +163,17 @@
   cursor: pointer;
 }
 
-.work-source-btn:hover,
-.work-source-btn.is-active,
+.work-source-btn:hover {
+  border-color: var(--line);
+  color: var(--paper);
+}
+
 .work-source-btn.has-source {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.work-source-btn.is-active {
   border-color: color-mix(in srgb, var(--brass) 55%, transparent);
   color: var(--brass);
 }
@@ -214,8 +222,8 @@
 }
 
 .work-source-tabs button.is-active {
-  background: var(--blue-soft-2);
-  color: var(--paper);
+  background: var(--active-surface);
+  color: var(--brass);
 }
 
 .work-source-pane {

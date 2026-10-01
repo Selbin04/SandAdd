@@ -98,8 +98,8 @@
 }
 
 .daily-review-previous:hover:not(:disabled) {
-  border-color: var(--brass);
-  background: var(--blue-soft);
+  border-color: var(--line);
+  background: var(--surface);
 }
 
 .daily-review-previous:disabled {

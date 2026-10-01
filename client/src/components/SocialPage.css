@@ -35,12 +35,12 @@
 
 .social-tabs button:hover {
   color: var(--paper);
-  border-color: var(--brass);
+  border-color: var(--line);
 }
 
 .social-tabs button.is-active {
   color: var(--brass);
-  background: var(--blue-soft);
+  background: var(--active-surface);
   border-color: var(--brass);
   font-weight: 600;
 }
@@ -190,6 +190,71 @@
   gap: 12px;
   min-width: 0;
   width: 100%;
+}
+
+.social-view-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.social-view-search-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.social-view-search-field svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.social-view-search-field input {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px 10px 36px;
+  background: var(--input-bg);
+  color: var(--paper);
+  font: inherit;
+}
+
+.social-view-search-field input::placeholder {
+  color: var(--muted);
+}
+
+.social-view-search-clear {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.social-view-search-clear:hover {
+  border-color: var(--brass);
+  color: var(--paper);
+}
+
+.social-view-search-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .social-feed-row {

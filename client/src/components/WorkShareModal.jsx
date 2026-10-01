@@ -29,15 +29,15 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
   const selectedGroup = shareGroups.find((g) => g.id === groupId) || null;
   const selectedThread = SHARE_THREADS.find((t) => t.id === threadId) || null;
   const isAssign = mode === "assign";
-  const title = isAssign ? "Share to assign" : "Share to follow";
+  const title = isAssign ? "Assign project" : "Share project to follow";
   const blurb = isAssign
-    ? "Assignees add this work to Progress. They get your task list updates and cannot edit or add tasks."
-    : "Followers add this work to Progress. They get your task list updates and cannot edit or add tasks.";
+    ? "Assignees add this project to Progress. They get task updates and cannot edit or add tasks."
+    : "Followers add this project to Progress. They get task updates and cannot edit or add tasks.";
 
   const defaultBody = () =>
     isAssign
-      ? `Assigned work: ${project?.name || "work"}`
-      : `Follow this work: ${project?.name || "work"}`;
+      ? `Assigned project: ${project?.name || "project"}`
+      : `Follow this project: ${project?.name || "project"}`;
 
   const goCompose = (nextTarget, nextGroupId = null, nextThreadId = null) => {
     setTarget(nextTarget);
@@ -49,7 +49,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
 
   const publish = async () => {
     if (!project?._id) {
-      setError("No work to share.");
+      setError("No project to share.");
       return;
     }
     if (target !== "post" && target !== "groups" && target !== "messages") {
@@ -102,6 +102,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           id: `live-msg-${Date.now()}`,
           from: "me",
           text: body,
+          authorName: author.name,
+          authorHandle: author.handle,
           proof: null,
           projectName: project.name,
           works: sharedProject.works,
@@ -118,7 +120,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         });
       }
 
-      onShared?.({ mode, target, groupId, threadId });
+      onShared?.({ mode, target, groupId, threadId, sharedProject, author });
       onClose?.();
     } catch (err) {
       setError(err.message || "Could not share.");
@@ -209,7 +211,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 <span className="work-share-num">{i + 1}</span>
                 <span>
                   <strong>{group.name}</strong>
-                  <small>{isAssign ? "Assign into this group" : "Share to follow"}</small>
+                  <small>{isAssign ? "Assign into this group" : "Share project to follow"}</small>
                 </span>
               </button>
             ))}

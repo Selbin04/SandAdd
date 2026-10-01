@@ -63,8 +63,8 @@
 
 .create-folder-btn {
   border: 1px solid var(--line);
-  background: transparent;
-  color: var(--brass);
+  background: var(--surface-strong);
+  color: var(--paper);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 10px;
@@ -76,6 +76,6 @@
 }
 
 .create-folder-btn:hover {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  border-color: var(--line);
+  background: var(--surface);
 }

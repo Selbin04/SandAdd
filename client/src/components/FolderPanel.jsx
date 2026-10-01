@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
@@ -7,7 +6,6 @@ import "./FolderPanel.css";
 export default function FolderPanel({
   folder,
   projects,
-  addableWorks = [],
   activeId,
   folders = [],
   onSelect,
@@ -20,8 +18,6 @@ export default function FolderPanel({
   onMoveToFolder,
   onDeleteFolder,
 }) {
-  const [addId, setAddId] = useState("");
-
   return (
     <aside className="panel folder-panel">
       <header className="panel-head folder-panel-head">
@@ -31,47 +27,14 @@ export default function FolderPanel({
           className="folder-delete-btn"
           onClick={() => onDeleteFolder?.(folder)}
           aria-label={`Delete folder ${folder.name}`}
-          title="Delete folder (works return to Works)"
+          title="Delete folder (projects return to the Projects list)"
         >
           ×
         </button>
       </header>
 
-      {addableWorks.length > 0 ? (
-        <form
-          className="folder-add-work"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!addId) return;
-            const work = addableWorks.find((p) => p._id === addId);
-            if (work) onMoveToFolder?.(work, folder.id);
-            setAddId("");
-          }}
-        >
-          <select
-            value={addId}
-            onChange={(e) => setAddId(e.target.value)}
-            aria-label={`Add work to ${folder.name}`}
-          >
-            <option value="">Add a work…</option>
-            {addableWorks.map((work) => (
-              <option key={work._id} value={work._id}>
-                {work.name}
-              </option>
-            ))}
-          </select>
-          <button type="submit" className="chip active" disabled={!addId}>
-            Add
-          </button>
-        </form>
-      ) : null}
-
       {projects.length === 0 ? (
-        <p className="empty">
-          {addableWorks.length > 0
-            ? "Pick a work above to add it here."
-            : "No works in this folder yet."}
-        </p>
+        <p className="empty">No progress in this folder yet.</p>
       ) : (
         <ul className="project-list">
           {projects.map((p) => {

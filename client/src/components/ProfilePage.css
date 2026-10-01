@@ -734,7 +734,7 @@
 }
 
 .profile-post-actions button:hover {
-  color: var(--brass);
+  color: var(--paper);
   background: var(--blue-soft);
 }
 
@@ -811,13 +811,13 @@
 }
 
 .profile-project-item:hover {
-  border-color: var(--brass);
+  border-color: var(--line);
   background: var(--blue-soft);
 }
 
 .profile-project-item.is-active {
   border-color: var(--brass);
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
 }
 
 .profile-project-main {

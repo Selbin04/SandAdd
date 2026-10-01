@@ -79,8 +79,9 @@
 }
 
 .theme-toggle:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--paper);
 }
 
 .profile-btn {
@@ -88,9 +89,9 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid var(--brass);
-  background: var(--blue-soft-2);
-  color: var(--brass);
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  color: var(--muted);
   display: grid;
   place-items: center;
   padding: 0;
@@ -102,11 +103,12 @@
 }
 
 .profile-btn:hover {
-  background: var(--brass);
-  color: #ffffff;
+  background: var(--surface);
+  color: var(--paper);
 }
 
 .profile-btn.is-active {
+  border-color: var(--brass);
   background: var(--brass);
   color: #ffffff;
 }
@@ -169,8 +171,30 @@
 
 .navbar-links button.is-active {
   color: var(--brass);
-  background: var(--blue-soft);
+  background: var(--active-surface);
   font-weight: 600;
+}
+
+.navbar-count-label {
+  position: relative;
+  display: inline-block;
+}
+
+.navbar-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  display: grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border-radius: 50%;
+  background: #d94a43;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .navbar-meta {
@@ -200,7 +224,7 @@
   letter-spacing: 0.28em;
   text-transform: uppercase;
   font-size: 11px;
-  color: var(--brass);
+  color: var(--muted);
 }
 
 .topbar h1 {
@@ -248,6 +272,9 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
   max-height: min(78vh, 900px);
   overflow: auto;
   scrollbar-width: none;
@@ -261,11 +288,19 @@
 .layout-projects .panel {
   min-height: 0;
   flex-shrink: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.layout-projects > .panel + .panel {
+  border-top: 1px solid var(--line);
 }
 
 .layout-projects > .folder-panel {
   flex: 0 0 auto;
   min-height: 280px;
+  margin-top: 0;
+  background: transparent;
 }
 
 .layout-important {
@@ -275,8 +310,8 @@
 .panel {
   background: linear-gradient(180deg, var(--panel-top), var(--panel));
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px;
+  border-radius: 12px;
+  padding: 14px;
   min-height: 280px;
   box-shadow: none;
 }
@@ -287,19 +322,19 @@
 }
 
 [data-theme="light"] .project-list li {
-  background: var(--blue-soft);
-  border-left-color: var(--brass);
+  background: var(--surface);
+  border-left-color: var(--line);
 }
 
 [data-theme="light"] .project-list li.active {
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
   box-shadow: none;
   border-color: var(--brass);
 }
 
 [data-theme="light"] .mini-glass {
-  background: var(--blue-soft-3);
-  border-color: var(--brass);
+  background: var(--surface-strong);
+  border-color: var(--line);
 }
 
 [data-theme="light"] .mark-important,
@@ -335,12 +370,12 @@
 }
 
 [data-theme="light"] .navbar-links button:hover {
-  color: var(--brass);
+  color: var(--paper);
 }
 
 [data-theme="light"] .navbar-links button.is-active {
   color: var(--brass);
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
 }
 
 [data-theme="light"] .navbar-active {
@@ -357,19 +392,25 @@
 }
 
 [data-theme="light"] .profile-btn {
-  background: var(--blue-soft-2);
-  border-color: var(--brass);
-  color: #000000;
+  background: var(--surface-strong);
+  border-color: var(--line);
+  color: var(--muted);
 }
 
 [data-theme="light"] .profile-btn:hover {
+  background: var(--surface);
+  color: var(--paper);
+}
+
+[data-theme="light"] .profile-btn.is-active {
   background: var(--brass);
+  border-color: var(--brass);
   color: #ffffff;
 }
 
 [data-theme="light"] .panel-head h2,
 [data-theme="light"] .active-project {
-  color: #000000;
+  color: var(--paper);
 }
 
 [data-theme="light"] .status,
@@ -418,7 +459,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .panel-head h2 {
@@ -426,15 +467,15 @@
   font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--brass);
+  color: var(--paper);
 }
 
 .storage-pill {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 3px 7px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   color: var(--muted);
 }
@@ -446,7 +487,7 @@
 
 .storage-pill.file,
 .storage-pill.memory {
-  color: var(--brass);
+  color: var(--muted);
 }
 
 .empty {
@@ -478,7 +519,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   max-height: 520px;
   overflow: visible;
 }
@@ -487,20 +528,20 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 6px 6px 8px;
-  border-radius: 10px;
+  padding: 6px 7px;
+  border-radius: 8px;
   background: var(--surface);
   border: 1px solid transparent;
-  border-left: 3px solid var(--brass);
+  border-left: 3px solid var(--line);
 }
 
 .open-work-btn {
   flex-shrink: 0;
-  border: 1px solid var(--brass);
+  border: 1px solid var(--line);
   border-radius: 7px;
   padding: 5px 9px;
-  background: transparent;
-  color: var(--brass);
+  background: var(--surface-strong);
+  color: var(--paper);
   font: inherit;
   font-size: 11px;
   font-weight: 700;
@@ -517,16 +558,16 @@
 }
 
 .open-work-btn:hover {
-  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  background: var(--surface);
 }
 
 .project-list li.active {
   border-color: var(--brass);
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
 }
 
 .project-list li.done {
-  border-left-color: var(--danger);
+  border-left-color: var(--brass);
 }
 
 .project-select {
@@ -560,6 +601,7 @@
 }
 
 .project-copy {
+  flex: 1;
   min-width: 0;
 }
 
@@ -580,18 +622,44 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   border: 1px solid var(--line);
   color: var(--brass);
-  background: var(--blue-soft);
+  background: var(--surface);
 }
 
-.project-copy span {
-  display: block;
-  margin-top: 2px;
+.project-copy > span:not(.project-progress-track) {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-strong);
   font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--muted);
+}
+
+.project-copy .project-progress-track {
+  height: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.project-progress-track > span {
+  display: block;
+  height: 100%;
+  margin: 0;
+  border-radius: inherit;
+  background: var(--brass);
+  transition: width 180ms ease;
+}
+
+.project-list li.active .project-progress-track > span {
+  background: var(--brass);
 }
 
 .priority-stars {
@@ -606,7 +674,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--blue-soft-3);
+  color: var(--muted);
   font-size: 14px;
   line-height: 1;
 }
@@ -659,7 +727,7 @@
 }
 
 .important-panel .project-list li {
-  border-left-color: var(--brass);
+  border-left-color: var(--line);
 }
 
 .left-col,
@@ -849,7 +917,7 @@
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: var(--blue-soft);
+  background: var(--surface-strong);
   overflow: hidden;
 }
 
@@ -889,7 +957,7 @@
   border: 1px solid var(--line);
   background: var(--surface-strong);
   color: var(--paper);
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 7px 12px;
 }
 
@@ -908,8 +976,8 @@
 }
 
 .reset:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--line);
+  color: var(--paper);
 }
 
 .api-error {
@@ -1056,6 +1124,7 @@
 }
 
 .work-drawer-stage {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -1156,8 +1225,9 @@
 }
 
 .done-inline-close:hover {
-  border-color: var(--brass);
-  color: var(--brass);
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--paper);
 }
 
 .work-drawer-share-btn {

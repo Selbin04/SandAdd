@@ -7,6 +7,7 @@ import {
   isVideoProof,
   restoreTopicSourceProof,
 } from "../lib/socialFeed.js";
+import FileUploadHint from "./FileUploadHint.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -329,18 +330,18 @@ export default function DonePopup({
         onMouseDown={(e) => e.stopPropagation()}
         role={inline ? undefined : "dialog"}
         aria-label={inline ? undefined : todayMode
-          ? `${project.name} works for today`
-          : `${project.name} works to do`}
+          ? `${project.name} tasks for today`
+          : `${project.name} tasks`}
       >
         <div className={inline ? "done-inline-head" : ""}>
           <div>
             <p className="done-title">{project.name}</p>
             <p className="done-hint">
               {todayMode
-                ? "Works to do today"
+                ? "Tasks for today"
                 : readOnlyTasks
                   ? "Tasks sync from the creator — you can tick them, but not edit or add"
-                  : "What the works to do"}
+                  : "Tasks"}
             </p>
           </div>
           {inline ? (
@@ -358,10 +359,10 @@ export default function DonePopup({
         {topics.length === 0 ? (
           <p className="done-empty">
             {todayMode
-              ? "No works picked for today."
+              ? "No tasks picked for today."
               : readOnlyTasks
                 ? "No tasks yet. Wait for the creator to add some."
-                : "No works yet. Add one below."}
+                : "No tasks yet. Add one below."}
           </p>
         ) : (
           <ul className="done-list">
@@ -540,6 +541,7 @@ export default function DonePopup({
                           >
                             {busyFile ? "Uploading…" : "Upload file"}
                           </button>
+                          <FileUploadHint />
                           {topic.sourceProof ? (
                             <SourceFileViewer proof={topic.sourceProof} />
                           ) : null}
@@ -608,6 +610,7 @@ export default function DonePopup({
                 Add
               </button>
             </div>
+            <FileUploadHint />
           </form>
         )}
       </div>

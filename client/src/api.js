@@ -72,7 +72,7 @@ export async function createProject(payload) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  return readJson(res, "Could not create work");
+  return readJson(res, "Could not create project");
 }
 
 export async function updateProject(id, payload) {
@@ -81,7 +81,7 @@ export async function updateProject(id, payload) {
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
-  return readJson(res, "Could not save work");
+  return readJson(res, "Could not save project");
 }
 
 export async function deleteProject(id) {
@@ -89,7 +89,7 @@ export async function deleteProject(id) {
     method: "DELETE",
     headers: authHeaders(),
   });
-  return readJson(res, "Could not delete work");
+  return readJson(res, "Could not delete project");
 }
 
 export async function fetchLiveWorks(ids) {

@@ -84,7 +84,7 @@
 
 .today-works-item.is-on {
   border-color: var(--brass);
-  background: var(--blue-soft);
+  background: var(--active-surface);
 }
 
 .today-works-check {
@@ -96,13 +96,14 @@
   display: grid;
   place-items: center;
   font-size: 12px;
-  color: var(--ok);
+  color: var(--muted);
   background: var(--surface-strong);
 }
 
 .today-works-item.is-on .today-works-check {
   border-color: var(--brass);
-  background: rgba(125, 154, 98, 0.25);
+  background: color-mix(in srgb, var(--brass) 16%, var(--surface));
+  color: var(--brass);
 }
 
 .today-works-actions {
@@ -129,12 +130,12 @@
 
 .today-works-confirm {
   border: 1px solid var(--brass);
-  background: linear-gradient(180deg, rgba(0, 176, 255, 0.55), rgba(0, 119, 194, 0.85));
+  background: linear-gradient(180deg, var(--sand), var(--brass-deep));
   color: #ffffff;
 }
 
 .today-works-confirm:hover {
-  background: linear-gradient(180deg, rgba(0, 176, 255, 0.7), rgba(0, 119, 194, 1));
+  background: linear-gradient(180deg, var(--brass), var(--brass-deep));
 }
 
 [data-theme="light"] .today-works-card {
@@ -147,6 +148,11 @@
 [data-theme="light"] .today-works-skip {
   background: var(--blue-soft-2);
   border-color: var(--line);
+}
+
+[data-theme="light"] .today-works-item.is-on {
+  background: var(--active-surface);
+  border-color: var(--brass);
 }
 
 @media (max-width: 640px) {

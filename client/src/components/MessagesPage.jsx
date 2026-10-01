@@ -86,13 +86,46 @@ function ThreadAvatar({ thread }) {
   );
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, onFollowProject }) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [followError, setFollowError] = useState("");
   const works = Array.isArray(msg.works)
     ? msg.works
     : Array.isArray(msg.sharedProject?.works)
       ? msg.sharedProject.works
       : [];
   const projectTitle = msg.sharedProject?.name || msg.projectName;
+  const shareMode = msg.shareMode || msg.sharedProject?.shareMode;
+  const isLiveShare =
+    msg.sharedProject?.live ||
+    msg.sharedProject?.originId ||
+    String(msg.sharedProject?.templateId || "").startsWith("live-");
+  const isLiveFollow =
+    shareMode === "follow" &&
+    Boolean(isLiveShare);
+  const canAddToProgress = Boolean(msg.sharedProject && onFollowProject);
+  const progressActionLabel =
+    shareMode === "assign"
+      ? "Accept assignment"
+      : isLiveFollow
+        ? "Follow in Progress"
+        : "Add to Progress";
+
+  const followProject = async () => {
+    if (!onFollowProject || !msg.sharedProject) return;
+    setIsAdding(true);
+    setFollowError("");
+    try {
+      await onFollowProject(msg.sharedProject, {
+        name: msg.authorName || msg.sharedProject.authorName || "Work Creator",
+        handle: msg.authorHandle || msg.sharedProject.authorHandle || "",
+      });
+    } catch (error) {
+      setFollowError(error.message || "Could not add work to Progress.");
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   return (
     <div className={`messages-bubble-wrap ${msg.from === "me" ? "is-mine" : "is-theirs"}`}>
@@ -106,7 +139,7 @@ function MessageBubble({ msg }) {
           ) : null}
           {works.length > 0 ? (
             <>
-              <p className="messages-works-label">What the works to do</p>
+              <p className="messages-works-label">Tasks</p>
               <ul>
                 {works.map((w) => (
                   <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
@@ -118,6 +151,17 @@ function MessageBubble({ msg }) {
               </ul>
             </>
           ) : null}
+          {canAddToProgress ? (
+            <button
+              type="button"
+              className="messages-works-follow"
+              disabled={isAdding}
+              onClick={followProject}
+            >
+              {isAdding ? "Adding…" : progressActionLabel}
+            </button>
+          ) : null}
+          {followError ? <p className="messages-works-follow-error">{followError}</p> : null}
         </div>
       ) : null}
       <ProofMedia proof={msg.proof} className="messages-proof" />
@@ -125,7 +169,7 @@ function MessageBubble({ msg }) {
   );
 }
 
-export default function MessagesPage({ initialThreadId = null }) {
+export default function MessagesPage({ initialThreadId = null, onFollowProject = null }) {
   const [activeId, setActiveId] = useState(initialThreadId || SANDADD_ID);
   const [draft, setDraft] = useState("");
   const [extraByThread, setExtraByThread] = useState({});
@@ -251,7 +295,7 @@ export default function MessagesPage({ initialThreadId = null }) {
         <div className="messages-bubbles" ref={bubblesRef}>
           <div className="messages-bubbles-spacer" aria-hidden="true" />
           {messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
+            <MessageBubble key={msg.id} msg={msg} onFollowProject={onFollowProject} />
           ))}
           <div ref={endRef} aria-hidden="true" />
         </div>

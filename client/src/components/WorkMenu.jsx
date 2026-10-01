@@ -59,7 +59,7 @@ export default function WorkMenu({
                   onShareFollow();
                 }}
               >
-                Share to follow
+                Share project to follow
               </button>
             </li>
           ) : null}
@@ -74,7 +74,7 @@ export default function WorkMenu({
                   onShareAssign();
                 }}
               >
-                Share to assign
+                Assign project
               </button>
             </li>
           ) : null}
@@ -94,7 +94,7 @@ export default function WorkMenu({
                     onMoveToFolder(null);
                   }}
                 >
-                  Works (unfiled)
+                  Projects (unfiled)
                 </button>
               </li>
               {folders.map((folder) => (
@@ -133,7 +133,7 @@ export default function WorkMenu({
                 onDelete?.();
               }}
             >
-              Delete work
+              Delete project
             </button>
           </li>
         </ul>

@@ -354,7 +354,7 @@ export default function ProfilePage({
       <div className="profile-card">
         <h2>About your portfolio</h2>
         <p>
-          Highlight special works and keep finished shares here — your public
+          Highlight projects and keep finished shares here — your public
           name and photo live on Profile (icon in the navbar).
         </p>
       </div>
@@ -440,13 +440,13 @@ export default function ProfilePage({
             </button>
           </header>
           <p className="profile-highlight-picker-hint">
-            Choose special works to show on your profile.
+            Choose projects to feature on your profile.
           </p>
           {pickableWorks.length === 0 ? (
             <p className="profile-empty">
               {projects.length === 0
-                ? "Create a work first, then add it as a highlight."
-                : "All your works are already highlighted."}
+                ? "Create a project first, then add it as a highlight."
+                : "All your projects are already highlighted."}
             </p>
           ) : (
             <ul className="profile-highlight-pick-list">
@@ -561,7 +561,7 @@ export default function ProfilePage({
           className={section === "projects" ? "is-active" : ""}
           onClick={() => setSection("projects")}
         >
-          Works
+          Projects
         </button>
       </div>
 
@@ -595,7 +595,7 @@ export default function ProfilePage({
             {visiblePosts.length === 0 ? (
               <p className="profile-empty">
                 {postsFeed === "finished"
-                  ? "No finished works shared yet"
+                  ? "No finished projects shared yet"
                   : "No any posts to show"}
               </p>
             ) : (
@@ -658,7 +658,7 @@ export default function ProfilePage({
                                 </p>
                               )}
                               <p className="profile-post-works-label">
-                                What the works to do
+                                Tasks
                               </p>
                               {works.length > 0 ? (
                                 <ul>
@@ -679,7 +679,7 @@ export default function ProfilePage({
                                 </ul>
                               ) : (
                                 <p className="profile-post-works-empty">
-                                  No works listed
+                                  No tasks listed
                                 </p>
                               )}
                             </div>
@@ -726,7 +726,7 @@ export default function ProfilePage({
         ) : section === "saved" ? (
           <p className="profile-empty">No any saved to show</p>
         ) : projects.length === 0 ? (
-          <p className="profile-empty">No works to show</p>
+          <p className="profile-empty">No projects to show</p>
         ) : (
           <ul className="profile-project-list">
             {projects.map((project) => {

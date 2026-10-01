@@ -72,9 +72,15 @@ export default function Navbar({
               type="button"
               className={page === "social" ? "is-active" : ""}
               aria-current={page === "social" ? "page" : undefined}
+              aria-label={page === "social" ? "Social" : "Social, 3 notifications"}
               onClick={() => onNavigate("social")}
             >
-              Social
+              <span className="navbar-count-label">
+                Social
+                {page !== "social" ? (
+                  <span className="navbar-count-badge" aria-hidden="true">3</span>
+                ) : null}
+              </span>
             </button>
           </li>
           <li>
@@ -92,17 +98,21 @@ export default function Navbar({
               type="button"
               className={page === "messages" ? "is-active" : ""}
               aria-current={page === "messages" ? "page" : undefined}
+              aria-label="Messages, 3 unread"
               onClick={() => onNavigate("messages")}
             >
-              Messages
+              <span className="navbar-count-label">
+                Messages
+                <span className="navbar-count-badge" aria-hidden="true">3</span>
+              </span>
             </button>
           </li>
         </ul>
 
         <div className="navbar-meta">
           <span className={`storage-pill ${storage}`}>{storage}</span>
-          <span className="navbar-active" title={activeName || "No work"}>
-            {activeName || "No work"}
+          <span className="navbar-active" title={activeName || "No project"}>
+            {activeName || "No project"}
           </span>
           <button
             type="button"

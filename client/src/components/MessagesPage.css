@@ -47,7 +47,7 @@
 }
 
 .messages-thread.is-active {
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
 }
 
 .messages-thread.is-unread strong {
@@ -55,12 +55,12 @@
 }
 
 .messages-thread.is-official {
-  border: 1px solid color-mix(in srgb, var(--brass) 45%, transparent);
+  border: 1px solid var(--line);
   background: var(--blue-soft);
 }
 
 .messages-thread.is-official.is-active {
-  background: var(--blue-soft-2);
+  background: var(--active-surface);
 }
 
 .messages-avatar {
@@ -286,6 +286,28 @@
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+.messages-works-follow {
+  margin-top: 10px;
+  border: 1px solid var(--brass);
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: var(--brass-deep);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.messages-works-follow:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.messages-works-follow-error {
+  margin: 6px 0 0;
+  color: var(--danger);
+  font-size: 12px;
 }
 
 .messages-proof.is-video {

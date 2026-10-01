@@ -1,9 +1,6 @@
-import { useState, useEffect } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
-
-const PLACEHOLDERS = ["New work name", "create new learning.."];
 
 export default function ProjectPanel({
   title,
@@ -29,15 +26,6 @@ export default function ProjectPanel({
   onMoveToFolder,
   onCreateFolder,
 }) {
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
-
   return (
     <aside className={`panel projects-panel ${importantAction === "remove" ? "important-panel" : ""}`}>
       <header className="panel-head">
@@ -69,7 +57,7 @@ export default function ProjectPanel({
           <input
             type="text"
             maxLength={80}
-            placeholder={PLACEHOLDERS[placeholderIndex]}
+            placeholder="Create New Progress Path"
             value={newName}
             onChange={(e) => onNewName(e.target.value)}
           />
@@ -118,6 +106,9 @@ export default function ProjectPanel({
                       ) : null}
                     </strong>
                     <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    <span className="project-progress-track" aria-hidden="true">
+                      <span style={{ width: `${Math.round(progress * 100)}%` }} />
+                    </span>
                     {importantAction === "remove" && (
                       <span
                         className="priority-stars"

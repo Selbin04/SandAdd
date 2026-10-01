@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "migrate:legacy-data": "node scripts/migrate-json-to-mongo.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

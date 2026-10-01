@@ -15,6 +15,7 @@ import UserProfilePage from "./components/UserProfilePage.jsx";
 import ShareProjectModal from "./components/ShareProjectModal.jsx";
 import TopicShareModal from "./components/TopicShareModal.jsx";
 import WorkShareModal from "./components/WorkShareModal.jsx";
+import FollowedWorkGroup from "./components/FollowedWorkGroup.jsx";
 import FolderPanel from "./components/FolderPanel.jsx";
 import CreateFolderModal from "./components/CreateFolderModal.jsx";
 import {
@@ -75,6 +76,10 @@ import {
   loadFolders,
   setWorkFolder,
 } from "./lib/folders.js";
+import {
+  joinFollowedWorkGroup,
+  pushFollowedWorkUpdate,
+} from "./lib/followingStore.js";
 import "./App.css";
 
 function playChime() {
@@ -98,6 +103,66 @@ function playChime() {
 
 function workTime(project) {
   return new Date(project.lastWorkedAt || project.createdAt || 0).getTime();
+}
+
+function describeWorkUpdates(previousTopics, nextTopics) {
+  const previousById = new Map(previousTopics.map((topic) => [String(topic.id), topic]));
+  const nextById = new Map(nextTopics.map((topic) => [String(topic.id), topic]));
+  const updates = [];
+  const proofKey = (proof) =>
+    proof
+      ? [proof.mediaId || "", proof.name || "", proof.type || "", proof.size || 0, Boolean(proof.hasMedia || proof.dataUrl)].join("|")
+      : "";
+
+  for (const topic of nextTopics) {
+    const previous = previousById.get(String(topic.id));
+    const taskName = String(topic.text || "").trim();
+    if (!previous) {
+      updates.push(`New task added: "${taskName}".`);
+      if (topic.source) updates.push(`Source link added to "${taskName}": ${topic.source}`);
+      if (topic.sourceProof) updates.push(`Source file attached to "${taskName}".`);
+      continue;
+    }
+
+    const previousName = String(previous.text || "").trim();
+    if (previousName !== taskName) {
+      updates.push(`Task renamed: "${previousName}" to "${taskName}".`);
+    }
+    if (Boolean(previous.done) !== Boolean(topic.done)) {
+      updates.push(`${topic.done ? "Task completed" : "Task reopened"}: "${taskName}".`);
+    }
+
+    const previousSource = String(previous.source || "").trim();
+    const nextSource = String(topic.source || "").trim();
+    if (previousSource !== nextSource) {
+      if (!previousSource && nextSource) {
+        updates.push(`Source link added to "${taskName}": ${nextSource}`);
+      } else if (previousSource && !nextSource) {
+        updates.push(`Source link removed from "${taskName}".`);
+      } else if (nextSource) {
+        updates.push(`Source link updated for "${taskName}": ${nextSource}`);
+      }
+    }
+
+    const previousProof = proofKey(previous.sourceProof);
+    const nextProof = proofKey(topic.sourceProof);
+    if (previousProof !== nextProof) {
+      if (!previousProof && nextProof) {
+        updates.push(`Source file attached to "${taskName}".`);
+      } else if (previousProof && !nextProof) {
+        updates.push(`Source file removed from "${taskName}".`);
+      } else if (nextProof) {
+        updates.push(`Source file updated for "${taskName}".`);
+      }
+    }
+  }
+
+  for (const topic of previousTopics) {
+    if (!nextById.has(String(topic.id))) {
+      updates.push(`Task removed: "${String(topic.text || "").trim()}".`);
+    }
+  }
+  return updates;
 }
 
 function upsertProject(list, project) {
@@ -785,7 +850,7 @@ export default function App() {
     try {
       await saveCurrent(false);
       const count = projectsRef.current.length + 1;
-      const name = newName.trim() || `Work ${count}`;
+      const name = newName.trim() || `Progress ${count}`;
       const created = await createProject({
         name,
         durationMs: durationRef.current,
@@ -1137,6 +1202,7 @@ export default function App() {
     async (projectId, topics, animateGlass = false) => {
       const project = projectsRef.current.find((p) => p._id === projectId);
       if (!project) return null;
+      const previousTopics = Array.isArray(project.topics) ? project.topics : [];
       const duration = projectDuration(project) || durationRef.current || 30_000;
       const elapsedMs = elapsedFromWorks(topics, duration);
       const completed = topics.length > 0 && elapsedMs >= duration;
@@ -1170,6 +1236,11 @@ export default function App() {
               live.mode || "follow",
               readAuthorProfile()
             );
+            if (live.mode === "follow") {
+              for (const update of describeWorkUpdates(previousTopics, mergedTopics)) {
+                pushFollowedWorkUpdate(merged._id, update);
+              }
+            }
           }
         }
 
@@ -1326,6 +1397,100 @@ export default function App() {
     );
   }
 
+  const handleAddSharedProject = async (template, creator) => {
+    const durationMs = template.durationMs || durationRef.current || 30_000;
+    const topics = Array.isArray(template.works)
+      ? template.works.map((w, index) => ({
+          id: w.id || `t-${Date.now()}-${index}`,
+          text: w.text,
+          done: false,
+          source: String(w.source || "").trim().slice(0, 500),
+          sourceProof: w.sourceProof || null,
+        }))
+      : [];
+    for (const topic of topics) {
+      if (topic.sourceProof?.dataUrl) {
+        await persistTopicSourceProof(topic.sourceProof);
+      }
+    }
+    const liveOrigin =
+      template.originId ||
+      (String(template.templateId || "").startsWith("live-")
+        ? String(template.templateId).slice(5)
+        : null);
+    const shareMode =
+      template.shareMode === "assign" ? "assign" : liveOrigin ? "follow" : null;
+    const existingProject = projectsRef.current.find(
+      (project) =>
+        String(project.sharedTemplateId || "") ===
+        String(template.templateId || "")
+    );
+    if (existingProject) {
+      if (liveOrigin && shareMode === "follow") {
+        joinFollowedWorkGroup({
+          ...template,
+          originId: liveOrigin,
+          creatorName: creator?.name || "Work Creator",
+          creatorHandle: creator?.handle || "",
+          currentUser: readAuthorProfile(),
+          isCreator: false,
+        });
+      }
+      applyProject(existingProject);
+      setPage("progress");
+      return;
+    }
+    const locked = Boolean(liveOrigin || template.tasksLocked || template.live);
+    const created = await createProject({
+      name: template.name,
+      durationMs,
+      elapsedMs: 0,
+      completed: false,
+      topics: await prepareTopicsForSave(topics),
+      sharedTemplateId: template.templateId
+        ? String(template.templateId)
+        : null,
+      ...(liveOrigin
+        ? {
+            originId: liveOrigin,
+            originMode: shareMode || "follow",
+            tasksLocked: true,
+          }
+        : {}),
+    });
+    const merged = {
+      ...created,
+      topics: (created.topics || []).map((topic) => {
+        const local = topics.find((item) => item.id === topic.id || item.text === topic.text);
+        if (local?.sourceProof?.dataUrl) {
+          return {
+            ...topic,
+            sourceProof: { ...topic.sourceProof, ...local.sourceProof },
+          };
+        }
+        return topic;
+      }),
+      originId: liveOrigin || created.originId || null,
+      originMode: shareMode || created.originMode || null,
+      tasksLocked: locked || Boolean(created.tasksLocked),
+      sharedTemplateId:
+        template.templateId || created.sharedTemplateId || null,
+    };
+    setProjects((list) => upsertProject(list, merged));
+    if (liveOrigin && shareMode === "follow") {
+      joinFollowedWorkGroup({
+        ...template,
+        originId: liveOrigin,
+        creatorName: creator?.name || "Work Creator",
+        creatorHandle: creator?.handle || "",
+        currentUser: readAuthorProfile(),
+        isCreator: false,
+      });
+    }
+    applyProject(merged);
+    setPage("progress");
+  };
+
   return (
     <div className="app">
       <Navbar
@@ -1346,75 +1511,16 @@ export default function App() {
         <SocialPage
           key={socialGroupId || "social"}
           initialGroupId={socialGroupId}
-          onAddSharedProject={async (template) => {
-            const durationMs =
-              template.durationMs || durationRef.current || 30_000;
-            const topics = Array.isArray(template.works)
-              ? template.works.map((w, index) => ({
-                  id: w.id || `t-${Date.now()}-${index}`,
-                  text: w.text,
-                  done: false,
-                  source: String(w.source || "").trim().slice(0, 500),
-                  sourceProof: w.sourceProof || null,
-                }))
-              : [];
-            for (const t of topics) {
-              if (t.sourceProof?.dataUrl) {
-                await persistTopicSourceProof(t.sourceProof);
-              }
-            }
-            const liveOrigin =
-              template.originId ||
-              (String(template.templateId || "").startsWith("live-")
-                ? String(template.templateId).slice(5)
-                : null);
-            const shareMode =
-              template.shareMode === "assign" ? "assign" : liveOrigin ? "follow" : null;
-            const locked = Boolean(liveOrigin || template.tasksLocked || template.live);
-            const created = await createProject({
-              name: template.name,
-              durationMs,
-              elapsedMs: 0,
-              completed: false,
-              topics: await prepareTopicsForSave(topics),
-              sharedTemplateId: template.templateId
-                ? String(template.templateId)
-                : null,
-              ...(liveOrigin
-                ? {
-                    originId: liveOrigin,
-                    originMode: shareMode || "follow",
-                    tasksLocked: true,
-                  }
-                : {}),
-            });
-            const merged = {
-              ...created,
-              topics: (created.topics || []).map((t) => {
-                const local = topics.find((x) => x.id === t.id || x.text === t.text);
-                if (local?.sourceProof?.dataUrl) {
-                  return {
-                    ...t,
-                    sourceProof: { ...t.sourceProof, ...local.sourceProof },
-                  };
-                }
-                return t;
-              }),
-              originId: liveOrigin || created.originId || null,
-              originMode: shareMode || created.originMode || null,
-              tasksLocked: locked || Boolean(created.tasksLocked),
-              sharedTemplateId:
-                template.templateId || created.sharedTemplateId || null,
-            };
-            setProjects((list) => upsertProject(list, merged));
-            applyProject(merged);
-            setPage("progress");
-          }}
+          existingSharedTemplateIds={projects
+            .map((project) => project.sharedTemplateId)
+            .filter(Boolean)}
+          onAddSharedProject={handleAddSharedProject}
         />
       ) : page === "messages" ? (
         <MessagesPage
           key={messagesThreadId || "messages"}
           initialThreadId={messagesThreadId}
+          onFollowProject={handleAddSharedProject}
         />
       ) : page === "profile" ? (
         <UserProfilePage />
@@ -1450,7 +1556,7 @@ export default function App() {
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
               importantAction="remove"
-              emptyText="Star a work to keep it here. Use up to 5 stars to set priority."
+              emptyText="Star a project to keep it here. Use up to 5 stars to set priority."
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
               onSetStars={handleSetStars}
               onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
@@ -1463,7 +1569,7 @@ export default function App() {
 
         <div id="projects-panel" className="layout-projects">
           <ProjectPanel
-            title="Works"
+            title="Projects"
             projects={regularProjects}
             activeId={activeId}
             storage={storage}
@@ -1477,7 +1583,7 @@ export default function App() {
             onDelete={handleDelete}
             onToggleImportant={handleToggleImportant}
             importantAction="add"
-            emptyText="Create a work and add tasks. Star a work to move it to Important. Double-click a work to list what to do."
+            emptyText="Create a project and add tasks. Star a project to move it to Important. Double-click a project to manage its tasks."
             onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
             onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
             onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
@@ -1492,7 +1598,6 @@ export default function App() {
               projects={projects.filter(
                 (p) => !p.important && p.folderId === folder.id
               )}
-              addableWorks={regularProjects}
               activeId={activeId}
               folders={folders}
               onSelect={handleSelect}
@@ -1531,6 +1636,12 @@ export default function App() {
             aria-label={`${activeName || "Work"} workspace`}
           >
             <div className="work-drawer-stage">
+              <FollowedWorkGroup
+                originId={
+                  projects.find((project) => project._id === openWorkId)?.originId ||
+                  openWorkId
+                }
+              />
               <div className="work-drawer-glass-row">
                 <div className="glass-wrap">
                   <Hourglass
@@ -1628,6 +1739,15 @@ export default function App() {
           onClose={() => setWorkShare(null)}
           onShared={(meta) => {
             setWorkShare(null);
+            if (meta?.mode === "follow" && meta.sharedProject?.originId) {
+              joinFollowedWorkGroup({
+                ...meta.sharedProject,
+                creatorName: meta.author?.name || "Work Creator",
+                creatorHandle: meta.author?.handle || "",
+                currentUser: meta.author,
+                isCreator: true,
+              });
+            }
             if (meta?.target === "groups" && meta.groupId) {
               setSocialGroupId(meta.groupId);
               setMessagesThreadId(null);

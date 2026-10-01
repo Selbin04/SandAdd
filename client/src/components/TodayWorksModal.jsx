@@ -22,15 +22,15 @@ export default function TodayWorksModal({ project, onConfirm, onSkip }) {
         aria-modal="true"
         aria-labelledby="today-works-title"
       >
-        <p className="today-works-eyebrow">Works for today</p>
+        <p className="today-works-eyebrow">Tasks for today</p>
         <h2 id="today-works-title">{project.name}</h2>
         <p className="today-works-hint">
-          Pick which works to do today
+          Pick which tasks to do today
         </p>
 
         {topics.length === 0 ? (
           <p className="today-works-empty">
-            No works listed yet. Add them by double-clicking this work in Important or Works.
+            No tasks listed yet. Add them by double-clicking this project in Important or Projects.
           </p>
         ) : (
           <ul className="today-works-list">

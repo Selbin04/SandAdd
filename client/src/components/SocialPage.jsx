@@ -14,6 +14,7 @@ import {
   PROOF_ACCEPT,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
+import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import {
   WorkSourceControl,
@@ -297,23 +298,23 @@ function FeedCard({
             <>
               <p className="social-shared-project-label">
                 {shared.shareMode === "assign"
-                  ? "Assigned work"
+                  ? "Assigned project"
                   : shared.live || shared.originId
-                    ? "Follow this work"
-                    : "Shared work"}
+                    ? "Follow this project"
+                    : "Shared project"}
               </p>
               <strong className="social-shared-project-name">{shared.name}</strong>
             </>
           ) : item.projectName ? (
             <>
-              <p className="social-shared-project-label">Work</p>
+              <p className="social-shared-project-label">Project</p>
               <strong className="social-shared-project-name">{item.projectName}</strong>
             </>
           ) : null}
           {works.length > 0 ? (
             <>
               <p className="social-shared-project-label is-works">
-                What the works to do
+                Tasks
               </p>
               <ul className="social-shared-project-works">
                 {works.map((w) => (
@@ -342,7 +343,7 @@ function FeedCard({
               type="button"
               className="social-shared-project-add"
               disabled={alreadyAdded || adding || !onAddProject}
-              onClick={() => onAddProject?.(shared)}
+              onClick={() => onAddProject?.(shared, item)}
             >
               {alreadyAdded
                 ? "Added to Progress"
@@ -430,6 +431,7 @@ function ViewProfilePanel({ profile, posts, onClose, style, fixed = false }) {
 export default function SocialPage({
   initialGroupId = null,
   onAddSharedProject = null,
+  existingSharedTemplateIds = [],
 }) {
   const [section, setSection] = useState(initialGroupId ? "groups" : "view");
   const [openGroupId, setOpenGroupId] = useState(initialGroupId);
@@ -441,6 +443,7 @@ export default function SocialPage({
     initialGroupId ? loadGroupPosts(initialGroupId) : []
   );
   const [viewPosts, setViewPosts] = useState(() => loadUserPosts());
+  const [viewSearch, setViewSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [proof, setProof] = useState(null);
   const [proofName, setProofName] = useState("");
@@ -456,6 +459,10 @@ export default function SocialPage({
   const [addedTemplateIds, setAddedTemplateIds] = useState(
     () => new Set(loadAddedTemplateIds())
   );
+  const knownAddedTemplateIds = new Set([
+    ...addedTemplateIds,
+    ...existingSharedTemplateIds.map(String),
+  ]);
 
   useEffect(() => {
     const refresh = () => setAddedTemplateIds(new Set(loadAddedTemplateIds()));
@@ -587,14 +594,17 @@ export default function SocialPage({
     }
   };
 
-  const handleAddSharedProject = async (template) => {
+  const handleAddSharedProject = async (template, post) => {
     if (!template?.templateId || !onAddSharedProject) return;
     const id = String(template.templateId);
-    if (addedTemplateIds.has(id)) return;
+    if (knownAddedTemplateIds.has(id)) return;
     setAddingTemplateId(id);
     setPostError("");
     try {
-      await onAddSharedProject(template);
+      await onAddSharedProject(template, {
+        name: post?.name || "Work Creator",
+        handle: post?.handle || "",
+      });
       markTemplateAdded(id);
       setAddedTemplateIds(new Set(loadAddedTemplateIds()));
     } catch (err) {
@@ -609,6 +619,26 @@ export default function SocialPage({
     [customGroups]
   );
   const feed = useMemo(() => [...viewPosts, ...SAMPLE_FEED], [viewPosts]);
+  const filteredViewPosts = useMemo(() => {
+    const query = viewSearch.trim().toLowerCase();
+    if (!query) return feed;
+    return feed.filter((item) => {
+      const works = Array.isArray(item.sharedProject?.works)
+        ? item.sharedProject.works
+        : Array.isArray(item.works)
+          ? item.works
+          : [];
+      const searchable = [
+        item.sharedProject?.name,
+        item.projectName,
+        ...works.map((work) => work.text),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return searchable.includes(query);
+    });
+  }, [feed, viewSearch]);
   const openGroup = groups.find((g) => g.id === openGroupId) || null;
   const profilePosts = useMemo(() => {
     if (!viewingProfile) return [];
@@ -750,7 +780,7 @@ export default function SocialPage({
     let nextShare = { ...projectShare, works };
     if (works.length > 0) {
       const includeWorks = window.confirm(
-        'Include “What the works to do” in this post?'
+        "Include the task list in this post?"
       );
       if (!includeWorks) {
         // Declined → no works list and no Add to Progress
@@ -767,7 +797,7 @@ export default function SocialPage({
     e.preventDefault();
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a work to post.");
+      setPostError("Write something or add a project to post.");
       return;
     }
     const author = readAuthorProfile();
@@ -779,7 +809,7 @@ export default function SocialPage({
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
       meta: projectShare ? "shared a work · just now" : "just now",
-      body: body || (attachedName ? `Shared work: ${attachedName}` : ""),
+      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
       proof: proof || null,
       works,
       sharedProject: projectShare,
@@ -798,7 +828,7 @@ export default function SocialPage({
     if (!openGroupId || !openGroup) return;
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a work to post.");
+      setPostError("Write something or add a project to post.");
       return;
     }
     const author = readAuthorProfile();
@@ -812,7 +842,7 @@ export default function SocialPage({
       meta: projectShare
         ? `shared a work · ${openGroup.name}`
         : `in ${openGroup.name}`,
-      body: body || (attachedName ? `Shared work: ${attachedName}` : ""),
+      body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
       proof: proof || null,
       works,
       sharedProject: projectShare,
@@ -843,7 +873,7 @@ export default function SocialPage({
           setShowProjectForm((v) => !v);
         }}
       >
-        {sharedProject ? "Remove work" : "Work"}
+        {sharedProject ? "Remove project" : "Project"}
       </button>
     </>
   );
@@ -854,12 +884,12 @@ export default function SocialPage({
         type="text"
         value={projectName}
         onChange={(e) => setProjectName(e.target.value)}
-        placeholder="Work name"
+        placeholder="Project name"
         maxLength={80}
-        aria-label="Work name"
+        aria-label="Project name"
       />
       <p className="social-project-works-label">
-        What the works to do
+        Tasks
       </p>
       <ul className="social-project-works-edit">
         {draftWorks.map((work, index) => (
@@ -869,15 +899,15 @@ export default function SocialPage({
                 type="text"
                 value={work.text}
                 onChange={(e) => updateDraftWork(work.id, { text: e.target.value })}
-                placeholder={`Work ${index + 1}`}
+                placeholder={`Task ${index + 1}`}
                 maxLength={80}
-                aria-label={`Work ${index + 1}`}
+                aria-label={`Task ${index + 1}`}
               />
               <button
                 type="button"
                 className="social-project-work-remove"
                 onClick={() => removeDraftWork(work.id)}
-                aria-label={`Remove work ${index + 1}`}
+                aria-label={`Remove task ${index + 1}`}
               >
                 ×
               </button>
@@ -893,7 +923,7 @@ export default function SocialPage({
               }
               placeholder="Source URL (optional)"
               maxLength={500}
-              aria-label={`Source link for work ${index + 1}`}
+              aria-label={`Source link for task ${index + 1}`}
             />
             <div className="social-project-work-source-actions">
               <button
@@ -918,6 +948,7 @@ export default function SocialPage({
                 </button>
               ) : null}
             </div>
+            <FileUploadHint />
           </li>
         ))}
       </ul>
@@ -927,14 +958,14 @@ export default function SocialPage({
           className="social-project-work-add"
           onClick={addDraftWork}
         >
-          Add work
+          Add progress
         </button>
         <button
           type="button"
           className="social-project-compose-save"
           onClick={applyProjectToCompose}
         >
-          Add work to post
+          Add project to post
         </button>
       </div>
     </div>
@@ -942,9 +973,9 @@ export default function SocialPage({
 
   const sharedProjectChip = sharedProject ? (
     <p className="social-project-chip">
-      Work ready: <strong>{sharedProject.name}</strong>
+      Project ready: <strong>{sharedProject.name}</strong>
       {sharedProject.works?.length
-        ? ` · ${sharedProject.works.length} work${sharedProject.works.length === 1 ? "" : "s"}`
+        ? ` · ${sharedProject.works.length} task${sharedProject.works.length === 1 ? "" : "s"}`
         : ""}
     </p>
   ) : null;
@@ -1055,6 +1086,7 @@ export default function SocialPage({
                 Post
               </button>
             </div>
+            <FileUploadHint />
             {projectComposePanel}
             {sharedProjectChip}
             {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
@@ -1069,7 +1101,7 @@ export default function SocialPage({
                 liked={likedIds.has(item.id)}
                 onLike={toggleLike}
                 onAddProject={handleAddSharedProject}
-                addedTemplateIds={addedTemplateIds}
+                addedTemplateIds={knownAddedTemplateIds}
                 addingTemplateId={addingTemplateId}
               />
             ))}
@@ -1113,14 +1145,44 @@ export default function SocialPage({
                   Post
                 </button>
               </div>
+              <FileUploadHint />
               {projectComposePanel}
               {sharedProjectChip}
               {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
               <ProofMedia proof={proof} className="social-group-attach-preview" />
               {postError ? <p className="social-group-post-error">{postError}</p> : null}
             </form>
+            <div className="social-view-search">
+              <div className="social-view-search-field">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="10.8" cy="10.8" r="6.3" />
+                  <path d="m15.4 15.4 4.1 4.1" />
+                </svg>
+                <input
+                  type="search"
+                  value={viewSearch}
+                  onChange={(e) => setViewSearch(e.target.value)}
+                  placeholder="Search"
+                  aria-label="Search progress paths posted in View"
+                />
+              </div>
+              {viewSearch ? (
+                <button
+                  type="button"
+                  className="social-view-search-clear"
+                  aria-label="Clear progress path search"
+                  title="Clear search"
+                  onClick={() => setViewSearch("")}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
             <div className="social-feed">
-              {feed.map((item) => {
+              {filteredViewPosts.length === 0 ? (
+                <p className="social-view-search-empty">No posted works match this search.</p>
+              ) : null}
+              {filteredViewPosts.map((item) => {
                 const showProfile =
                   viewingProfile && viewingProfile.postId === item.id;
                 const stackProfile =
@@ -1159,7 +1221,7 @@ export default function SocialPage({
                       liked={likedIds.has(item.id)}
                       onLike={toggleLike}
                       onAddProject={handleAddSharedProject}
-                      addedTemplateIds={addedTemplateIds}
+                      addedTemplateIds={knownAddedTemplateIds}
                       addingTemplateId={addingTemplateId}
                       onOpenProfile={setViewingProfile}
                     />

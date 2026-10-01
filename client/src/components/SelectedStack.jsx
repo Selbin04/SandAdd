@@ -9,7 +9,7 @@ export default function SelectedStack({ projects, activeId, onSelect, onOpenTopi
       </header>
       {projects.length === 0 ? (
         <p className="empty">
-          Works and today&apos;s list from the morning review appear here. Double-click to see today&apos;s list.
+          Projects and today&apos;s tasks from the morning review appear here. Double-click a project to see today&apos;s tasks.
         </p>
       ) : (
         <ul className="project-list">
@@ -36,6 +36,9 @@ export default function SelectedStack({ projects, activeId, onSelect, onOpenTopi
                   <span className="project-copy">
                     <strong>{p.name}</strong>
                     <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    <span className="project-progress-track" aria-hidden="true">
+                      <span style={{ width: `${Math.round(progress * 100)}%` }} />
+                    </span>
                   </span>
                 </button>
                 <button

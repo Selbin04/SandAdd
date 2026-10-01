@@ -5,6 +5,7 @@ import {
   loadProfilePosts,
   updateUserPost,
 } from "../lib/socialFeed.js";
+import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import "./UserProfilePage.css";
 
@@ -320,6 +321,7 @@ export default function UserProfilePage() {
               </span>
             )}
           </button>
+          <FileUploadHint />
           {avatar ? (
             <button
               type="button"

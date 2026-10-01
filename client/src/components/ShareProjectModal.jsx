@@ -10,6 +10,7 @@ import {
   getShareGroups,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
+import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import "./ShareProjectModal.css";
 
@@ -35,6 +36,7 @@ export default function ShareProjectModal({
     initialCaption ||
       (project?.name ? `Finished ${project.name}` : "Finished a pour")
   );
+  const [allowAddToProgress, setAllowAddToProgress] = useState(true);
   const [proof, setProof] = useState(initialProof);
   const [proofName, setProofName] = useState(initialProof?.name || "");
   const [error, setError] = useState("");
@@ -116,17 +118,7 @@ export default function ShareProjectModal({
       const author = readAuthorProfile();
       const body = caption.trim() || `Finished ${project?.name || "a work"}`;
       let { works, sharedProject } = await buildSharePayloadFromProject(project);
-      if (works.length > 0) {
-        const includeWorks = window.confirm(
-          'Include “What the works to do” in this post?'
-        );
-        if (!includeWorks) {
-          works = [];
-          // Declined works → no Add to Progress on the post
-          sharedProject = null;
-        }
-      } else {
-        // No works to share → don't offer Add to Progress
+      if (!allowAddToProgress || works.length === 0) {
         sharedProject = null;
       }
       const base = {
@@ -160,6 +152,8 @@ export default function ShareProjectModal({
           id: `share-${Date.now()}`,
           from: "me",
           text: body,
+          authorName: author.name,
+          authorHandle: author.handle,
           proof,
           projectName: project?.name || "",
           topicId: topicId || null,
@@ -356,6 +350,16 @@ export default function ShareProjectModal({
               )}
               <ProofMedia proof={proof} className="share-preview" />
             </div>
+            <label className="share-progress-option">
+              <input
+                type="checkbox"
+                checked={allowAddToProgress}
+                onChange={(e) => setAllowAddToProgress(e.target.checked)}
+                disabled={busy}
+              />
+              <span>Allow recipients to add this work to Progress</span>
+            </label>
+            <FileUploadHint />
             <button
               type="button"
               className="share-submit"

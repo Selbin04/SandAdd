@@ -85,8 +85,8 @@
 }
 
 .auth-tabs button.is-active {
-  background: var(--blue-soft-2);
-  color: var(--paper);
+  background: var(--active-surface);
+  color: var(--brass);
 }
 
 .auth-field {
