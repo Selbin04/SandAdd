@@ -11,7 +11,7 @@ let mongoConnectionPromise = null;
 async function connectMongo(uri) {
   if (mongoose.connection.readyState === 1) return;
   if (!mongoConnectionPromise) {
-    const options = { serverSelectionTimeoutMS: 5000 };
+    const options = { serverSelectionTimeoutMS: 15000 };
     if (process.env.MONGODB_DATABASE) {
       options.dbName = process.env.MONGODB_DATABASE;
     }
