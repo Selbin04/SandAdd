@@ -1,5 +1,5 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
-import { isTasksLocked } from "../lib/liveWorks.js";
+import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import "./FolderPanel.css";
 
@@ -47,6 +47,12 @@ export default function FolderPanel({
                 key={p._id}
                 className={`${active ? "active" : ""} ${p.completed ? "done" : ""}`}
               >
+                {locked || p.originId || p.sharedTemplateId ? (
+                  <span
+                    className="update-red-dot corner-red-dot"
+                    title="New update added in this progress path"
+                  />
+                ) : null}
                 <button
                   type="button"
                   className="project-select"
@@ -69,12 +75,12 @@ export default function FolderPanel({
                   <span className="project-copy">
                     <strong>
                       {p.name}
-                      {locked ? (
+                      {locked || p.originId || p.sharedTemplateId ? (
                         <span
                           className="work-lock-pill"
-                          title="Tasks sync from creator"
+                          title="Tasks sync from creator — new update added"
                         >
-                          {p.originMode === "assign" ? "Assigned" : "Following"}
+                          {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                         </span>
                       ) : null}
                     </strong>
@@ -92,6 +98,20 @@ export default function FolderPanel({
                 >
                   Open
                 </button>
+                {locked || p.originId || p.sharedTemplateId ? (
+                  <button
+                    type="button"
+                    className="open-work-btn group-work-btn"
+                    aria-label={`Open group for ${p.name}`}
+                    title="Open group chat & updates"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenWork?.(p);
+                    }}
+                  >
+                    💬 Group
+                  </button>
+                ) : null}
                 <WorkMenu
                   workName={p.name}
                   onShareFollow={

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   addGroupPost,
+  addPostComment,
   addUserPost,
   buildSharedProject,
   createCustomGroup,
@@ -9,6 +10,7 @@ import {
   loadAddedTemplateIds,
   loadCustomGroups,
   loadGroupPosts,
+  loadPostComments,
   loadUserPosts,
   markTemplateAdded,
   PROOF_ACCEPT,
@@ -204,7 +206,29 @@ function IconReport() {
   );
 }
 
-function PostActions({ postId, liked, onLike }) {
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "just now";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 30) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const days = Math.floor(hr / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function PostActions({
+  postId,
+  liked,
+  onLike,
+  commentsCount = 0,
+  commentsOpen = false,
+  onToggleComments,
+}) {
   return (
     <div className="social-actions">
       <button
@@ -216,8 +240,17 @@ function PostActions({ postId, liked, onLike }) {
       >
         <IconLike filled={liked} />
       </button>
-      <button type="button" aria-label="Comment">
+      <button
+        type="button"
+        className={`social-action-comment-btn ${commentsOpen ? "is-active" : ""}`}
+        aria-label="Comment"
+        aria-expanded={commentsOpen}
+        onClick={onToggleComments}
+      >
         <IconComment />
+        {commentsCount > 0 ? (
+          <span className="social-action-count">{commentsCount}</span>
+        ) : null}
       </button>
       <button type="button" aria-label="Share">
         <IconShare />
@@ -237,7 +270,25 @@ function FeedCard({
   addedTemplateIds,
   addingTemplateId,
   onOpenProfile,
+  commentsOpen = false,
+  onToggleComments,
 }) {
+  const [comments, setComments] = useState(() => loadPostComments(item.id));
+
+  useEffect(() => {
+    setComments(loadPostComments(item.id));
+  }, [item.id]);
+
+  useEffect(() => {
+    const onCommentsChanged = (e) => {
+      if (String(e.detail?.postId) === String(item.id)) {
+        setComments(loadPostComments(item.id));
+      }
+    };
+    window.addEventListener("sandadd:comments-changed", onCommentsChanged);
+    return () => window.removeEventListener("sandadd:comments-changed", onCommentsChanged);
+  }, [item.id]);
+
   const shared = item.sharedProject;
   const works = Array.isArray(shared?.works)
     ? shared.works
@@ -298,7 +349,7 @@ function FeedCard({
             <>
               <p className="social-shared-project-label">
                 {shared.shareMode === "assign"
-                  ? "Assigned project"
+                  ? "Contribute to project"
                   : shared.live || shared.originId
                     ? "Follow this project"
                     : "Shared project"}
@@ -317,20 +368,25 @@ function FeedCard({
                 Tasks
               </p>
               <ul className="social-shared-project-works">
-                {works.map((w) => (
-                  <li
-                    key={w.id || w.text}
-                    className={`social-work-row ${w.done ? "is-done" : ""}`}
-                  >
-                    <div className="social-work-main">
-                      <span className="social-work-tick" aria-hidden="true">
-                        {w.done ? "✓" : "○"}
-                      </span>
-                      <span className="social-work-text">{w.text}</span>
-                      {workHasSource(w) ? <WorkSourceControl work={w} /> : null}
-                    </div>
-                  </li>
-                ))}
+                {works.map((w) => {
+                  const showCheck = w.hasCheckbox !== false;
+                  return (
+                    <li
+                      key={w.id || w.text}
+                      className={`social-work-row ${w.done ? "is-done" : ""}`}
+                    >
+                      <div className="social-work-main">
+                        {showCheck ? (
+                          <span className="social-work-tick" aria-hidden="true">
+                            {w.done ? "✓" : "○"}
+                          </span>
+                        ) : null}
+                        <span className="social-work-text">{w.text}</span>
+                        {workHasSource(w) ? <WorkSourceControl work={w} /> : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : shared?.live || shared?.originId ? (
@@ -350,7 +406,7 @@ function FeedCard({
                 : adding
                   ? "Adding…"
                   : shared.shareMode === "assign"
-                    ? "Accept assignment"
+                    ? "Contribute"
                     : shared.live || shared.originId
                       ? "Follow in Progress"
                       : "Add to Progress"}
@@ -359,8 +415,101 @@ function FeedCard({
         </div>
       ) : null}
       <ProofMedia proof={item.proof} />
-      <PostActions postId={item.id} liked={liked} onLike={onLike} />
+      <PostActions
+        postId={item.id}
+        liked={liked}
+        onLike={onLike}
+        commentsCount={comments.length}
+        commentsOpen={commentsOpen}
+        onToggleComments={onToggleComments}
+      />
     </article>
+  );
+}
+
+function ViewCommentsPanel({ postId, onClose, style, fixed = false }) {
+  const [comments, setComments] = useState(() => loadPostComments(postId));
+  const [commentText, setCommentText] = useState("");
+
+  useEffect(() => {
+    setComments(loadPostComments(postId));
+  }, [postId]);
+
+  useEffect(() => {
+    const onCommentsChanged = (e) => {
+      if (String(e.detail?.postId) === String(postId)) {
+        setComments(loadPostComments(postId));
+      }
+    };
+    window.addEventListener("sandadd:comments-changed", onCommentsChanged);
+    return () => window.removeEventListener("sandadd:comments-changed", onCommentsChanged);
+  }, [postId]);
+
+  const handlePostComment = (e) => {
+    e.preventDefault();
+    const val = commentText.trim();
+    if (!val) return;
+    const next = addPostComment(postId, val);
+    setComments(next);
+    setCommentText("");
+  };
+
+  return (
+    <aside
+      className={`social-comments-panel${fixed ? " is-fixed" : ""}`}
+      aria-label="Comments"
+      style={style}
+    >
+      <header className="social-comments-head">
+        <div className="social-comments-head-left">
+          <h2>Comments</h2>
+          <span className="social-comments-count-badge">{comments.length}</span>
+        </div>
+        <button type="button" className="social-comments-close" onClick={onClose}>
+          Close
+        </button>
+      </header>
+
+      <div className="social-comments-list">
+        {comments.length === 0 ? (
+          <p className="social-comments-empty">No comments yet. Write one below!</p>
+        ) : (
+          comments.map((c) => (
+            <div key={c.id} className="social-comment-item">
+              <span className="social-comment-avatar">
+                {c.avatar ? <img src={c.avatar} alt="" /> : c.initial || c.name?.slice(0, 1)}
+              </span>
+              <div className="social-comment-content">
+                <div className="social-comment-meta">
+                  <strong className="social-comment-author">{c.name}</strong>
+                  {c.handle ? <span className="social-comment-handle">@{c.handle}</span> : null}
+                  <span className="social-comment-time">{formatRelativeTime(c.createdAt)}</span>
+                </div>
+                <p className="social-comment-text">{c.text}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form className="social-comment-form" onSubmit={handlePostComment}>
+        <input
+          type="text"
+          className="social-comment-input"
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          placeholder="Write a comment…"
+          maxLength={500}
+        />
+        <button
+          type="submit"
+          className="social-comment-submit-btn"
+          disabled={!commentText.trim()}
+        >
+          Post
+        </button>
+      </form>
+    </aside>
   );
 }
 
@@ -400,14 +549,6 @@ function ViewProfilePanel({ profile, posts, onClose, style, fixed = false }) {
         <div>
           <h3>{profile.name}</h3>
           <p className="social-view-profile-handle">@{handle}</p>
-          <div className="social-view-profile-stats">
-            <span>
-              <strong>128</strong> followers
-            </span>
-            <span>
-              <strong>86</strong> following
-            </span>
-          </div>
         </div>
       </div>
       <h4 className="social-view-profile-posts-title">View posts</h4>
@@ -428,6 +569,8 @@ function ViewProfilePanel({ profile, posts, onClose, style, fixed = false }) {
   );
 }
 
+const SEARCH_PLACEHOLDERS = ["Search peoples..", "progress paths.."];
+
 export default function SocialPage({
   initialGroupId = null,
   onAddSharedProject = null,
@@ -437,6 +580,8 @@ export default function SocialPage({
   const [openGroupId, setOpenGroupId] = useState(initialGroupId);
   const [viewingProfile, setViewingProfile] = useState(null);
   const [profileAnchor, setProfileAnchor] = useState(null);
+  const [openCommentsPostId, setOpenCommentsPostId] = useState(null);
+  const [commentsAnchor, setCommentsAnchor] = useState(null);
   const pageRef = useRef(null);
   const [likedIds, setLikedIds] = useState(() => new Set());
   const [groupUserPosts, setGroupUserPosts] = useState(() =>
@@ -444,6 +589,7 @@ export default function SocialPage({
   );
   const [viewPosts, setViewPosts] = useState(() => loadUserPosts());
   const [viewSearch, setViewSearch] = useState("");
+  const [searchPlaceholderIdx, setSearchPlaceholderIdx] = useState(0);
   const [draft, setDraft] = useState("");
   const [proof, setProof] = useState(null);
   const [proofName, setProofName] = useState("");
@@ -463,6 +609,13 @@ export default function SocialPage({
     ...addedTemplateIds,
     ...existingSharedTemplateIds.map(String),
   ]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSearchPlaceholderIdx((prev) => (prev + 1) % SEARCH_PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const refresh = () => setAddedTemplateIds(new Set(loadAddedTemplateIds()));
@@ -708,6 +861,55 @@ export default function SocialPage({
     };
   }, [viewingProfile, section, feed]);
 
+  useLayoutEffect(() => {
+    if (!openCommentsPostId) {
+      setCommentsAnchor(null);
+      return undefined;
+    }
+
+    const syncAnchor = () => {
+      const page = pageRef.current;
+      if (!page) return;
+      const row = page.querySelector(
+        `.social-feed-row[data-post-id="${openCommentsPostId}"]`
+      );
+      if (!row) {
+        setCommentsAnchor(null);
+        return;
+      }
+      const pageRect = page.getBoundingClientRect();
+      const rowRect = row.getBoundingClientRect();
+      const gap = 16;
+      const available = pageRect.left - gap - 12;
+      if (available < 200) {
+        setCommentsAnchor({ mode: "stack" });
+        return;
+      }
+      const width = Math.min(300, available);
+      const left = pageRect.left - gap - width;
+      const maxHeight = Math.min(540, window.innerHeight - 24);
+      const top = Math.min(
+        Math.max(12, rowRect.top),
+        Math.max(12, window.innerHeight - Math.min(maxHeight, 160))
+      );
+      setCommentsAnchor({
+        mode: "side",
+        top,
+        left,
+        width,
+        maxHeight,
+      });
+    };
+
+    syncAnchor();
+    window.addEventListener("scroll", syncAnchor, true);
+    window.addEventListener("resize", syncAnchor);
+    return () => {
+      window.removeEventListener("scroll", syncAnchor, true);
+      window.removeEventListener("resize", syncAnchor);
+    };
+  }, [openCommentsPostId, section, feed, groupFeed]);
+
   const toggleLike = (id) => {
     setLikedIds((prev) => {
       const next = new Set(prev);
@@ -873,7 +1075,7 @@ export default function SocialPage({
           setShowProjectForm((v) => !v);
         }}
       >
-        {sharedProject ? "Remove project" : "Project"}
+        {sharedProject ? "Remove progress path" : "Progress Path"}
       </button>
     </>
   );
@@ -884,9 +1086,9 @@ export default function SocialPage({
         type="text"
         value={projectName}
         onChange={(e) => setProjectName(e.target.value)}
-        placeholder="Project name"
+        placeholder="Progress path name"
         maxLength={80}
-        aria-label="Project name"
+        aria-label="Progress path name"
       />
       <p className="social-project-works-label">
         Tasks
@@ -965,7 +1167,7 @@ export default function SocialPage({
           className="social-project-compose-save"
           onClick={applyProjectToCompose}
         >
-          Add project to post
+          Add progress path to post
         </button>
       </div>
     </div>
@@ -973,7 +1175,7 @@ export default function SocialPage({
 
   const sharedProjectChip = sharedProject ? (
     <p className="social-project-chip">
-      Project ready: <strong>{sharedProject.name}</strong>
+      Progress path ready: <strong>{sharedProject.name}</strong>
       {sharedProject.works?.length
         ? ` · ${sharedProject.works.length} task${sharedProject.works.length === 1 ? "" : "s"}`
         : ""}
@@ -1093,19 +1295,52 @@ export default function SocialPage({
             <ProofMedia proof={proof} className="social-group-attach-preview" />
             {postError ? <p className="social-group-post-error">{postError}</p> : null}
           </form>
-          <div className="social-feed">
-            {groupFeed.map((item) => (
-              <FeedCard
-                key={item.id}
-                item={item}
-                liked={likedIds.has(item.id)}
-                onLike={toggleLike}
-                onAddProject={handleAddSharedProject}
-                addedTemplateIds={knownAddedTemplateIds}
-                addingTemplateId={addingTemplateId}
-              />
-            ))}
-          </div>
+            {groupFeed.map((item) => {
+              const showComments = openCommentsPostId === item.id;
+              const stackComments = showComments && commentsAnchor?.mode === "stack";
+              const sideComments = showComments && commentsAnchor?.mode === "side";
+
+              return (
+                <div
+                  key={item.id}
+                  data-post-id={item.id}
+                  className={`social-feed-row${showComments ? " is-profile-open" : ""}`}
+                >
+                  {stackComments ? (
+                    <ViewCommentsPanel
+                      postId={item.id}
+                      onClose={() => setOpenCommentsPostId(null)}
+                    />
+                  ) : null}
+                  {sideComments ? (
+                    <ViewCommentsPanel
+                      postId={item.id}
+                      onClose={() => setOpenCommentsPostId(null)}
+                      fixed
+                      style={{
+                        top: commentsAnchor.top,
+                        left: commentsAnchor.left,
+                        width: commentsAnchor.width,
+                        maxHeight: commentsAnchor.maxHeight,
+                      }}
+                    />
+                  ) : null}
+                  <FeedCard
+                    item={item}
+                    liked={likedIds.has(item.id)}
+                    onLike={toggleLike}
+                    onAddProject={handleAddSharedProject}
+                    addedTemplateIds={knownAddedTemplateIds}
+                    addingTemplateId={addingTemplateId}
+                    commentsOpen={openCommentsPostId === item.id}
+                    onToggleComments={() => {
+                      setViewingProfile(null);
+                      setOpenCommentsPostId((prev) => (prev === item.id ? null : item.id));
+                    }}
+                  />
+                </div>
+              );
+            })}
         </div>
       ) : section === "view" ? (
         <div
@@ -1162,9 +1397,17 @@ export default function SocialPage({
                   type="search"
                   value={viewSearch}
                   onChange={(e) => setViewSearch(e.target.value)}
-                  placeholder="Search"
-                  aria-label="Search progress paths posted in View"
+                  aria-label="Search peoples or progress paths posted in View"
                 />
+                {!viewSearch ? (
+                  <span
+                    key={searchPlaceholderIdx}
+                    className="social-view-search-placeholder"
+                    aria-hidden="true"
+                  >
+                    {SEARCH_PLACEHOLDERS[searchPlaceholderIdx]}
+                  </span>
+                ) : null}
               </div>
               {viewSearch ? (
                 <button
@@ -1189,11 +1432,16 @@ export default function SocialPage({
                   showProfile && profileAnchor?.mode === "stack";
                 const sideProfile =
                   showProfile && profileAnchor?.mode === "side";
+
+                const showComments = openCommentsPostId === item.id;
+                const stackComments = showComments && commentsAnchor?.mode === "stack";
+                const sideComments = showComments && commentsAnchor?.mode === "side";
+
                 return (
                   <div
                     key={item.id}
                     data-post-id={item.id}
-                    className={`social-feed-row${showProfile ? " is-profile-open" : ""}`}
+                    className={`social-feed-row${showProfile || showComments ? " is-profile-open" : ""}`}
                   >
                     {stackProfile ? (
                       <ViewProfilePanel
@@ -1216,6 +1464,27 @@ export default function SocialPage({
                         }}
                       />
                     ) : null}
+
+                    {stackComments ? (
+                      <ViewCommentsPanel
+                        postId={item.id}
+                        onClose={() => setOpenCommentsPostId(null)}
+                      />
+                    ) : null}
+                    {sideComments ? (
+                      <ViewCommentsPanel
+                        postId={item.id}
+                        onClose={() => setOpenCommentsPostId(null)}
+                        fixed
+                        style={{
+                          top: commentsAnchor.top,
+                          left: commentsAnchor.left,
+                          width: commentsAnchor.width,
+                          maxHeight: commentsAnchor.maxHeight,
+                        }}
+                      />
+                    ) : null}
+
                     <FeedCard
                       item={item}
                       liked={likedIds.has(item.id)}
@@ -1223,7 +1492,15 @@ export default function SocialPage({
                       onAddProject={handleAddSharedProject}
                       addedTemplateIds={knownAddedTemplateIds}
                       addingTemplateId={addingTemplateId}
-                      onOpenProfile={setViewingProfile}
+                      onOpenProfile={(prof) => {
+                        setOpenCommentsPostId(null);
+                        setViewingProfile(prof);
+                      }}
+                      commentsOpen={openCommentsPostId === item.id}
+                      onToggleComments={() => {
+                        setViewingProfile(null);
+                        setOpenCommentsPostId((prev) => (prev === item.id ? null : item.id));
+                      }}
                     />
                   </div>
                 );

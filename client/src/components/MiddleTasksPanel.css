@@ -1,0 +1,134 @@
+.middle-tasks-add-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.middle-tasks-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--input-bg);
+  color: var(--paper);
+  font-size: 13px;
+}
+
+.middle-tasks-checkbox-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: var(--input-bg);
+  color: var(--paper);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.middle-tasks-checkbox-opt input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--brass);
+  cursor: pointer;
+}
+
+.middle-tasks-no-check {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.middle-tasks-action-btn.doc-progress-btn {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  color: var(--brass);
+  font-weight: 600;
+}
+
+.middle-tasks-action-btn.doc-progress-btn:hover {
+  background: var(--brass);
+  color: #ffffff;
+}
+
+/* Task Item with Sources */
+.middle-task-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  margin-bottom: 6px;
+  transition: background 0.15s ease;
+}
+
+.middle-task-item.is-done {
+  opacity: 0.75;
+}
+
+.middle-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.task-sources-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-left: 28px;
+  margin-top: 2px;
+}
+
+.task-source-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-source-link {
+  color: #6ee7b7;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-source-link:hover {
+  text-decoration: underline;
+}
+
+.task-source-file {
+  color: #93c5fd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-source-text {
+  color: #e5e7eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { elapsedFromWorks, projectDuration } from "../lib/time.js";
+import { getProjectCreatorTagline } from "../lib/liveWorks.js";
+import "./MiddleTasksPanel.css";
 
 export default function MiddleTasksPanel({
   project,
@@ -12,26 +14,28 @@ export default function MiddleTasksPanel({
   isLocked = false,
 }) {
   const [newTaskText, setNewTaskText] = useState("");
+  const [hasCheckbox, setHasCheckbox] = useState(true);
 
   if (!project) return null;
 
   const topics = Array.isArray(project.topics) ? project.topics : [];
+  const checkableTopics = topics.filter((t) => t && t.hasCheckbox !== false);
   let duration = projectDuration(project);
   if (!duration || duration <= 0) duration = 30_000;
 
   const elapsedMs =
-    topics.length > 0
+    checkableTopics.length > 0
       ? elapsedFromWorks(topics, duration)
       : Number(project.elapsedMs) || 0;
   const progress = duration > 0 ? Math.min(1, elapsedMs / duration) : 0;
   const completed = progress >= 1;
-  const doneCount = topics.filter((t) => t.done).length;
+  const doneCount = checkableTopics.filter((t) => t.done).length;
 
   const handleAddSubmit = (e) => {
     e.preventDefault();
     const text = newTaskText.trim();
     if (!text || isLocked) return;
-    onAddTask(text);
+    onAddTask(text, { hasCheckbox });
     setNewTaskText("");
   };
 
@@ -63,7 +67,7 @@ export default function MiddleTasksPanel({
       <div className="middle-tasks-progress-box">
         <div className="middle-tasks-pct-info">
           <span>
-            {doneCount} of {topics.length} tasks completed
+            {doneCount} of {checkableTopics.length} tasks completed
           </span>
           <strong>{Math.round(progress * 100)}%</strong>
         </div>
@@ -80,34 +84,88 @@ export default function MiddleTasksPanel({
         <h3 className="middle-tasks-subtitle">Tasks Checklist</h3>
         {topics.length > 0 ? (
           <ul className="middle-tasks-list">
-            {topics.map((t, idx) => (
-              <li key={t.id || idx} className={t.done ? "is-done" : ""}>
-                <button
-                  type="button"
-                  className={`middle-tasks-check ${t.done ? "checked" : ""}`}
-                  onClick={() => onToggleTask(t.id || t._id)}
-                  aria-label="Toggle task"
-                >
-                  {t.done ? "✓" : ""}
-                </button>
-                <span
-                  className="middle-tasks-text"
-                  onClick={() => onToggleTask(t.id || t._id)}
-                >
-                  {t.text}
-                </span>
-                {!isLocked && (
-                  <button
-                    type="button"
-                    className="middle-tasks-delete-btn"
-                    onClick={() => onRemoveTask(t.id || t._id)}
-                    title="Delete task"
-                  >
-                    ×
-                  </button>
-                )}
-              </li>
-            ))}
+            {topics.map((t, idx) => {
+              const showCheck = t.hasCheckbox !== false;
+              return (
+                <li key={t.id || idx} className={`middle-task-item ${t.done ? "is-done" : ""}`}>
+                  <div className="middle-task-row">
+                    {showCheck ? (
+                      <button
+                        type="button"
+                        className={`middle-tasks-check ${t.done ? "checked" : ""}`}
+                        onClick={() => onToggleTask(t.id || t._id)}
+                        aria-label="Toggle task"
+                      >
+                        {t.done ? "✓" : ""}
+                      </button>
+                    ) : null}
+                    <span
+                      className="middle-tasks-text"
+                      onClick={() => showCheck && onToggleTask(t.id || t._id)}
+                    >
+                      {t.text}
+                    </span>
+                    {!isLocked && (
+                      <button
+                        type="button"
+                        className="middle-tasks-delete-btn"
+                        onClick={() => onRemoveTask(t.id || t._id)}
+                        title="Delete task"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Task Sources & File Proofs */}
+                  {Array.isArray(t.sources) && t.sources.length > 0 ? (
+                    <div className="task-sources-list">
+                      {t.sources.map((s, sIdx) => {
+                        const isLink = s.type === "link" || /^https?:\/\//i.test(s.content || "");
+                        const isFile = s.type === "file" || Boolean(s.proof);
+                        return (
+                          <div key={s.id || sIdx} className="task-source-chip">
+                            {isLink ? (
+                              <a
+                                href={s.content.startsWith("http") ? s.content : `https://${s.content}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="task-source-link"
+                              >
+                                🔗 {s.title ? `${s.title}: ${s.content}` : s.content}
+                              </a>
+                            ) : isFile ? (
+                              <span className="task-source-file">
+                                📎 {s.title ? `${s.title}: ` : ""}{s.proof?.name || s.content || "Attached file"}
+                              </span>
+                            ) : (
+                              <span className="task-source-text">📝 {s.title ? `${s.title}: ` : ""}{s.content}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : t.source ? (
+                    <div className="task-sources-list">
+                      <div className="task-source-chip">
+                        {/^https?:\/\//i.test(t.source) || /^[\w.-]+\.[a-z]{2,}/i.test(t.source) ? (
+                          <a
+                            href={t.source.startsWith("http") ? t.source : `https://${t.source}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="task-source-link"
+                          >
+                            🔗 {t.source}
+                          </a>
+                        ) : (
+                          <span className="task-source-text">📝 {t.source}</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <div className="middle-tasks-empty">
@@ -125,6 +183,14 @@ export default function MiddleTasksPanel({
               onChange={(e) => setNewTaskText(e.target.value)}
               className="middle-tasks-input"
             />
+            <label className="middle-tasks-checkbox-opt" title="Uncheck to create a note line without a checkbox">
+              <input
+                type="checkbox"
+                checked={hasCheckbox}
+                onChange={(e) => setHasCheckbox(e.target.checked)}
+              />
+              <span>Checkbox</span>
+            </label>
             <button
               type="submit"
               disabled={!newTaskText.trim()}
@@ -143,8 +209,9 @@ export default function MiddleTasksPanel({
           className="middle-tasks-action-btn primary"
           onClick={onShareProgress}
         >
-          Share Progress
+          Share
         </button>
+
         <button
           type="button"
           className="middle-tasks-action-btn secondary"

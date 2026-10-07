@@ -18,6 +18,7 @@ import WorkShareModal from "./components/WorkShareModal.jsx";
 import FollowedWorkGroup from "./components/FollowedWorkGroup.jsx";
 import FolderPanel from "./components/FolderPanel.jsx";
 import CreateFolderModal from "./components/CreateFolderModal.jsx";
+import PopularFoldersBox from "./components/PopularFoldersBox.jsx";
 import {
   createProject,
   deleteProject,
@@ -60,6 +61,7 @@ import {
   applyLiveProgress,
   followerTopicsNeedSync,
   getLiveWork,
+  getProjectCreatorTagline,
   isLiveWorkDeleted,
   isTasksLocked,
   liveOriginKey,
@@ -77,6 +79,7 @@ import {
   setWorkFolder,
 } from "./lib/folders.js";
 import {
+  getFollowedWorkGroup,
   joinFollowedWorkGroup,
   pushFollowedWorkUpdate,
 } from "./lib/followingStore.js";
@@ -411,7 +414,14 @@ export default function App() {
 
       const synced = [];
       for (const project of withMedia) {
-        if (!project.originId) {
+        const isFollowerProject = Boolean(
+          project.originId ||
+          project.sharedTemplateId ||
+          project.originMode ||
+          project.tasksLocked
+        );
+
+        if (!isFollowerProject) {
           // Creator work that was shared: pull follower ticks into the list
           const live = getLiveWork(project._id);
           if (live && !live.deleted) {
@@ -458,8 +468,10 @@ export default function App() {
           continue;
         }
 
+        const liveKey = project.originId || project.sharedTemplateId;
+
         // Creator deleted the source work → remove from this Progress list
-        if (isLiveWorkDeleted(project.originId)) {
+        if (liveKey && isLiveWorkDeleted(liveKey)) {
           try {
             await deleteProject(project._id);
           } catch {
@@ -475,7 +487,7 @@ export default function App() {
           continue;
         }
 
-        const live = getLiveWork(project.originId);
+        const live = getLiveWork(liveKey);
         if (!live?.works) {
           synced.push({ ...project, tasksLocked: true });
           continue;
@@ -483,7 +495,7 @@ export default function App() {
         const topics = mergeFollowerTopics(
           project.topics,
           live.works,
-          project.originId
+          liveKey
         );
         const duration = projectDuration(project) || live.durationMs || 30_000;
         const elapsedMs = elapsedFromWorks(topics, duration);
@@ -492,7 +504,7 @@ export default function App() {
         const needsSync = followerTopicsNeedSync(
           project.topics,
           live.works,
-          project.originId
+          liveKey
         );
         const elapsedChanged =
           Math.abs((Number(project.elapsedMs) || 0) - elapsedMs) > 0.5 ||
@@ -523,18 +535,18 @@ export default function App() {
           });
           const mergedTopics = (updated.topics || topicsForSave).map((t) => {
             const local = topics.find((x) => x.id === t.id);
-            if (local?.sourceProof?.dataUrl) {
-              return {
-                ...t,
-                done: Boolean(local?.done ?? t.done),
-                sourceProof: { ...t.sourceProof, ...local.sourceProof },
-              };
-            }
+            const localSources = Array.isArray(local?.sources) ? local.sources : [];
+            const serverSources = Array.isArray(t?.sources) && t.sources.length > 0 ? t.sources : localSources;
             return {
               ...t,
               done: Boolean(local?.done ?? t.done),
               text: local?.text || t.text,
               source: local?.source ?? t.source,
+              sources: serverSources,
+              hasCheckbox: local?.hasCheckbox !== false,
+              sourceProof: local?.sourceProof?.dataUrl
+                ? { ...t.sourceProof, ...local.sourceProof }
+                : t.sourceProof || local?.sourceProof || null,
             };
           });
           synced.push({
@@ -622,7 +634,7 @@ export default function App() {
     const poll = window.setInterval(() => {
       const list = projectsRef.current || [];
       const cares = list.some((p) => {
-        if (p.originId) return true;
+        if (p.originId || p.sharedTemplateId || p.tasksLocked) return true;
         const live = getLiveWork(p._id);
         return Boolean(live && !live.deleted);
       });
@@ -851,11 +863,14 @@ export default function App() {
       await saveCurrent(false);
       const count = projectsRef.current.length + 1;
       const name = newName.trim() || `Progress ${count}`;
+      const author = readAuthorProfile();
       const created = await createProject({
         name,
         durationMs: durationRef.current,
         elapsedMs: 0,
         completed: false,
+        creatorName: author.name || authUser?.name || "Me",
+        creatorHandle: author.handle || "",
       });
       setNewName("");
       setProjects((list) => upsertProject(list, created));
@@ -865,6 +880,34 @@ export default function App() {
       setApiError(err.message);
     }
   };
+
+  const handleAddPopularFolder = useCallback(
+    async (template) => {
+      try {
+        await saveCurrent(false);
+        const author = readAuthorProfile();
+        const created = await createProject({
+          name: template.name,
+          durationMs: durationRef.current || 30_000,
+          elapsedMs: 0,
+          completed: false,
+          creatorName: author.name || authUser?.name || "Me",
+          creatorHandle: author.handle || "",
+          topics: template.tasks.map((t, idx) => ({
+            id: `t-${Date.now()}-${idx}`,
+            text: t.text,
+            done: false,
+            hasCheckbox: t.hasCheckbox !== false,
+          })),
+        });
+        setProjects((list) => upsertProject(list, created));
+        setApiError("");
+      } catch (err) {
+        setApiError(err.message || "Could not add popular folder");
+      }
+    },
+    [saveCurrent]
+  );
 
   const handleSelect = async (project) => {
     if (project._id === activeIdRef.current) return;
@@ -1182,8 +1225,8 @@ export default function App() {
 
     if (Math.abs(target - fromElapsed) < 1) {
       elapsedRef.current = target;
-      setElapsedMs(target);
-      const done = topics.length > 0 && target >= duration - 0.5;
+      const checkableTopics = topics.filter((t) => t && t.hasCheckbox !== false);
+      const done = checkableTopics.length > 0 && target >= duration - 0.5;
       completedRef.current = done;
       setCompleted(done);
       return;
@@ -1205,7 +1248,8 @@ export default function App() {
       const previousTopics = Array.isArray(project.topics) ? project.topics : [];
       const duration = projectDuration(project) || durationRef.current || 30_000;
       const elapsedMs = elapsedFromWorks(topics, duration);
-      const completed = topics.length > 0 && elapsedMs >= duration;
+      const checkableTopics = topics.filter((t) => t && t.hasCheckbox !== false);
+      const completed = checkableTopics.length > 0 && elapsedMs >= duration;
       const popupOpen = topicPopupRef.current?.projectId === projectId;
       try {
         const topicsForSave = await prepareTopicsForSave(topics);
@@ -1215,13 +1259,29 @@ export default function App() {
           elapsedMs,
           completed,
         });
-        // Keep in-memory source file dataUrls for instant open
         const mergedTopics = (updated.topics || topicsForSave).map((t) => {
           const local = topics.find((x) => x.id === t.id);
+          let item = {
+            ...t,
+            hasCheckbox: local ? local.hasCheckbox !== false : t.hasCheckbox !== false,
+          };
           if (local?.sourceProof?.dataUrl) {
-            return { ...t, sourceProof: { ...t.sourceProof, ...local.sourceProof } };
+            item = { ...item, sourceProof: { ...item.sourceProof, ...local.sourceProof } };
           }
-          return t;
+          const localSources = Array.isArray(local?.sources) ? local.sources : [];
+          const serverSources = Array.isArray(item?.sources) && item.sources.length > 0 ? item.sources : localSources;
+          if (localSources.length > 0) {
+            const mergedSources = serverSources.map((s) => {
+              const localS = localSources.find((lx) => lx.id === s.id);
+              let res = { ...s, title: s.title || localS?.title || "" };
+              if (localS?.proof?.dataUrl) {
+                res.proof = { ...res.proof, ...localS.proof };
+              }
+              return res;
+            });
+            item = { ...item, sources: mergedSources };
+          }
+          return item;
         });
         const merged = { ...updated, topics: mergedTopics };
         setProjects((list) => patchProject(list, merged));
@@ -1236,9 +1296,10 @@ export default function App() {
               live.mode || "follow",
               readAuthorProfile()
             );
-            if (live.mode === "follow") {
-              for (const update of describeWorkUpdates(previousTopics, mergedTopics)) {
-                pushFollowedWorkUpdate(merged._id, update);
+            for (const update of describeWorkUpdates(previousTopics, mergedTopics)) {
+              pushFollowedWorkUpdate(merged._id, update);
+              if (merged.originId) {
+                pushFollowedWorkUpdate(merged.originId, update);
               }
             }
           }
@@ -1281,14 +1342,42 @@ export default function App() {
       typeof sourceInfo === "object" && sourceInfo?.sourceProof
         ? sourceInfo.sourceProof
         : null;
+    const itemText = typeof text === "string" ? text : String(text?.text || "").trim();
+    const hasCheckbox =
+      typeof sourceInfo === "object" && sourceInfo && "hasCheckbox" in sourceInfo
+        ? Boolean(sourceInfo.hasCheckbox)
+        : typeof text === "object" && text && "hasCheckbox" in text
+          ? Boolean(text.hasCheckbox)
+          : true;
+
+    let sources = [];
+    if (sourceProof) {
+      sources.push({
+        id: `src-${Date.now()}-f`,
+        type: "file",
+        content: sourceProof.name || "File",
+        proof: sourceProof,
+      });
+    }
+    if (source) {
+      const isUrl = /^https?:\/\//i.test(source) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(source);
+      sources.push({
+        id: `src-${Date.now()}-t`,
+        type: isUrl ? "link" : "text",
+        content: source,
+        proof: null,
+      });
+    }
     const topics = [
       ...(project.topics || []),
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        text,
+        text: itemText,
         done: false,
         source: source.slice(0, 500),
         sourceProof,
+        sources,
+        hasCheckbox: hasCheckbox !== false,
       },
     ];
     await applyWorksProgress(projectId, topics);
@@ -1297,18 +1386,54 @@ export default function App() {
   const handleSetTopicSource = async (projectId, topicId, sourceInfo = {}) => {
     const project = projectsRef.current.find((p) => p._id === projectId);
     if (!project || isTasksLocked(project)) return;
-    const source =
-      typeof sourceInfo === "string"
-        ? sourceInfo
-        : String(sourceInfo?.source || "").trim();
-    const sourceProof =
-      typeof sourceInfo === "object" ? sourceInfo?.sourceProof ?? null : null;
+    let sources = null;
+    let source = "";
+    let sourceProof = null;
+
+    if (sourceInfo && typeof sourceInfo === "object" && Array.isArray(sourceInfo.sources)) {
+      sources = sourceInfo.sources;
+      const firstTextOrLink = sources.find((s) => s.type === "text" || s.type === "link");
+      const firstFile = sources.find((s) => s.type === "file");
+      source = firstTextOrLink ? String(firstTextOrLink.content || "") : "";
+      sourceProof = firstFile ? firstFile.proof : null;
+    } else {
+      source =
+        typeof sourceInfo === "string"
+          ? sourceInfo
+          : String(sourceInfo?.source || "").trim();
+      sourceProof =
+        typeof sourceInfo === "object" ? sourceInfo?.sourceProof ?? null : null;
+      if (source || sourceProof) {
+        sources = [];
+        if (sourceProof) {
+          sources.push({
+            id: `src-${Date.now()}-f`,
+            type: "file",
+            content: sourceProof.name || "File",
+            proof: sourceProof,
+          });
+        }
+        if (source) {
+          const isUrl = /^https?:\/\//i.test(source) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(source);
+          sources.push({
+            id: `src-${Date.now()}-t`,
+            type: isUrl ? "link" : "text",
+            content: source,
+            proof: null,
+          });
+        }
+      } else {
+        sources = [];
+      }
+    }
+
     const topics = (project.topics || []).map((t) =>
       t.id === topicId
         ? {
             ...t,
             source: source.slice(0, 500),
             sourceProof,
+            sources,
           }
         : t
     );
@@ -1403,9 +1528,11 @@ export default function App() {
       ? template.works.map((w, index) => ({
           id: w.id || `t-${Date.now()}-${index}`,
           text: w.text,
-          done: false,
+          done: Boolean(w.done),
+          hasCheckbox: w.hasCheckbox !== false,
           source: String(w.source || "").trim().slice(0, 500),
           sourceProof: w.sourceProof || null,
+          sources: Array.isArray(w.sources) ? w.sources : [],
         }))
       : [];
     for (const topic of topics) {
@@ -1426,7 +1553,7 @@ export default function App() {
         String(template.templateId || "")
     );
     if (existingProject) {
-      if (liveOrigin && shareMode === "follow") {
+      if (liveOrigin && (shareMode === "follow" || shareMode === "assign")) {
         joinFollowedWorkGroup({
           ...template,
           originId: liveOrigin,
@@ -1440,7 +1567,20 @@ export default function App() {
       setPage("progress");
       return;
     }
-    const locked = Boolean(liveOrigin || template.tasksLocked || template.live);
+    const creatorName =
+      creator?.name ||
+      template.creatorName ||
+      template.authorName ||
+      template.author?.name ||
+      "Work Creator";
+    const creatorHandle =
+      creator?.handle ||
+      template.creatorHandle ||
+      template.authorHandle ||
+      template.author?.handle ||
+      "";
+
+    const locked = shareMode === "assign" ? false : Boolean(liveOrigin || template.tasksLocked || template.live);
     const created = await createProject({
       name: template.name,
       durationMs,
@@ -1450,11 +1590,13 @@ export default function App() {
       sharedTemplateId: template.templateId
         ? String(template.templateId)
         : null,
+      creatorName,
+      creatorHandle,
       ...(liveOrigin
         ? {
             originId: liveOrigin,
             originMode: shareMode || "follow",
-            tasksLocked: true,
+            tasksLocked: locked,
           }
         : {}),
     });
@@ -1470,14 +1612,16 @@ export default function App() {
         }
         return topic;
       }),
+      creatorName: creatorName || created.creatorName,
+      creatorHandle: creatorHandle || created.creatorHandle,
       originId: liveOrigin || created.originId || null,
       originMode: shareMode || created.originMode || null,
-      tasksLocked: locked || Boolean(created.tasksLocked),
+      tasksLocked: locked,
       sharedTemplateId:
         template.templateId || created.sharedTemplateId || null,
     };
     setProjects((list) => upsertProject(list, merged));
-    if (liveOrigin && shareMode === "follow") {
+    if (liveOrigin && (shareMode === "follow" || shareMode === "assign")) {
       joinFollowedWorkGroup({
         ...template,
         originId: liveOrigin,
@@ -1567,56 +1711,62 @@ export default function App() {
           </div>
         </div>
 
-        <div id="projects-panel" className="layout-projects">
-          <ProjectPanel
-            title="Projects"
-            projects={regularProjects}
-            activeId={activeId}
-            storage={storage}
-            showStorage
-            showCreate
-            newName={newName}
-            onNewName={setNewName}
-            onCreate={handleCreate}
-            onSelect={handleSelect}
-            onOpenWork={handleOpenWork}
-            onDelete={handleDelete}
-            onToggleImportant={handleToggleImportant}
-            importantAction="add"
-            emptyText="Create a project and add tasks. Star a project to move it to Important. Double-click a project to manage its tasks."
-            onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
-            onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
-            onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
-            folders={folders}
-            onMoveToFolder={handleMoveToFolder}
-            onCreateFolder={() => setCreateFolderOpen(true)}
-          />
-          {folders.map((folder) => (
-            <FolderPanel
-              key={folder.id}
-              folder={folder}
-              projects={projects.filter(
-                (p) => !p.important && p.folderId === folder.id
-              )}
+        <div className="layout-right">
+          <div id="projects-panel" className="layout-projects">
+            <ProjectPanel
+              title="Projects"
+              projects={regularProjects}
               activeId={activeId}
-              folders={folders}
+              storage={storage}
+              showStorage
+              showCreate
+              newName={newName}
+              onNewName={setNewName}
+              onCreate={handleCreate}
               onSelect={handleSelect}
               onOpenWork={handleOpenWork}
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
-              onOpenTopics={(project, rect) =>
-                handleOpenTopics(project, rect, "all")
-              }
-              onShareFollow={(project) =>
-                setWorkShare({ project, mode: "follow" })
-              }
-              onShareAssign={(project) =>
-                setWorkShare({ project, mode: "assign" })
-              }
+              importantAction="add"
+              emptyText="Create a project and add tasks. Star a project to move it to Important. Double-click a project to manage its tasks."
+              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
+              onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
+              onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
+              folders={folders}
               onMoveToFolder={handleMoveToFolder}
-              onDeleteFolder={handleDeleteFolder}
+              onCreateFolder={() => setCreateFolderOpen(true)}
             />
-          ))}
+            {folders.map((folder) => (
+              <FolderPanel
+                key={folder.id}
+                folder={folder}
+                projects={projects.filter(
+                  (p) => !p.important && p.folderId === folder.id
+                )}
+                activeId={activeId}
+                folders={folders}
+                onSelect={handleSelect}
+                onOpenWork={handleOpenWork}
+                onDelete={handleDelete}
+                onToggleImportant={handleToggleImportant}
+                onOpenTopics={(project, rect) =>
+                  handleOpenTopics(project, rect, "all")
+                }
+                onShareFollow={(project) =>
+                  setWorkShare({ project, mode: "follow" })
+                }
+                onShareAssign={(project) =>
+                  setWorkShare({ project, mode: "assign" })
+                }
+                onMoveToFolder={handleMoveToFolder}
+                onDeleteFolder={handleDeleteFolder}
+              />
+            ))}
+          </div>
+          <PopularFoldersBox
+            onAddFolder={handleAddPopularFolder}
+            existingNames={projects.map((p) => p.name)}
+          />
         </div>
 
       </div>
@@ -1636,12 +1786,27 @@ export default function App() {
             aria-label={`${activeName || "Work"} workspace`}
           >
             <div className="work-drawer-stage">
-              <FollowedWorkGroup
-                originId={
-                  projects.find((project) => project._id === openWorkId)?.originId ||
-                  openWorkId
-                }
-              />
+              {(() => {
+                const openProj = projects.find((p) => p._id === openWorkId);
+                if (!openProj) return null;
+                const originId = openProj.originId || openProj.sharedTemplateId || openProj._id;
+                const hasGroup = Boolean(
+                  openProj.originId ||
+                    openProj.sharedTemplateId ||
+                    openProj.isShared ||
+                    getFollowedWorkGroup(originId) ||
+                    getFollowedWorkGroup(openProj._id)
+                );
+                if (!hasGroup) return null;
+                return (
+                  <div className="hourglass-group-header">
+                    <FollowedWorkGroup
+                      originId={originId}
+                      project={openProj}
+                    />
+                  </div>
+                );
+              })()}
               <div className="work-drawer-glass-row">
                 <div className="glass-wrap">
                   <Hourglass
@@ -1682,8 +1847,9 @@ export default function App() {
                   setShareOpen(true);
                 }}
               >
-                Share Progress
+                Share
               </button>
+
             </div>
             <DonePopup
               project={projects.find((project) => project._id === openWorkId)}
@@ -1738,10 +1904,18 @@ export default function App() {
           mode={workShare.mode || "follow"}
           onClose={() => setWorkShare(null)}
           onShared={(meta) => {
+            const targetProj = workShare.project;
             setWorkShare(null);
-            if (meta?.mode === "follow" && meta.sharedProject?.originId) {
+            if (targetProj?._id) {
+              handleUpdateProject(targetProj._id, { isShared: true, shareMode: meta?.mode || "follow" });
+            }
+            if ((meta?.mode === "follow" || meta?.mode === "assign") && (meta.sharedProject?.originId || targetProj?._id)) {
+              const originId = targetProj?._id || meta.sharedProject?.originId;
               joinFollowedWorkGroup({
                 ...meta.sharedProject,
+                originId,
+                templateId: originId,
+                name: targetProj?.name || meta.sharedProject?.name,
                 creatorName: meta.author?.name || "Work Creator",
                 creatorHandle: meta.author?.handle || "",
                 currentUser: meta.author,

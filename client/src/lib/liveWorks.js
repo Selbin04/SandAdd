@@ -85,6 +85,7 @@ export function snapshotLiveWorks(project) {
       id: String(t?.id || `w-${index}`),
       text: String(t?.text || "").trim().slice(0, 80),
       done: Boolean(t?.done),
+      hasCheckbox: t?.hasCheckbox !== false,
       source: String(t?.source || "").trim().slice(0, 500),
       sourceProof: t?.sourceProof
         ? {
@@ -100,6 +101,15 @@ export function snapshotLiveWorks(project) {
             ...(t.sourceProof.dataUrl ? { dataUrl: t.sourceProof.dataUrl } : {}),
           }
         : null,
+      sources: Array.isArray(t?.sources)
+        ? t.sources.map((s, sIdx) => ({
+            id: String(s?.id || `src-${Date.now()}-${sIdx}`),
+            title: String(s?.title || "").trim().slice(0, 80),
+            type: String(s?.type || "text"),
+            content: String(s?.content || s?.text || "").slice(0, 500),
+            proof: s?.proof || null,
+          }))
+        : [],
     }))
     .filter((w) => w.text)
     .slice(0, 80);
@@ -108,11 +118,31 @@ export function snapshotLiveWorks(project) {
 /** Publish / refresh a live share so followers get updated tasks. */
 export function publishLiveWork(project, mode = "follow", author = null) {
   if (!project?._id || !project?.name) return null;
-  const originId = String(project._id);
   const catalog = readCatalog();
-  const prev = catalog[originId];
+  const keysToRegister = new Set();
+
+  const addKey = (k) => {
+    if (!k) return;
+    const str = String(k);
+    keysToRegister.add(str);
+    const clean = str.startsWith("live-") ? str.slice(5) : str;
+    const prefixed = `live-${clean}`;
+    keysToRegister.add(clean);
+    keysToRegister.add(prefixed);
+  };
+
+  addKey(project._id);
+  addKey(project.originId);
+  addKey(project.sharedTemplateId);
+
+  const prev =
+    catalog[String(project._id)] ||
+    (project.originId ? catalog[String(project.originId)] : null) ||
+    (project.sharedTemplateId ? catalog[String(project.sharedTemplateId)] : null);
+
   const entry = {
-    originId,
+    originId: String(project._id),
+    sharedTemplateId: project.sharedTemplateId || null,
     name: String(project.name).slice(0, 80),
     mode: mode === "assign" ? "assign" : prev?.mode === "assign" ? "assign" : "follow",
     works: snapshotLiveWorks(project),
@@ -120,18 +150,27 @@ export function publishLiveWork(project, mode = "follow", author = null) {
     updatedAt: Date.now(),
     author: author || prev?.author || null,
   };
-  catalog[originId] = entry;
+
+  for (const key of keysToRegister) {
+    catalog[key] = entry;
+  }
+
   writeCatalog(catalog);
 
   // Keep shared tick state in sync when creator updates the list
-  publishTopicsProgress(originId, project.topics || [], author);
+  for (const key of keysToRegister) {
+    publishTopicsProgress(key, project.topics || [], author);
+  }
   return entry;
 }
 
 export function getLiveWork(originId) {
   if (!originId) return null;
   const catalog = readCatalog();
-  return catalog[String(originId)] || null;
+  const id = String(originId);
+  const cleanId = id.startsWith("live-") ? id.slice(5) : id;
+  const prefixedId = `live-${cleanId}`;
+  return catalog[id] || catalog[cleanId] || catalog[prefixedId] || null;
 }
 
 /** Mark a live work as deleted so followers drop it from Progress. */
@@ -217,13 +256,17 @@ export function mergeFollowerTopics(localTopics, liveWorks, originId = null) {
   const merged = live.map((w, index) => {
     const id = String(w.id || `w-${index}`);
     const prev = localById.get(id);
+    const liveSources = Array.isArray(w.sources) ? w.sources : [];
+    const prevSources = Array.isArray(prev?.sources) ? prev.sources : [];
     return {
       id,
       text: String(w.text || "").trim().slice(0, 80),
       // Prefer creator snapshot done; local done is fallback before progress merge
       done: Boolean(w.done) || Boolean(prev?.done),
+      hasCheckbox: w.hasCheckbox !== false,
       source: String(w.source || "").trim().slice(0, 500),
       sourceProof: w.sourceProof || prev?.sourceProof || null,
+      sources: liveSources.length > 0 ? liveSources : prevSources,
     };
   });
   return originId ? applyLiveProgress(merged, originId) : merged;
@@ -238,6 +281,9 @@ export function followerTopicsNeedSync(localTopics, liveWorks, originId = null) 
   return next.some((t) => {
     const prev = localById.get(String(t.id));
     if (!prev) return true;
+    const prevSourcesKey = JSON.stringify(prev.sources || []);
+    const nextSourcesKey = JSON.stringify(t.sources || []);
+    if (prevSourcesKey !== nextSourcesKey) return true;
     return (
       prev.text !== t.text ||
       Boolean(prev.done) !== Boolean(t.done) ||
@@ -263,7 +309,11 @@ export function buildLiveShareTemplate(project, mode, author = null) {
 }
 
 export function isTasksLocked(project) {
-  return Boolean(project?.tasksLocked || project?.originId);
+  if (!project) return false;
+  if (project.originMode === "assign" || project.shareMode === "assign") {
+    return false;
+  }
+  return Boolean(project.tasksLocked);
 }
 
 /** Origin id used for shared progress (creator id, or follower's originId). */
@@ -273,3 +323,56 @@ export function liveOriginKey(project) {
   if (!isTasksLocked(project) && project._id) return String(project._id);
   return null;
 }
+
+/** Get creator info (name & handle) for any progress path. */
+export function getProjectCreator(project) {
+  if (!project) return null;
+  let name = project.creatorName || null;
+  let handle = project.creatorHandle || null;
+
+  if ((!name || name === "Work Creator" || name === "Creator") && (project.originId || project.sharedTemplateId)) {
+    const originKey = project.originId || project.sharedTemplateId;
+    const live = getLiveWork(originKey);
+    if (live?.author?.name) {
+      name = live.author.name;
+      handle = live.author.handle || handle;
+    }
+  }
+
+  let currentAuthor = null;
+  try {
+    currentAuthor = JSON.parse(localStorage.getItem("sandadd.author") || "{}");
+  } catch {
+    /* ignore */
+  }
+
+  if (!name || name === "Work Creator" || name === "Creator") {
+    if (currentAuthor?.name) {
+      name = currentAuthor.name;
+      handle = currentAuthor.handle || handle;
+    } else {
+      name = "You";
+    }
+  }
+
+  // If the project is owned by current user (no originId), display "You"
+  if (!project.originId && !project.sharedTemplateId) {
+    name = "You";
+    if (currentAuthor?.handle) handle = currentAuthor.handle;
+  } else if (currentAuthor?.name && name && name.toLowerCase() === currentAuthor.name.toLowerCase()) {
+    name = "You";
+    if (currentAuthor?.handle) handle = currentAuthor.handle;
+  }
+
+  return { name, handle: handle || "" };
+}
+
+/** Small tagline text displaying creator name at top of progress path. */
+export function getProjectCreatorTagline(project) {
+  if (!project) return null;
+  const creator = getProjectCreator(project);
+  if (!creator?.name) return null;
+  const handleStr = creator.handle ? ` (@${creator.handle})` : "";
+  return `${creator.name}${handleStr}`;
+}
+

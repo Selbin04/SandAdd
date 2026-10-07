@@ -2,10 +2,18 @@
   margin-top: 12px;
   border-style: dashed;
   border-bottom: 1px solid var(--line);
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: 480px;
+  display: flex;
+  flex-direction: column;
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .folder-panel .project-list {
-  max-height: none;
+  flex: 1 1 auto;
+  max-height: 380px;
+  overflow-y: auto;
 }
 
 .folder-panel-head h2 {

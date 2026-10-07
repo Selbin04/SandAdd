@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
-import { isTasksLocked } from "../lib/liveWorks.js";
+import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 
 export default function ProjectPanel({
@@ -26,6 +27,39 @@ export default function ProjectPanel({
   onMoveToFolder,
   onCreateFolder,
 }) {
+  const sentinelRef = useRef(null);
+  const [isFloating, setIsFloating] = useState(false);
+
+  useEffect(() => {
+    if (!showCreate) return;
+
+    const checkFloating = () => {
+      if (
+        typeof window === "undefined" ||
+        window.innerWidth > 768 ||
+        !sentinelRef.current
+      ) {
+        setIsFloating(false);
+        return;
+      }
+      const rect = sentinelRef.current.getBoundingClientRect();
+      const threshold = window.innerHeight - 70;
+      if (rect.top > threshold) {
+        setIsFloating(true);
+      } else {
+        setIsFloating(false);
+      }
+    };
+
+    checkFloating();
+    window.addEventListener("scroll", checkFloating, { passive: true });
+    window.addEventListener("resize", checkFloating, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", checkFloating);
+      window.removeEventListener("resize", checkFloating);
+    };
+  }, [showCreate]);
+
   return (
     <aside className={`panel projects-panel ${importantAction === "remove" ? "important-panel" : ""}`}>
       <header className="panel-head">
@@ -47,24 +81,27 @@ export default function ProjectPanel({
       </header>
 
       {showCreate && (
-        <form
-          className="new-project"
-          onSubmit={(e) => {
-            e.preventDefault();
-            onCreate();
-          }}
-        >
-          <input
-            type="text"
-            maxLength={80}
-            placeholder="Create New Progress Path"
-            value={newName}
-            onChange={(e) => onNewName(e.target.value)}
-          />
-          <button type="submit" className="chip active">
-            Save
-          </button>
-        </form>
+        <>
+          <div ref={sentinelRef} className="new-project-sentinel" />
+          <form
+            className={`new-project ${isFloating ? "is-floating-mobile" : ""}`}
+            onSubmit={(e) => {
+              e.preventDefault();
+              onCreate();
+            }}
+          >
+            <input
+              type="text"
+              maxLength={80}
+              placeholder="Create New Progress Path"
+              value={newName}
+              onChange={(e) => onNewName(e.target.value)}
+            />
+            <button type="submit" className="chip active">
+              Save
+            </button>
+          </form>
+        </>
       )}
 
       {projects.length === 0 ? (
@@ -82,6 +119,12 @@ export default function ProjectPanel({
                 : `Remove ${p.name} from important`;
             return (
               <li key={p._id} className={`${active ? "active" : ""} ${p.completed ? "done" : ""}`}>
+                {locked || p.originId || p.sharedTemplateId ? (
+                  <span
+                    className="update-red-dot corner-red-dot"
+                    title="New update added in this progress path"
+                  />
+                ) : null}
                 <button
                   type="button"
                   className="project-select"
@@ -99,9 +142,9 @@ export default function ProjectPanel({
                   <span className="project-copy">
                     <strong>
                       {p.name}
-                      {locked ? (
-                        <span className="work-lock-pill" title="Tasks sync from creator">
-                          {p.originMode === "assign" ? "Assigned" : "Following"}
+                      {locked || p.originId || p.sharedTemplateId ? (
+                        <span className="work-lock-pill" title="Tasks sync from creator — new update added">
+                          {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                         </span>
                       ) : null}
                     </strong>

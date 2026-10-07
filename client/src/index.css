@@ -68,11 +68,19 @@
   height: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
   margin: 0;
+  padding: 0;
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
 }
 
@@ -83,10 +91,26 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+/* Prevent unwanted iOS Safari auto-zoom on input focus */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="search"],
+  input[type="number"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 button {
   cursor: pointer;
 }
+

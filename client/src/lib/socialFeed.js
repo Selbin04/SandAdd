@@ -4,6 +4,7 @@ const CUSTOM_GROUPS_KEY = "sandadd.customGroups";
 const PROFILE_KEY = "sandadd.userProfile";
 const MESSAGE_SHARE_KEY = "sandadd.messageShares";
 const ADDED_TEMPLATES_KEY = "sandadd.addedProjectTemplates";
+const POST_COMMENTS_KEY = "sandadd.postComments";
 const DB_NAME = "sandadd.media";
 const DB_VERSION = 2;
 
@@ -118,6 +119,7 @@ export function snapshotProjectWorks(project) {
       id: String(t.id || ""),
       text: String(t.text || "").trim().slice(0, 80),
       done: Boolean(t.done),
+      hasCheckbox: t.hasCheckbox !== false,
       source: String(t.source || "").trim().slice(0, 500),
       sourceProof: t.sourceProof
         ? {
@@ -135,6 +137,7 @@ export function snapshotProjectWorks(project) {
               : {}),
           }
         : null,
+      sources: Array.isArray(t.sources) ? t.sources : [],
     }))
     .filter((t) => t.text);
 }
@@ -165,14 +168,33 @@ export async function restoreProjectsTopicMedia(projects) {
   return Promise.all(
     projects.map(async (project) => {
       const topics = Array.isArray(project.topics) ? project.topics : [];
-      if (!topics.some((t) => t?.sourceProof?.mediaId || t?.sourceProof?.hasMedia)) {
-        return project;
-      }
+      const hasMedia = topics.some(
+        (t) =>
+          t?.sourceProof?.mediaId ||
+          t?.sourceProof?.hasMedia ||
+          (Array.isArray(t?.sources) &&
+            t.sources.some((s) => s?.proof?.mediaId || s?.proof?.hasMedia))
+      );
+      if (!hasMedia) return project;
       const nextTopics = await Promise.all(
         topics.map(async (t) => {
-          if (!t?.sourceProof) return t;
-          const sourceProof = await restoreProofMedia(t.sourceProof);
-          return { ...t, sourceProof };
+          let sourceProof = t?.sourceProof;
+          if (sourceProof) {
+            sourceProof = await restoreProofMedia(sourceProof);
+          }
+          let sources = Array.isArray(t?.sources) ? t.sources : [];
+          if (sources.length > 0) {
+            sources = await Promise.all(
+              sources.map(async (s) => {
+                if (s?.type === "file" && s?.proof) {
+                  const proof = await restoreProofMedia(s.proof);
+                  return { ...s, proof };
+                }
+                return s;
+              })
+            );
+          }
+          return { ...t, sourceProof, sources };
         })
       );
       return { ...project, topics: nextTopics };
@@ -188,10 +210,26 @@ export async function prepareTopicsForSave(topics) {
     if (t?.sourceProof?.dataUrl && t.sourceProof.mediaId) {
       await persistProofMedia(t.sourceProof);
     }
+    let sources = Array.isArray(t?.sources) ? t.sources : [];
+    if (sources.length > 0) {
+      const prepSources = [];
+      for (const s of sources) {
+        if (s?.type === "file" && s?.proof?.dataUrl && s.proof.mediaId) {
+          await persistProofMedia(s.proof);
+        }
+        prepSources.push({
+          ...s,
+          title: String(s?.title || "").trim().slice(0, 80),
+          proof: s?.proof ? lightSourceProof(s.proof) : null,
+        });
+      }
+      sources = prepSources;
+    }
     prepared.push({
       ...t,
       source: String(t.source || "").trim().slice(0, 500),
       sourceProof: lightSourceProof(t.sourceProof),
+      sources,
     });
   }
   return prepared;
@@ -711,6 +749,52 @@ export function deleteAuthoredPost(id) {
   }
   if (changed) saveAllGroupPosts(map);
   return loadProfilePosts();
+}
+
+export function loadAllPostComments() {
+  try {
+    const raw = localStorage.getItem(POST_COMMENTS_KEY);
+    if (!raw) return {};
+    const map = JSON.parse(raw);
+    return map && typeof map === "object" ? map : {};
+  } catch {
+    return {};
+  }
+}
+
+export function loadPostComments(postId) {
+  if (!postId) return [];
+  const map = loadAllPostComments();
+  const list = map[String(postId)];
+  return Array.isArray(list) ? list : [];
+}
+
+export function addPostComment(postId, text) {
+  if (!postId || !String(text || "").trim()) return [];
+  const id = String(postId);
+  const author = readAuthorProfile();
+  const newComment = {
+    id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: author.name || "SandAdd User",
+    handle: author.handle || "",
+    initial: (author.name || "U").trim().slice(0, 1).toUpperCase() || "U",
+    text: String(text).trim().slice(0, 500),
+    createdAt: new Date().toISOString(),
+  };
+
+  const map = loadAllPostComments();
+  const current = Array.isArray(map[id]) ? map[id] : [];
+  const updated = [...current, newComment];
+  map[id] = updated;
+
+  try {
+    localStorage.setItem(POST_COMMENTS_KEY, JSON.stringify(map));
+    window.dispatchEvent(new CustomEvent("sandadd:comments-changed", { detail: { postId: id } }));
+  } catch {
+    /* ignore */
+  }
+
+  return updated;
 }
 
 /** Count posts/messages linked to a topic (from tick → share flow). */

@@ -35,6 +35,7 @@ export default function TodayWorksModal({ project, onConfirm, onSkip }) {
         ) : (
           <ul className="today-works-list">
             {topics.map((topic) => {
+              const showCheck = topic.hasCheckbox !== false;
               const on = picked.has(topic.id);
               return (
                 <li key={topic.id}>
@@ -44,9 +45,11 @@ export default function TodayWorksModal({ project, onConfirm, onSkip }) {
                     onClick={() => toggle(topic.id)}
                     aria-pressed={on}
                   >
-                    <span className="today-works-check" aria-hidden="true">
-                      {on ? "✓" : ""}
-                    </span>
+                    {showCheck ? (
+                      <span className="today-works-check" aria-hidden="true">
+                        {on ? "✓" : ""}
+                      </span>
+                    ) : null}
                     <span>{topic.text}</span>
                   </button>
                 </li>

@@ -13,6 +13,7 @@ export function loadHighlights() {
         id: String(h?.id || ""),
         workId: String(h?.workId || ""),
         name: String(h?.name || "").trim().slice(0, 80),
+        proof: h?.proof || null,
         createdAt: h?.createdAt || null,
       }))
       .filter((h) => h.id && h.workId);
@@ -30,7 +31,7 @@ function saveHighlights(list) {
   }
 }
 
-export function addHighlightWorks(works = []) {
+export function addHighlightWorks(works = [], pickProofs = {}) {
   const current = loadHighlights();
   const existing = new Set(current.map((h) => h.workId));
   const next = [...current];
@@ -42,6 +43,7 @@ export function addHighlightWorks(works = []) {
       id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       workId,
       name: String(work?.name || "Work").trim().slice(0, 80) || "Work",
+      proof: pickProofs[workId] || work?.proof || null,
       createdAt: new Date().toISOString(),
     });
   }

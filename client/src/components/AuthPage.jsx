@@ -59,7 +59,7 @@ export default function AuthPage({ onAuthed, busy = false, error = "", onClearEr
             <span className="add">Add</span>
           </h1>
           <p className="auth-tagline">
-            Pour time into what matters — then show the work.
+            your progress shapes your skills
           </p>
         </header>
 

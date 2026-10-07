@@ -22,6 +22,12 @@ export function openSourceUrl(url) {
   return true;
 }
 
+export function isUrlSource(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return false;
+  return /^https?:\/\//i.test(s) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
+}
+
 export function workHasSource(work) {
   return Boolean(
     String(work?.source || "").trim() ||
@@ -198,12 +204,14 @@ export function SourceFileViewer({ proof }) {
   );
 }
 
-/** Source control for View/Group posts — panel with Open / Link / File. */
+/** Source control for View/Group posts — panel with Open / Text / Link / File. */
 export function WorkSourceControl({ work }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("open");
   const has = workHasSource(work);
   const hasFile = workHasFileSource(work);
+  const isUrl = isUrlSource(work?.source);
+  const hasText = Boolean(work?.source && !isUrl);
 
   if (!has) return null;
 
@@ -239,10 +247,20 @@ export function WorkSourceControl({ work }) {
             <button
               type="button"
               role="tab"
+              aria-selected={tab === "text"}
+              className={tab === "text" ? "is-active" : ""}
+              onClick={() => setTab("text")}
+              disabled={!hasText}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={tab === "link"}
               className={tab === "link" ? "is-active" : ""}
               onClick={() => setTab("link")}
-              disabled={!work.source}
+              disabled={!isUrl}
             >
               Link
             </button>
@@ -262,7 +280,7 @@ export function WorkSourceControl({ work }) {
             <div className="work-source-pane">
               {hasFile ? (
                 <SourceFileViewer proof={work.sourceProof} />
-              ) : work.source ? (
+              ) : isUrl ? (
                 <>
                   <p className="source-media-meta">{work.source}</p>
                   <button
@@ -273,13 +291,25 @@ export function WorkSourceControl({ work }) {
                     Open link
                   </button>
                 </>
+              ) : work.source ? (
+                <div className="source-media-text-card">
+                  <p className="source-media-text-content">{work.source}</p>
+                </div>
               ) : (
                 <p className="source-media-meta">No source available.</p>
               )}
             </div>
           ) : null}
 
-          {tab === "link" && work.source ? (
+          {tab === "text" && hasText ? (
+            <div className="work-source-pane">
+              <div className="source-media-text-card">
+                <p className="source-media-text-content">{work.source}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {tab === "link" && isUrl ? (
             <div className="work-source-pane">
               <p className="source-media-meta">{work.source}</p>
               <button

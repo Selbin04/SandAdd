@@ -399,17 +399,6 @@ export default function UserProfilePage() {
             <>
               <h1>{profile.name}</h1>
               <p className="user-profile-handle">@{profile.handle}</p>
-              <div
-                className="user-profile-follow-stats"
-                aria-label="Follow counts"
-              >
-                <span>
-                  <strong>{DUMMY_FOLLOWERS}</strong> followers
-                </span>
-                <span>
-                  <strong>{DUMMY_FOLLOWING}</strong> following
-                </span>
-              </div>
               <p className="user-profile-bio">
                 {profile.bio || "No bio yet."}
               </p>
@@ -485,17 +474,22 @@ export default function UserProfilePage() {
                       ) : null}
                       {works.length > 0 ? (
                         <ul>
-                          {works.map((w, wi) => (
-                            <li
-                              key={w?.id || w?.text || `w-${wi}`}
-                              className={w?.done ? "is-done" : ""}
-                            >
-                              <span aria-hidden="true">
-                                {w?.done ? "✓" : "○"}
-                              </span>
-                              <span>{w?.text || "Task"}</span>
-                            </li>
-                          ))}
+                          {works.map((w, wi) => {
+                            const showCheck = w?.hasCheckbox !== false;
+                            return (
+                              <li
+                                key={w?.id || w?.text || `w-${wi}`}
+                                className={w?.done ? "is-done" : ""}
+                              >
+                                {showCheck ? (
+                                  <span aria-hidden="true">
+                                    {w?.done ? "✓" : "○"}
+                                  </span>
+                                ) : null}
+                                <span>{w?.text || "Task"}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       ) : null}
                     </div>

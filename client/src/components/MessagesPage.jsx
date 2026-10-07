@@ -106,7 +106,7 @@ function MessageBubble({ msg, onFollowProject }) {
   const canAddToProgress = Boolean(msg.sharedProject && onFollowProject);
   const progressActionLabel =
     shareMode === "assign"
-      ? "Accept assignment"
+      ? "Contribute"
       : isLiveFollow
         ? "Follow in Progress"
         : "Add to Progress";
@@ -141,13 +141,18 @@ function MessageBubble({ msg, onFollowProject }) {
             <>
               <p className="messages-works-label">Tasks</p>
               <ul>
-                {works.map((w) => (
-                  <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
-                    <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
-                    <span className="messages-work-text">{w.text}</span>
-                    <WorkSourceControl work={w} />
-                  </li>
-                ))}
+                {works.map((w) => {
+                  const showCheck = w.hasCheckbox !== false;
+                  return (
+                    <li key={w.id || w.text} className={w.done ? "is-done" : ""}>
+                      {showCheck ? (
+                        <span aria-hidden="true">{w.done ? "✓" : "○"}</span>
+                      ) : null}
+                      <span className="messages-work-text">{w.text}</span>
+                      <WorkSourceControl work={w} />
+                    </li>
+                  );
+                })}
               </ul>
             </>
           ) : null}

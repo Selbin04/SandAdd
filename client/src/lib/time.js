@@ -30,9 +30,11 @@ export function fillLabel(elapsedMs, durationMs) {
   return `${Math.round(p * 100)}% done`;
 }
 
-/** Progress from ticked works: 2 works → each tick = 50%, untick reverses. */
+/** Progress from ticked works: only checkable works (hasCheckbox !== false) count toward progress. */
 export function elapsedFromWorks(topics, durationMs) {
-  const list = Array.isArray(topics) ? topics : [];
+  const list = Array.isArray(topics)
+    ? topics.filter((t) => t && t.hasCheckbox !== false)
+    : [];
   const duration = Number(durationMs) || 0;
   if (list.length === 0 || duration <= 0) return 0;
   const done = list.filter((t) => t?.done).length;

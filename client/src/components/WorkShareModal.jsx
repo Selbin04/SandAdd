@@ -8,6 +8,8 @@ import {
   readAuthorProfile,
 } from "../lib/socialFeed.js";
 import { buildLiveShareTemplate } from "../lib/liveWorks.js";
+import { joinFollowedWorkGroup } from "../lib/followingStore.js";
+import TaskSelector from "./TaskSelector.jsx";
 import "./WorkShareModal.css";
 
 const TARGETS = [
@@ -25,18 +27,41 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [taskMode, setTaskMode] = useState("all");
+  const projectTopics = project?.topics || [];
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => {
+    return new Set(projectTopics.map((t, idx) => String(t?.id || `w-${idx}`)));
+  });
+
+  const handleToggleTaskId = (id) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAllTasks = () => {
+    setSelectedTaskIds(new Set(projectTopics.map((t, idx) => String(t?.id || `w-${idx}`))));
+  };
+
+  const handleDeselectAllTasks = () => {
+    setSelectedTaskIds(new Set());
+  };
+
   const shareGroups = getShareGroups();
   const selectedGroup = shareGroups.find((g) => g.id === groupId) || null;
   const selectedThread = SHARE_THREADS.find((t) => t.id === threadId) || null;
   const isAssign = mode === "assign";
-  const title = isAssign ? "Assign project" : "Share project to follow";
+  const title = isAssign ? "Share to contribute" : "Share to follow";
   const blurb = isAssign
     ? "Assignees add this project to Progress. They get task updates and cannot edit or add tasks."
     : "Followers add this project to Progress. They get task updates and cannot edit or add tasks.";
 
   const defaultBody = () =>
     isAssign
-      ? `Assigned project: ${project?.name || "project"}`
+      ? `Contribute to project: ${project?.name || "project"}`
       : `Follow this project: ${project?.name || "project"}`;
 
   const goCompose = (nextTarget, nextGroupId = null, nextThreadId = null) => {
@@ -60,8 +85,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       setError("Pick a group first.");
       return;
     }
-    if (target === "messages" && !threadId) {
-      setError("Pick a chat first.");
+    if (taskMode === "select" && selectedTaskIds.size === 0) {
+      setError("Please select at least 1 task to share.");
       return;
     }
 
@@ -69,8 +94,17 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
     setError("");
     try {
       const author = readAuthorProfile();
-      const sharedProject = buildLiveShareTemplate(project, mode, author);
+      let sharedProject = buildLiveShareTemplate(project, mode, author);
       if (!sharedProject) throw new Error("Could not prepare share.");
+
+      let finalWorks = sharedProject.works;
+      if (taskMode === "select") {
+        finalWorks = sharedProject.works.filter((w) => selectedTaskIds.has(String(w.id)));
+        sharedProject = {
+          ...sharedProject,
+          works: finalWorks,
+        };
+      }
 
       const body = caption.trim() || defaultBody();
       const base = {
@@ -81,7 +115,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         body,
         projectId: project._id,
         projectName: project.name,
-        works: sharedProject.works,
+        works: finalWorks,
         sharedProject,
         proof: null,
         createdAt: new Date().toISOString(),
@@ -117,6 +151,19 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           meta: `${isAssign ? "assigned" : "open to follow"} · ${project.name}`,
           groupId: null,
           groupName: "",
+        });
+      }
+
+      if (mode === "follow" || mode === "assign") {
+        joinFollowedWorkGroup({
+          ...sharedProject,
+          originId: project._id,
+          templateId: project._id,
+          name: project.name,
+          creatorName: author?.name || "Work Creator",
+          creatorHandle: author?.handle || "",
+          currentUser: author,
+          isCreator: true,
         });
       }
 
@@ -211,7 +258,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 <span className="work-share-num">{i + 1}</span>
                 <span>
                   <strong>{group.name}</strong>
-                  <small>{isAssign ? "Assign into this group" : "Share project to follow"}</small>
+                  <small>{isAssign ? "Share to contribute into this group" : "Share to follow"}</small>
                 </span>
               </button>
             ))}
@@ -273,6 +320,15 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 autoFocus
               />
             </label>
+            <TaskSelector
+              topics={projectTopics}
+              mode={taskMode}
+              onModeChange={setTaskMode}
+              selectedIds={selectedTaskIds}
+              onToggleId={handleToggleTaskId}
+              onSelectAll={handleSelectAllTasks}
+              onDeselectAll={handleDeselectAllTasks}
+            />
             <button
               type="button"
               className="work-share-submit"

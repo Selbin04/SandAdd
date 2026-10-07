@@ -62,12 +62,38 @@ function parseProjectInput(body, { partial = false } = {}) {
           hasMedia: Boolean(proof.hasMedia || proof.mediaId || proof.dataUrl),
         };
       }
+      let sources = [];
+      if (Array.isArray(topic?.sources)) {
+        sources = topic.sources.slice(0, 20).map((s, sIdx) => {
+          if (!s || typeof s !== "object") return null;
+          const sType = String(s.type || "text");
+          const sProof = s.proof;
+          let cleanProof = null;
+          if (sProof && typeof sProof === "object" && (sProof.mediaId || sProof.name)) {
+            cleanProof = {
+              mediaId: String(sProof.mediaId || ""),
+              name: String(sProof.name || "").slice(0, 120),
+              type: String(sProof.type || "").slice(0, 80),
+              size: Number(sProof.size) || 0,
+              hasMedia: Boolean(sProof.hasMedia || sProof.mediaId || sProof.dataUrl),
+            };
+          }
+          return {
+            id: String(s.id || `src-${Date.now()}-${sIdx}`),
+            title: String(s.title || s.name || "").trim().slice(0, 80),
+            type: sType === "file" ? "file" : sType === "link" ? "link" : "text",
+            content: String(s.content || s.text || s.source || "").slice(0, 500),
+            proof: cleanProof,
+          };
+        }).filter(Boolean);
+      }
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
         text,
         done: Boolean(topic?.done),
         source: String(topic?.source ?? "").trim().slice(0, 500),
         sourceProof,
+        sources,
       };
     }).filter(Boolean);
   }
@@ -97,6 +123,20 @@ function parseProjectInput(body, { partial = false } = {}) {
       body.sharedTemplateId == null || body.sharedTemplateId === ""
         ? null
         : String(body.sharedTemplateId).slice(0, 120);
+  }
+
+  if (body.creatorName !== undefined) {
+    result.creatorName =
+      body.creatorName == null || body.creatorName === ""
+        ? null
+        : String(body.creatorName).slice(0, 80);
+  }
+
+  if (body.creatorHandle !== undefined) {
+    result.creatorHandle =
+      body.creatorHandle == null || body.creatorHandle === ""
+        ? null
+        : String(body.creatorHandle).slice(0, 80);
   }
 
   if (body.folderId !== undefined) {
@@ -130,6 +170,8 @@ function asProject(doc) {
       : null,
     tasksLocked: Boolean(obj.tasksLocked || obj.originId),
     sharedTemplateId: obj.sharedTemplateId || null,
+    creatorName: obj.creatorName || null,
+    creatorHandle: obj.creatorHandle || null,
     folderId: obj.folderId || null,
   };
 }
@@ -238,6 +280,12 @@ export default function projectRoutes(useMemory) {
       }
       if (parsed.value.sharedTemplateId !== undefined) {
         next.sharedTemplateId = parsed.value.sharedTemplateId;
+      }
+      if (parsed.value.creatorName !== undefined) {
+        next.creatorName = parsed.value.creatorName;
+      }
+      if (parsed.value.creatorHandle !== undefined) {
+        next.creatorHandle = parsed.value.creatorHandle;
       }
       if (parsed.value.folderId !== undefined) {
         next.folderId = parsed.value.folderId;

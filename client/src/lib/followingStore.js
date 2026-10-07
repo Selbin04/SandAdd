@@ -150,39 +150,61 @@ export function getFollowedWorkGroup(originId) {
   return updated;
 }
 
-export function addFollowedWorkMessage(originId, author, text) {
+export function addFollowedWorkMessage(originId, author, text, replyTo = null, isUpdate = false) {
   const trimmed = typeof text === "string" ? text.trim().slice(0, 500) : "";
   if (!originId || !trimmed) return null;
   const groups = loadFollowedWorkGroups();
   let updatedGroup = null;
+  const targetId = String(originId);
+
   const updated = groups.map((group) => {
-    if (group.id !== `fw-${String(originId)}`) return group;
+    if (group.id !== `fw-${targetId}` && group.originId !== targetId) return group;
+    const isCreator = group.role === "Creator" || author?.isCreator;
+    const msgFrom = isUpdate ? "update" : (isCreator ? "creator" : "me");
+    const msgAuthor = author?.name || (isCreator ? group.creatorName || "Creator" : "Member");
+    const msgRole = isCreator ? "Creator" : "Follower";
+
+    const newMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      from: msgFrom,
+      author: msgAuthor,
+      authorHandle: author?.handle || "",
+      role: msgRole,
+      text: trimmed,
+      replyTo: replyTo ? {
+        id: replyTo.id,
+        author: replyTo.author || (replyTo.from === "update" ? "Project Update" : "Member"),
+        text: typeof replyTo.text === "string" ? replyTo.text.slice(0, 120) : "",
+      } : null,
+      createdAt: new Date().toISOString(),
+    };
+
     updatedGroup = {
       ...group,
-      messages: [
-        ...(group.messages || []),
-        {
-          id: `msg-${Date.now()}`,
-          from: "me",
-          author: author?.name || "Member",
-          text: trimmed,
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      lastUpdate: isUpdate ? trimmed : group.lastUpdate,
+      messages: [...(group.messages || []), newMessage],
     };
     return updatedGroup;
   });
-  if (updatedGroup) saveFollowedWorkGroups(updated);
-  return updatedGroup;
+
+  if (updatedGroup) {
+    saveFollowedWorkGroups(updated);
+    return updatedGroup;
+  }
+
+  return null;
 }
 
 export function pushFollowedWorkUpdate(workTitleOrId, updateText, nextProgress = null) {
   const existing = loadFollowedWorkGroups();
   let found = false;
+  const targetStr = String(workTitleOrId);
+
   const updated = existing.map((g) => {
     if (
-      g.id === workTitleOrId ||
-      g.originId === String(workTitleOrId) ||
+      g.id === targetStr ||
+      g.id === `fw-${targetStr}` ||
+      g.originId === targetStr ||
       g.workTitle === workTitleOrId ||
       g.name === workTitleOrId
     ) {
@@ -190,9 +212,9 @@ export function pushFollowedWorkUpdate(workTitleOrId, updateText, nextProgress =
       const nextMsgs = [
         ...(g.messages || []),
         {
-          id: `update-${Date.now()}`,
+          id: `update-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           from: "update",
-          author: g.creatorName || "Work creator",
+          author: g.creatorName || "Project Update",
           text: updateText,
           createdAt: new Date().toISOString(),
         },
@@ -211,3 +233,18 @@ export function pushFollowedWorkUpdate(workTitleOrId, updateText, nextProgress =
     saveFollowedWorkGroups(updated);
   }
 }
+
+export function ensureFollowedWorkGroup(project, currentUser = {}) {
+  if (!project) return null;
+  const originId = project.originId || project._id;
+  if (!originId) return null;
+  const existing = getFollowedWorkGroup(originId);
+  if (existing) return existing;
+
+  return joinFollowedWorkGroup({
+    ...project,
+    currentUser,
+    isCreator: !project.originId || project.originMode === "assign",
+  });
+}
+

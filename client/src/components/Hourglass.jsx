@@ -209,6 +209,35 @@ export default function Hourglass({ progress, pouring, finished }) {
       <rect x="42" y="24" width="8" height="8" rx="4" fill="#0a2a44" opacity="0.45" />
       <rect x="170" y="24" width="8" height="8" rx="4" fill="#0a2a44" opacity="0.45" />
 
+      {/* Festive Santa Claus Cap on top of Hourglass */}
+      <g className="hourglass-santa-cap" aria-hidden="true">
+        {/* Main Red Cap fold */}
+        <path
+          d="M 74,12 C 72,-8 95,-24 125,-26 C 146,-28 168,-14 165,6 C 160,20 140,24 114,24 Z"
+          fill="#e53935"
+        />
+        {/* Darker red shadow / depth */}
+        <path
+          d="M 80,12 C 78,-4 98,-18 125,-20 C 140,-22 158,-10 155,6 C 150,18 135,22 110,22 Z"
+          fill="#b71c1c"
+          opacity="0.85"
+        />
+        {/* Soft highlight */}
+        <path
+          d="M 88,4 C 86,-8 105,-18 128,-18"
+          stroke="rgba(255,255,255,0.45)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          fill="none"
+        />
+        {/* White fluffy pom-pom at tip */}
+        <circle cx="165" cy="8" r="9" fill="#ffffff" />
+        <circle cx="163" cy="6" r="6" fill="#f5f5f5" />
+        {/* White fluffy brim resting on top metal plate */}
+        <rect x="68" y="10" width="84" height="14" rx="7" fill="#ffffff" />
+        <rect x="72" y="12" width="76" height="10" rx="5" fill="#f0f0f0" opacity="0.75" />
+      </g>
+
       {/* Side pillars */}
       <rect x="38" y="42" width="12" height="336" rx="3" fill="url(#pillarMetal)" />
       <rect x="170" y="42" width="12" height="336" rx="3" fill="url(#pillarMetal)" />

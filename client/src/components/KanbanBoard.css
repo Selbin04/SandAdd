@@ -346,3 +346,56 @@
   font-size: 2rem;
   color: #64748b;
 }
+
+/* Responsive Whiteboard Styles */
+@media (max-width: 840px) {
+  .wb-board {
+    border-width: 6px;
+    border-radius: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wb-header-row,
+  .wb-columns-row {
+    min-width: 720px;
+  }
+
+  .wb-col-head {
+    font-size: 1.8rem;
+    padding: 12px 14px;
+  }
+
+  .wb-col {
+    padding: 14px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .wb-add-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .wb-project-tag {
+    align-self: flex-start;
+  }
+
+  .wb-add-btn {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .sticky-note {
+    max-width: 100%;
+    min-height: 110px;
+    padding: 12px;
+  }
+
+  .sticky-text {
+    font-size: 1.1rem;
+  }
+}
+

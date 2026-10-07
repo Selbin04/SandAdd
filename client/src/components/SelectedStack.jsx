@@ -1,10 +1,11 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
+import { getProjectCreator } from "../lib/liveWorks.js";
 
 export default function SelectedStack({ projects, activeId, onSelect, onOpenTopics, onOpenWork }) {
   return (
     <aside className="panel selected-panel">
       <header className="panel-head">
-        <h2>Selected</h2>
+        <h2>SELECTED ( TODAY )</h2>
         <span className="storage-pill">{projects.length}</span>
       </header>
       {projects.length === 0 ? (

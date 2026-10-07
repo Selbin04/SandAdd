@@ -231,6 +231,7 @@ function StickyNote({
   const isEditing = editingId === (task.id || task._id);
   const colorClass = task.color || STICKY_COLORS[index % STICKY_COLORS.length];
   const rotDeg = task.rot || ((index % 5 - 2) * 1.8).toFixed(1);
+  const showCheck = task.hasCheckbox !== false;
 
   return (
     <div
@@ -271,14 +272,16 @@ function StickyNote({
       ) : (
         <>
           <div className="sticky-body">
-            <button
-              type="button"
-              className={`sticky-check ${task.done ? "checked" : ""}`}
-              onClick={() => onToggleDone(task.id || task._id)}
-              aria-label="Toggle completed"
-            >
-              {task.done ? "✓" : ""}
-            </button>
+            {showCheck ? (
+              <button
+                type="button"
+                className={`sticky-check ${task.done ? "checked" : ""}`}
+                onClick={() => onToggleDone(task.id || task._id)}
+                aria-label="Toggle completed"
+              >
+                {task.done ? "✓" : ""}
+              </button>
+            ) : null}
             <p
               className={`sticky-text ${task.done ? "done-text" : ""}`}
               onClick={() => {

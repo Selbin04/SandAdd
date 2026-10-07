@@ -144,6 +144,22 @@
   background: #000;
 }
 
+.source-media-text-card {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--input-bg);
+}
+
+.source-media-text-content {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--paper);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .work-source {
   position: relative;
   flex-shrink: 0;
@@ -197,7 +213,7 @@
 
 .work-source-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   margin-bottom: 8px;
 }
@@ -205,15 +221,16 @@
 .work-source-tabs button {
   border: 0;
   border-radius: 6px;
-  padding: 6px 4px;
+  padding: 6px 2px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .work-source-tabs button:disabled {

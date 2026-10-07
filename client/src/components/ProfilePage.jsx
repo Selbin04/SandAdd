@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { fillLabel, fillProgress, projectDuration, elapsedFromWorks } from "../lib/time.js";
 import {
+  PROOF_ACCEPT,
   deleteAuthoredPost,
+  fileToProof,
   hydrateSocialFeeds,
   loadProfilePosts,
   updateUserPost,
@@ -12,7 +14,7 @@ import {
   removeHighlight,
 } from "../lib/highlights.js";
 import ProofMedia from "./ProofMedia.jsx";
-import { WorkSourceControl } from "./SourceMedia.jsx";
+import { WorkSourceControl, normalizeSourceUrl } from "./SourceMedia.jsx";
 import "./ProfilePage.css";
 
 const PROFILE_KEY = "sandadd.userProfile";
@@ -48,6 +50,27 @@ function readProfile() {
 function saveProfile(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    /* ignore */
+  }
+}
+
+const PORTFOLIO_ABOUT_KEY = "sandadd.portfolioAbout";
+const DEFAULT_PORTFOLIO_ABOUT =
+  "Highlight projects and keep finished shares here — your public name and photo live on Profile (icon in the navbar).";
+
+function readPortfolioAbout() {
+  try {
+    const val = localStorage.getItem(PORTFOLIO_ABOUT_KEY);
+    return typeof val === "string" && val.trim() ? val : DEFAULT_PORTFOLIO_ABOUT;
+  } catch {
+    return DEFAULT_PORTFOLIO_ABOUT;
+  }
+}
+
+function savePortfolioAbout(aboutText) {
+  try {
+    localStorage.setItem(PORTFOLIO_ABOUT_KEY, aboutText);
   } catch {
     /* ignore */
   }
@@ -129,7 +152,34 @@ export default function ProfilePage({
   const [highlights, setHighlights] = useState(() => loadHighlights());
   const [pickingHighlight, setPickingHighlight] = useState(false);
   const [pickIds, setPickIds] = useState(() => new Set());
+  const [pickProofs, setPickProofs] = useState({});
+  const [proofError, setProofError] = useState("");
+  const [proofModalWork, setProofModalWork] = useState(null);
+  const [proofTab, setProofTab] = useState("file"); // file | link | text
+  const [linkInput, setLinkInput] = useState("");
+  const [textInput, setTextInput] = useState("");
   const [viewingHighlightId, setViewingHighlightId] = useState(null);
+  const [portfolioAbout, setPortfolioAbout] = useState(readPortfolioAbout);
+  const [editingAbout, setEditingAbout] = useState(false);
+  const [draftAbout, setDraftAbout] = useState(portfolioAbout);
+
+  const startEditAbout = () => {
+    setDraftAbout(portfolioAbout);
+    setEditingAbout(true);
+  };
+
+  const cancelEditAbout = () => {
+    setDraftAbout(portfolioAbout);
+    setEditingAbout(false);
+  };
+
+  const saveEditAbout = (e) => {
+    e.preventDefault();
+    const nextAbout = draftAbout.trim() || DEFAULT_PORTFOLIO_ABOUT;
+    setPortfolioAbout(nextAbout);
+    savePortfolioAbout(nextAbout);
+    setEditingAbout(false);
+  };
 
   useEffect(() => {
     if (!editing) setDraft(profile);
@@ -167,6 +217,10 @@ export default function ProfilePage({
   const viewingWork = viewingHighlightId
     ? projects.find((p) => p._id === viewingHighlightId) || null
     : null;
+  const viewingHighlightItem = viewingHighlightId
+    ? highlights.find((h) => h.workId === viewingHighlightId) || null
+    : null;
+  const viewingProof = viewingHighlightItem?.proof || viewingWork?.proof || null;
   const viewingTopics = Array.isArray(viewingWork?.topics) ? viewingWork.topics : [];
   const viewingDuration = viewingWork ? projectDuration(viewingWork) : 0;
   const viewingElapsed =
@@ -181,12 +235,18 @@ export default function ProfilePage({
   const openHighlightPicker = () => {
     setViewingHighlightId(null);
     setPickIds(new Set());
+    setPickProofs({});
+    setProofError("");
+    setProofModalWork(null);
     setPickingHighlight(true);
   };
 
   const closeHighlightPicker = () => {
     setPickingHighlight(false);
     setPickIds(new Set());
+    setPickProofs({});
+    setProofError("");
+    setProofModalWork(null);
   };
 
   const togglePickWork = (id) => {
@@ -198,13 +258,84 @@ export default function ProfilePage({
     });
   };
 
+  const openProofModal = (work, e) => {
+    e?.stopPropagation();
+    const existing = pickProofs[work._id] || work.proof || null;
+    setProofModalWork(work);
+    setProofError("");
+    if (existing?.type === "link" || existing?.kind === "link" || existing?.url) {
+      setProofTab("link");
+      setLinkInput(existing.url || existing.link || existing.name || "");
+      setTextInput("");
+    } else if (existing?.type === "text" || existing?.kind === "text" || existing?.text) {
+      setProofTab("text");
+      setTextInput(existing.text || existing.name || "");
+      setLinkInput("");
+    } else {
+      setProofTab("file");
+      setLinkInput("");
+      setTextInput("");
+    }
+  };
+
+  const handleProofFile = async (workId, file) => {
+    if (!file) return;
+    setProofError("");
+    try {
+      const proof = await fileToProof(file);
+      setPickProofs((prev) => ({ ...prev, [workId]: proof }));
+      setPickIds((prev) => new Set(prev).add(workId));
+      setProofModalWork(null);
+    } catch (err) {
+      setProofError(err.message || "Could not attach proof");
+    }
+  };
+
+  const saveLinkProof = () => {
+    const raw = linkInput.trim();
+    if (!raw || !proofModalWork) return;
+    const url = normalizeSourceUrl(raw);
+    const proof = {
+      type: "link",
+      kind: "link",
+      url,
+      name: raw,
+    };
+    setPickProofs((prev) => ({ ...prev, [proofModalWork._id]: proof }));
+    setPickIds((prev) => new Set(prev).add(proofModalWork._id));
+    setProofModalWork(null);
+  };
+
+  const saveTextProof = () => {
+    const text = textInput.trim();
+    if (!text || !proofModalWork) return;
+    const proof = {
+      type: "text",
+      kind: "text",
+      text,
+      name: text.length > 30 ? `${text.slice(0, 30)}…` : text,
+    };
+    setPickProofs((prev) => ({ ...prev, [proofModalWork._id]: proof }));
+    setPickIds((prev) => new Set(prev).add(proofModalWork._id));
+    setProofModalWork(null);
+  };
+
+  const removePickProof = (workId, e) => {
+    e?.stopPropagation();
+    setPickProofs((prev) => {
+      const next = { ...prev };
+      delete next[workId];
+      return next;
+    });
+  };
+
   const confirmHighlights = () => {
     const selected = projects.filter((p) => pickIds.has(p._id));
     if (selected.length === 0) {
       closeHighlightPicker();
       return;
     }
-    setHighlights(addHighlightWorks(selected));
+    setHighlights(addHighlightWorks(selected, pickProofs));
     closeHighlightPicker();
   };
 
@@ -334,14 +465,6 @@ export default function ProfilePage({
             <>
               <h1>{profile.name}</h1>
               <p className="profile-handle">@{profile.handle}</p>
-              <div className="profile-follow-stats" aria-label="Follow counts">
-                <span>
-                  <strong>{DUMMY_FOLLOWERS}</strong> followers
-                </span>
-                <span>
-                  <strong>{DUMMY_FOLLOWING}</strong> following
-                </span>
-              </div>
               <p className="profile-bio">{profile.bio || "No bio yet."}</p>
               <button type="button" className="profile-edit-btn" onClick={startEdit}>
                 Edit profile
@@ -440,8 +563,9 @@ export default function ProfilePage({
             </button>
           </header>
           <p className="profile-highlight-picker-hint">
-            Choose projects to feature on your profile.
+            Choose projects to feature on your profile and attach optional proof.
           </p>
+          {proofError ? <p className="profile-picker-error">{proofError}</p> : null}
           {pickableWorks.length === 0 ? (
             <p className="profile-empty">
               {projects.length === 0
@@ -454,9 +578,13 @@ export default function ProfilePage({
                 const checked = pickIds.has(work._id);
                 const duration = projectDuration(work);
                 const elapsed = work.elapsedMs || 0;
+                const attachedProof = pickProofs[work._id] || work.proof || null;
                 return (
-                  <li key={work._id}>
-                    <label className={checked ? "is-checked" : ""}>
+                  <li
+                    key={work._id}
+                    className={`profile-highlight-pick-item ${checked ? "is-checked" : ""}`}
+                  >
+                    <label className="profile-highlight-pick-left">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -467,6 +595,43 @@ export default function ProfilePage({
                         <span>{fillLabel(elapsed, duration)}</span>
                       </span>
                     </label>
+                    <div className="profile-highlight-pick-right">
+                      {attachedProof ? (
+                        <div
+                          className="profile-pick-proof-badge"
+                          title={attachedProof.name || "Attached proof (click to edit)"}
+                          onClick={(e) => openProofModal(work, e)}
+                        >
+                          <span className="profile-pick-proof-icon" aria-hidden="true">
+                            {attachedProof.type === "link" || attachedProof.kind === "link" || attachedProof.url
+                              ? "🔗"
+                              : attachedProof.type === "text" || attachedProof.kind === "text" || attachedProof.text
+                                ? "📝"
+                                : "📎"}
+                          </span>
+                          <span className="profile-pick-proof-name">
+                            {attachedProof.name || "Proof attached"}
+                          </span>
+                          <button
+                            type="button"
+                            className="profile-pick-proof-remove"
+                            onClick={(e) => removePickProof(work._id, e)}
+                            title="Remove proof"
+                            aria-label="Remove proof"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="profile-add-proof-btn"
+                          onClick={(e) => openProofModal(work, e)}
+                        >
+                          <span aria-hidden="true">+</span> Add proof
+                        </button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
@@ -496,6 +661,12 @@ export default function ProfilePage({
               Close
             </button>
           </header>
+
+          {viewingProof ? (
+            <div className="profile-highlight-detail-proof-box">
+              <ProofMedia proof={viewingProof} className="profile-post-proof" />
+            </div>
+          ) : null}
 
           <div className="profile-highlight-pct" aria-label="Completion">
             <div className="profile-highlight-pct-row">
@@ -662,20 +833,25 @@ export default function ProfilePage({
                               </p>
                               {works.length > 0 ? (
                                 <ul>
-                                  {works.map((w) => (
-                                    <li
-                                      key={w.id || w.text}
-                                      className={w.done ? "is-done" : ""}
-                                    >
-                                      <span aria-hidden="true">
-                                        {w.done ? "✓" : "○"}
-                                      </span>
-                                      <span className="profile-work-text">
-                                        {w.text}
-                                      </span>
-                                      <WorkSourceControl work={w} />
-                                    </li>
-                                  ))}
+                                  {works.map((w) => {
+                                    const showCheck = w.hasCheckbox !== false;
+                                    return (
+                                      <li
+                                        key={w.id || w.text}
+                                        className={w.done ? "is-done" : ""}
+                                      >
+                                        {showCheck ? (
+                                          <span aria-hidden="true">
+                                            {w.done ? "✓" : "○"}
+                                          </span>
+                                        ) : null}
+                                        <span className="profile-work-text">
+                                          {w.text}
+                                        </span>
+                                        <WorkSourceControl work={w} />
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               ) : (
                                 <p className="profile-post-works-empty">
@@ -760,6 +936,138 @@ export default function ProfilePage({
       </div>
         </>
       )}
+
+      {proofModalWork ? (
+        <div
+          className="profile-proof-modal-overlay"
+          onClick={() => setProofModalWork(null)}
+        >
+          <div
+            className="profile-proof-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="proof-modal-title"
+          >
+            <header className="profile-proof-modal-head">
+              <h3 id="proof-modal-title">
+                Add proof for {proofModalWork.name || "Untitled"}
+              </h3>
+              <button
+                type="button"
+                className="profile-proof-modal-close"
+                onClick={() => setProofModalWork(null)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="profile-proof-modal-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={proofTab === "file"}
+                className={proofTab === "file" ? "is-active" : ""}
+                onClick={() => setProofTab("file")}
+              >
+                📄 File
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={proofTab === "link"}
+                className={proofTab === "link" ? "is-active" : ""}
+                onClick={() => setProofTab("link")}
+              >
+                🔗 Link
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={proofTab === "text"}
+                className={proofTab === "text" ? "is-active" : ""}
+                onClick={() => setProofTab("text")}
+              >
+                📝 Text
+              </button>
+            </div>
+
+            <div className="profile-proof-modal-body">
+              {proofTab === "file" ? (
+                <div className="profile-proof-file-opt">
+                  <p className="profile-proof-opt-desc">
+                    Upload an image, video, or PDF document as proof.
+                  </p>
+                  <label className="profile-proof-file-drop">
+                    <input
+                      type="file"
+                      accept={PROOF_ACCEPT}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (f) handleProofFile(proofModalWork._id, f);
+                      }}
+                    />
+                    <span className="profile-proof-file-icon" aria-hidden="true">
+                      📁
+                    </span>
+                    <span>Select Image, Video, or PDF</span>
+                  </label>
+                </div>
+              ) : proofTab === "link" ? (
+                <div className="profile-proof-form-opt">
+                  <label>
+                    <span>URL or Web Link</span>
+                    <input
+                      type="url"
+                      value={linkInput}
+                      onChange={(e) => setLinkInput(e.target.value)}
+                      placeholder="https://github.com/user/repo or https://..."
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveLinkProof();
+                        }
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="profile-proof-submit-btn"
+                    onClick={saveLinkProof}
+                    disabled={!linkInput.trim()}
+                  >
+                    Add Link Proof
+                  </button>
+                </div>
+              ) : (
+                <div className="profile-proof-form-opt">
+                  <label>
+                    <span>Text Proof or Description</span>
+                    <textarea
+                      value={textInput}
+                      onChange={(e) => setTextInput(e.target.value)}
+                      placeholder="Add notes, milestone details, or completion text..."
+                      rows={3}
+                      autoFocus
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="profile-proof-submit-btn"
+                    onClick={saveTextProof}
+                    disabled={!textInput.trim()}
+                  >
+                    Add Text Proof
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

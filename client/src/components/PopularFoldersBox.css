@@ -1,0 +1,140 @@
+.popular-folders-box {
+  margin-top: 14px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--brass) 6%, var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popular-folders-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popular-folders-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popular-folders-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 20%, transparent);
+  color: var(--brass);
+  border: 1px solid var(--brass);
+}
+
+.popular-folders-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--paper);
+  letter-spacing: 0.01em;
+}
+
+.popular-folders-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.popular-folders-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.popular-folder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.popular-folder-item:hover {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 8%, var(--surface));
+}
+
+.popular-folder-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.popular-folder-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.popular-folder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.popular-folder-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popular-folder-meta {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popular-folder-add-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--brass);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.popular-folder-add-btn:hover:not(:disabled) {
+  background: var(--brass);
+  color: #ffffff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--brass) 30%, transparent);
+}
+
+.popular-folder-add-btn.is-added {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+}

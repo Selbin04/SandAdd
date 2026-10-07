@@ -150,3 +150,17 @@
   opacity: 0.6;
   cursor: wait;
 }
+
+@media (max-width: 640px) {
+  .folder-modal-backdrop {
+    padding: 12px;
+    align-items: end;
+  }
+
+  .folder-modal-card {
+    width: 100%;
+    max-height: min(88dvh, calc(100vh - 24px));
+    padding: 16px;
+    border-radius: 14px;
+  }
+}

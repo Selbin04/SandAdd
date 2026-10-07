@@ -12,6 +12,8 @@ import {
 } from "../lib/socialFeed.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
+import { joinFollowedWorkGroup } from "../lib/followingStore.js";
+import TaskSelector from "./TaskSelector.jsx";
 import "./ShareProjectModal.css";
 
 const TARGETS = [
@@ -42,6 +44,29 @@ export default function ShareProjectModal({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
+
+  const [taskMode, setTaskMode] = useState("all");
+  const projectTopics = project?.topics || [];
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => {
+    return new Set(projectTopics.map((t, idx) => String(t?.id || `w-${idx}`)));
+  });
+
+  const handleToggleTaskId = (id) => {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAllTasks = () => {
+    setSelectedTaskIds(new Set(projectTopics.map((t, idx) => String(t?.id || `w-${idx}`))));
+  };
+
+  const handleDeselectAllTasks = () => {
+    setSelectedTaskIds(new Set());
+  };
 
   const shareGroups = getShareGroups();
   const selectedGroup = shareGroups.find((g) => g.id === groupId) || null;
@@ -112,14 +137,41 @@ export default function ShareProjectModal({
       return;
     }
 
+    if (taskMode === "select" && selectedTaskIds.size === 0) {
+      setError("Please select at least 1 task to share.");
+      return;
+    }
+
     setBusy(true);
     setError("");
     try {
       const author = readAuthorProfile();
       const body = caption.trim() || `Finished ${project?.name || "a work"}`;
       let { works, sharedProject } = await buildSharePayloadFromProject(project);
+
+      if (taskMode === "select") {
+        works = works.filter((w) => selectedTaskIds.has(String(w.id)));
+        if (sharedProject && Array.isArray(sharedProject.works)) {
+          sharedProject = {
+            ...sharedProject,
+            works: sharedProject.works.filter((w) => selectedTaskIds.has(String(w.id))),
+          };
+        }
+      }
+
       if (!allowAddToProgress || works.length === 0) {
         sharedProject = null;
+      } else if (sharedProject && project?._id) {
+        joinFollowedWorkGroup({
+          ...sharedProject,
+          originId: project._id,
+          templateId: project._id,
+          name: project.name,
+          creatorName: author?.name || "Work Creator",
+          creatorHandle: author?.handle || "",
+          currentUser: author,
+          isCreator: true,
+        });
       }
       const base = {
         id: `user-${Date.now()}`,
@@ -350,6 +402,15 @@ export default function ShareProjectModal({
               )}
               <ProofMedia proof={proof} className="share-preview" />
             </div>
+            <TaskSelector
+              topics={projectTopics}
+              mode={taskMode}
+              onModeChange={setTaskMode}
+              selectedIds={selectedTaskIds}
+              onToggleId={handleToggleTaskId}
+              onSelectAll={handleSelectAllTasks}
+              onDeselectAll={handleDeselectAllTasks}
+            />
             <label className="share-progress-option">
               <input
                 type="checkbox"

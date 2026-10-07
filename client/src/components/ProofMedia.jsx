@@ -1,4 +1,5 @@
 import { isImageProof, isPdfProof, isVideoProof } from "../lib/socialFeed.js";
+import { normalizeSourceUrl } from "./SourceMedia.jsx";
 
 function openProofPdf(proof) {
   if (!proof?.dataUrl) return;
@@ -33,9 +34,38 @@ function openProofPdf(proof) {
   }
 }
 
-/** Renders attached proof (image, video, PDF link, or file name). */
+/** Renders attached proof (image, video, PDF link, link URL, text note, or file name). */
 export default function ProofMedia({ proof, className = "social-proof" }) {
   if (!proof) return null;
+  if (proof.type === "link" || proof.kind === "link" || proof.url) {
+    const linkUrl = proof.url || proof.link || proof.name;
+    const label = proof.name || linkUrl;
+    return (
+      <a
+        href={normalizeSourceUrl(linkUrl)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${className}-link`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className={`${className}-link-icon`} aria-hidden="true">
+          🔗
+        </span>
+        <span className={`${className}-link-label`}>{label}</span>
+      </a>
+    );
+  }
+  if (proof.type === "text" || proof.kind === "text" || proof.text) {
+    const textContent = proof.text || proof.name;
+    return (
+      <div className={`${className}-text-card`}>
+        <span className={`${className}-text-icon`} aria-hidden="true">
+          📝
+        </span>
+        <p className={`${className}-text-content`}>{textContent}</p>
+      </div>
+    );
+  }
   if (isImageProof(proof)) {
     return <img className={className} src={proof.dataUrl} alt="Proof" />;
   }
