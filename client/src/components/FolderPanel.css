@@ -26,6 +26,44 @@
   font-size: 14px;
 }
 
+.folder-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-round-add-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 136, 255, 0.3);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.folder-round-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0, 136, 255, 0.45);
+}
+
+.folder-round-add-btn:active {
+  transform: scale(0.95);
+}
+
+.folder-round-add-icon {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .folder-delete-btn {
   width: 28px;
   height: 28px;
@@ -41,6 +79,27 @@
 .folder-delete-btn:hover {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
+}
+
+.folder-add-file-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px 0;
+  padding: 6px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.folder-add-file-form input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: var(--paper);
+  border: none;
+  outline: none;
+  font-size: 13px;
 }
 
 .folder-add-work {

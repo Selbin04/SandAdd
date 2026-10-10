@@ -1,8 +1,66 @@
+.middle-tasks-add-wrapper {
+  margin-top: 10px;
+}
+
+.middle-tasks-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0;
+}
+
+.middle-round-add-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 136, 255, 0.35);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.middle-round-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 136, 255, 0.45);
+}
+
+.middle-round-add-btn:active {
+  transform: scale(0.95);
+}
+
+.middle-round-add-icon {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.middle-round-add-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.middle-round-add-label:hover {
+  opacity: 1;
+  color: #0088ff;
+}
+
 .middle-tasks-add-form {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .middle-tasks-input {

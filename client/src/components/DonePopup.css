@@ -12,7 +12,9 @@
 .done-card {
   position: absolute;
   width: min(300px, calc(100vw - 16px));
-  max-height: none;
+  max-height: min(80vh, 660px);
+  display: flex;
+  flex-direction: column;
   overflow: visible;
   padding: 12px;
   border-radius: 12px;
@@ -21,12 +23,25 @@
   box-shadow: none;
 }
 
+.done-card-inline {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: min(80vh, 660px);
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
 .done-head-bar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+  flex: 0 0 auto;
 }
 
 .done-head-copy {
@@ -54,12 +69,14 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--brass);
+  flex: 0 0 auto;
 }
 
 .done-empty {
   margin: 0 0 10px;
   font-size: 13px;
   color: var(--muted);
+  flex: 0 0 auto;
 }
 
 .done-list {
@@ -69,7 +86,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: min(48vh, 380px);
+  max-height: min(58vh, 480px);
+  flex: 0 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -77,9 +95,9 @@
 }
 
 .done-card-inline .done-list {
-  max-height: min(55vh, 460px);
-  flex: 1 1 auto;
-  min-height: 80px;
+  max-height: min(65vh, 520px);
+  flex: 0 1 auto;
+  min-height: 40px;
 }
 
 .done-list li {
@@ -93,7 +111,7 @@
 }
 
 .done-list li.is-done .done-text {
-  text-decoration: line-through;
+  text-decoration: none;
   color: var(--muted);
 }
 
@@ -185,16 +203,17 @@
 }
 
 .done-source-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  align-items: center;
   gap: 4px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .done-source-tabs button {
   border: 0;
   border-radius: 6px;
-  padding: 6px 2px;
+  padding: 6px 8px;
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -209,6 +228,35 @@
 .done-source-tabs button.is-active {
   background: var(--active-surface);
   color: var(--brass);
+}
+
+.done-source-edit-toggle {
+  margin-left: auto;
+  border: 1px solid var(--line) !important;
+  border-radius: 6px;
+  padding: 4px 8px !important;
+  background: var(--surface) !important;
+  color: var(--brass) !important;
+  font: inherit;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  text-transform: none !important;
+}
+
+.done-source-edit-toggle:hover {
+  background: var(--active-surface) !important;
+  border-color: var(--brass) !important;
+}
+
+.done-source-edit-toggle.is-active {
+  background: var(--brass) !important;
+  color: #ffffff !important;
+  border-color: var(--brass) !important;
 }
 
 .done-source-pane {
@@ -559,10 +607,83 @@
   color: var(--danger);
 }
 
+.done-add-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin-top: auto;
+  padding-top: 8px;
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--line) 30%, transparent);
+}
+
+.done-add-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 6px;
+  background: transparent;
+}
+
+.done-add-round-btn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(0, 136, 255, 0.35);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.done-add-round-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 5px 15px rgba(0, 136, 255, 0.5);
+  background: linear-gradient(135deg, #1aa0ff 0%, #1166ff 100%);
+}
+
+.done-add-round-btn:active {
+  transform: scale(0.95);
+}
+
+.done-add-round-icon {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-block;
+}
+
+.done-add-round-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.done-add-round-label:hover {
+  opacity: 1;
+  color: #0088ff;
+}
+
 .done-add {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  flex: 0 0 auto;
+  padding-top: 4px;
 }
 
 .done-add input {

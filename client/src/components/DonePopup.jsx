@@ -232,6 +232,7 @@ export default function DonePopup({
   readOnlyTasks = false,
   inline = false,
 }) {
+  const [showAddForm, setShowAddForm] = useState(false);
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
   const [sourceTitle, setSourceTitle] = useState("");
@@ -241,6 +242,7 @@ export default function DonePopup({
   const [busyFile, setBusyFile] = useState(false);
   const [sourcePanelId, setSourcePanelId] = useState(null);
   const [sourceTab, setSourceTab] = useState("open");
+  const [isSourceEditMode, setIsSourceEditMode] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
   const [textDraft, setTextDraft] = useState("");
   const [sourceTitleDraft, setSourceTitleDraft] = useState("");
@@ -251,7 +253,24 @@ export default function DonePopup({
   const [openSourceIndex, setOpenSourceIndex] = useState(0);
   const addFileRef = useRef(null);
   const topicFileRef = useRef(null);
+  const doneListRef = useRef(null);
   const pendingTopicIdRef = useRef(null);
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    if (!showAddForm) return undefined;
+    const handleOutsideClick = (e) => {
+      if (formRef.current && !formRef.current.contains(e.target)) {
+        setShowAddForm(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick, true);
+    document.addEventListener("touchstart", handleOutsideClick, true);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick, true);
+      document.removeEventListener("touchstart", handleOutsideClick, true);
+    };
+  }, [showAddForm]);
 
   const allTopics = Array.isArray(project.topics) ? project.topics : [];
   const todayMode = mode === "today";
@@ -259,6 +278,12 @@ export default function DonePopup({
     ? allTopics.filter((t) => (topicIds || []).includes(String(t.id)))
     : allTopics;
   const panelTopic = topics.find((t) => t.id === sourcePanelId) || null;
+
+  useEffect(() => {
+    if (doneListRef.current) {
+      doneListRef.current.scrollTop = doneListRef.current.scrollHeight;
+    }
+  }, [topics.length]);
 
   const left = inline ? 8 : Math.min(Math.max(8, x), window.innerWidth - 340);
   const top = inline ? 8 : Math.min(Math.max(8, y), window.innerHeight - 360);
@@ -271,7 +296,8 @@ export default function DonePopup({
     setSourceTitleDraft("");
     setEditingTitleId(null);
     setEditingContentId(null);
-    setSourceTab(topicHasSource(panelTopic) ? "open" : "text");
+    setSourceTab("open");
+    setIsSourceEditMode(false);
     setOpenSourceIndex(0);
   }, [panelTopic?.id, panelTopic?.source, panelTopic?.sourceProof?.mediaId]);
 
@@ -290,12 +316,14 @@ export default function DonePopup({
     setSourceTitleDraft("");
     setEditingTitleId(null);
     setEditingContentId(null);
-    setSourceTab(topicHasSource(topic) ? "open" : "text");
+    setSourceTab("open");
+    setIsSourceEditMode(false);
   };
 
   const closePanel = () => {
     setSourcePanelId(null);
     setSourceTab("open");
+    setIsSourceEditMode(false);
     setLinkDraft("");
     setTextDraft("");
     setSourceTitleDraft("");
@@ -504,7 +532,7 @@ export default function DonePopup({
                 : "No tasks yet. Add one below."}
           </p>
         ) : (
-          <ul className="done-list">
+          <ul ref={doneListRef} className="done-list">
             {topics.map((topic) => {
               const finished = topic.done === true;
               const sourceList = getTopicSources(topic);
@@ -583,7 +611,7 @@ export default function DonePopup({
                         >
                           Open ({sourceCount})
                         </button>
-                        {!readOnlyTasks ? (
+                        {isSourceEditMode && !readOnlyTasks ? (
                           <>
                             <button
                               type="button"
@@ -614,13 +642,36 @@ export default function DonePopup({
                             </button>
                           </>
                         ) : null}
+                        {!readOnlyTasks ? (
+                          <button
+                            type="button"
+                            className={`done-source-edit-toggle ${isSourceEditMode ? "is-active" : ""}`}
+                            onClick={() => {
+                              setIsSourceEditMode((prev) => {
+                                const next = !prev;
+                                if (!next) {
+                                  setSourceTab("open");
+                                  setEditingTitleId(null);
+                                  setEditingContentId(null);
+                                }
+                                return next;
+                              });
+                            }}
+                            title={isSourceEditMode ? "Close edit options" : "Edit source"}
+                            aria-label="Toggle source edit mode"
+                          >
+                            ✎ {isSourceEditMode ? "Done" : "Edit"}
+                          </button>
+                        ) : null}
                       </div>
 
                       {sourceTab === "open" ? (
                         <div className="done-source-pane">
                           {!hasSource ? (
                             <p className="done-source-meta">
-                              No source yet — click + Text, + Link, or + File below to add sources to this task.
+                              {readOnlyTasks
+                                ? "No source yet."
+                                : "No source yet — click the ✎ Edit icon in top right to add sources to this task."}
                             </p>
                           ) : (() => {
                             const safeIdx = Math.max(0, Math.min(openSourceIndex, sourceCount - 1));
@@ -633,7 +684,7 @@ export default function DonePopup({
                                     <span className="done-source-item-badge">
                                       {activeItem.type ? activeItem.type.toUpperCase() : "SOURCE"} {sourceCount > 1 ? `(#${safeIdx + 1})` : ""}
                                     </span>
-                                    {!readOnlyTasks && (
+                                    {isSourceEditMode && !readOnlyTasks && (
                                       <button
                                         type="button"
                                         className="done-source-item-del"
@@ -647,7 +698,7 @@ export default function DonePopup({
                                   </header>
 
                                   <div className="done-source-item-title-section">
-                                    {editingTitleId === activeItem.id ? (
+                                    {editingTitleId === activeItem.id && isSourceEditMode ? (
                                       <form
                                         className="done-source-title-edit-form"
                                         onSubmit={(e) => {
@@ -685,7 +736,7 @@ export default function DonePopup({
                                             <span className="done-source-untitled">Untitled source</span>
                                           )}
                                         </strong>
-                                        {!readOnlyTasks && (
+                                        {isSourceEditMode && !readOnlyTasks && (
                                           <button
                                             type="button"
                                             className="done-source-title-edit-btn"
@@ -706,7 +757,7 @@ export default function DonePopup({
                                     {activeItem.type === "file" && activeItem.proof ? (
                                       <SourceFileViewer proof={activeItem.proof} />
                                     ) : activeItem.type === "link" || isUrlSource(activeItem.content) ? (
-                                      editingContentId === activeItem.id ? (
+                                      editingContentId === activeItem.id && isSourceEditMode ? (
                                         <form
                                           className="done-source-content-edit-form"
                                           onSubmit={(e) => {
@@ -751,7 +802,7 @@ export default function DonePopup({
                                             >
                                               Open link
                                             </button>
-                                            {!readOnlyTasks && (
+                                            {isSourceEditMode && !readOnlyTasks && (
                                               <button
                                                 type="button"
                                                 className="done-source-title-edit-btn"
@@ -767,7 +818,7 @@ export default function DonePopup({
                                           </div>
                                         </>
                                       )
-                                    ) : editingContentId === activeItem.id ? (
+                                    ) : editingContentId === activeItem.id && isSourceEditMode ? (
                                       <form
                                         className="done-source-content-edit-form"
                                         onSubmit={(e) => {
@@ -800,7 +851,7 @@ export default function DonePopup({
                                     ) : (
                                       <div className="done-source-text-card">
                                         <p className="done-source-text-content">{activeItem.content}</p>
-                                        {!readOnlyTasks && (
+                                        {isSourceEditMode && !readOnlyTasks && (
                                           <button
                                             type="button"
                                             className="done-source-title-edit-btn"
@@ -840,7 +891,7 @@ export default function DonePopup({
                               </div>
                             );
                           })()}
-                          {hasSource && !readOnlyTasks ? (
+                          {hasSource && isSourceEditMode && !readOnlyTasks ? (
                             <button
                               type="button"
                               className="done-source-clear"
@@ -948,85 +999,103 @@ export default function DonePopup({
         {sourceError ? <p className="done-source-error">{sourceError}</p> : null}
 
         {!todayMode && !readOnlyTasks && (
-          <form
-            className="done-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const next = text.trim();
-              if (!next) return;
-              const sourceValue = isUrlSource(source)
-                ? normalizeSourceUrl(source)
-                : source.trim();
-              onAdd(project._id, next, {
-                source: sourceValue,
-                sourceTitle: sourceTitle.trim(),
-                sourceProof,
-                hasCheckbox,
-              });
-              setText("");
-              setSource("");
-              setSourceTitle("");
-              setSourceProof(null);
-              setSourceError("");
-              setHasCheckbox(true);
-            }}
-          >
-            <input
-              type="text"
-              maxLength={80}
-              placeholder="e.g. Fix login"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              autoFocus={!inline}
-            />
-            <input
-              type="text"
-              className="done-add-source"
-              maxLength={500}
-              placeholder="Source text or URL (optional)"
-              value={source}
-              onChange={(e) => {
-                setSource(e.target.value);
-                if (e.target.value) setSourceProof(null);
-              }}
-            />
-            {source.trim() || sourceProof ? (
-              <input
-                type="text"
-                className="done-add-source-title"
-                maxLength={80}
-                placeholder="Source title / label (optional)"
-                value={sourceTitle}
-                onChange={(e) => setSourceTitle(e.target.value)}
-              />
-            ) : null}
-            <div className="done-add-actions">
-              <label className="done-add-checkbox-opt" title="Uncheck to create a note line without a checkbox">
-                <input
-                  type="checkbox"
-                  checked={hasCheckbox}
-                  onChange={(e) => setHasCheckbox(e.target.checked)}
-                />
-                <span>Checkbox</span>
-              </label>
-              <button
-                type="button"
-                className="done-file-btn"
-                disabled={busyFile}
-                onClick={() => addFileRef.current?.click()}
+          <div className="done-add-container">
+            {!showAddForm ? (
+              <div className="done-add-toggle-bar">
+                <button
+                  type="button"
+                  className="done-add-round-btn"
+                  onClick={() => setShowAddForm(true)}
+                  aria-expanded={false}
+                  aria-label="Add new task or progress file"
+                  title="Add new task / progress file"
+                >
+                  <span className="done-add-round-icon">+</span>
+                </button>
+              </div>
+            ) : (
+              <form
+                ref={formRef}
+                className="done-add"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const next = text.trim();
+                  if (!next) return;
+                  const sourceValue = isUrlSource(source)
+                    ? normalizeSourceUrl(source)
+                    : source.trim();
+                  onAdd(project._id, next, {
+                    source: sourceValue,
+                    sourceTitle: sourceTitle.trim(),
+                    sourceProof,
+                    hasCheckbox,
+                  });
+                  setText("");
+                  setSource("");
+                  setSourceTitle("");
+                  setSourceProof(null);
+                  setSourceError("");
+                  setHasCheckbox(true);
+                }}
               >
-                {sourceProof
-                  ? sourceProof.name || "File attached"
-                  : busyFile
-                    ? "Reading…"
-                    : "Attach file"}
-              </button>
-              <button type="submit" className="chip active" disabled={busyFile}>
-                Add
-              </button>
-            </div>
-            <FileUploadHint />
-          </form>
+                <input
+                  type="text"
+                  maxLength={80}
+                  placeholder="e.g. Fix login"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  className="done-add-source"
+                  maxLength={500}
+                  placeholder="Source text or URL (optional)"
+                  value={source}
+                  onChange={(e) => {
+                    setSource(e.target.value);
+                    if (e.target.value) setSourceProof(null);
+                  }}
+                />
+                {source.trim() || sourceProof ? (
+                  <input
+                    type="text"
+                    className="done-add-source-title"
+                    maxLength={80}
+                    placeholder="Source title / label (optional)"
+                    value={sourceTitle}
+                    onChange={(e) => setSourceTitle(e.target.value)}
+                  />
+                ) : null}
+                <div className="done-add-actions">
+                  <label className="done-add-checkbox-opt" title="Uncheck to create a note line without a checkbox">
+                    <input
+                      type="checkbox"
+                      checked={hasCheckbox}
+                      onChange={(e) => setHasCheckbox(e.target.checked)}
+                    />
+                    <span>Checkbox</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="done-file-btn"
+                    disabled={busyFile}
+                    onClick={() => addFileRef.current?.click()}
+                  >
+                    {sourceProof
+                      ? sourceProof.name || "File attached"
+                      : busyFile
+                        ? "Reading…"
+                        : "Attach file"}
+                  </button>
+                  <button type="submit" className="chip active" disabled={busyFile}>
+                    Add
+                  </button>
+                </div>
+                <FileUploadHint />
+              </form>
+            )}
+          </div>
         )}
       </div>
     </div>

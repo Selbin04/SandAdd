@@ -461,15 +461,24 @@
 
 .social-avatar-btn {
   border: 2px solid var(--brass);
+  border-radius: 50%;
   padding: 0;
   cursor: pointer;
   overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.social-avatar-btn:hover {
+  transform: scale(1.08);
+  border-color: var(--paper);
+  box-shadow: 0 0 14px rgba(196, 165, 116, 0.5);
 }
 
 .social-avatar-btn img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
   display: block;
 }
 
@@ -523,21 +532,45 @@
 
 .social-avatar {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--chip-on-fg);
   background: var(--brass-deep);
   border: 2px solid var(--brass);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.social-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .social-avatar-group {
-  border-radius: 10px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   background: var(--blue-soft-3);
+  border: 2px solid var(--brass);
+  font-size: 18px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.social-avatar-group img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 
 .social-card > p {
@@ -693,8 +726,17 @@
 .social-group-hero {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 10px;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.social-group-hero .social-avatar-group {
+  width: 72px;
+  height: 72px;
+  font-size: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--brass);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 .social-group-hero h1 {
@@ -1329,22 +1371,24 @@
 
 .social-comment-avatar {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--brass);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   display: grid;
   place-items: center;
   overflow: hidden;
+  border: 1.5px solid var(--brass);
 }
 
 .social-comment-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 .social-comment-content {

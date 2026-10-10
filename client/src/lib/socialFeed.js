@@ -8,10 +8,25 @@ const POST_COMMENTS_KEY = "sandadd.postComments";
 const DB_NAME = "sandadd.media";
 const DB_VERSION = 2;
 
+const DUMMY_GROUP_AVATARS = [
+  "/groups/group_tech_placement.jpg",
+  "/groups/group_cse_class.jpg",
+  "/groups/group_ship_club.jpg",
+];
+
+function getDummyAvatar(id, name) {
+  let sum = 0;
+  const str = String(id || "") + String(name || "");
+  for (let i = 0; i < str.length; i++) {
+    sum += str.charCodeAt(i);
+  }
+  return DUMMY_GROUP_AVATARS[sum % DUMMY_GROUP_AVATARS.length];
+}
+
 export const SHARE_GROUPS = [
-  { id: "g1", name: "Tech Placement Info" },
-  { id: "g2", name: "CSE S7 B" },
-  { id: "g3", name: "Ship Club" },
+  { id: "g1", name: "Tech Placement Info", avatar: "/groups/group_tech_placement.jpg" },
+  { id: "g2", name: "CSE S7 B", avatar: "/groups/group_cse_class.jpg" },
+  { id: "g3", name: "Ship Club", avatar: "/groups/group_ship_club.jpg" },
 ];
 
 export function loadCustomGroups() {
@@ -41,6 +56,7 @@ export function getShareGroups() {
   const custom = loadCustomGroups().map((g) => ({
     id: g.id,
     name: g.name,
+    avatar: g.avatar || getDummyAvatar(g.id, g.name),
   }));
   return [...SHARE_GROUPS, ...custom];
 }
@@ -57,10 +73,12 @@ export function createCustomGroup({ name, blurb = "" }) {
   if (existing.includes(trimmed.toLowerCase())) {
     throw new Error("A group with that name already exists");
   }
+  const id = `ug-${Date.now()}`;
   const group = {
-    id: `ug-${Date.now()}`,
+    id,
     name: trimmed.slice(0, 60),
     blurb: (typeof blurb === "string" ? blurb.trim() : "").slice(0, 120) || "Your group",
+    avatar: getDummyAvatar(id, trimmed),
     members: 1,
     isCustom: true,
     createdAt: new Date().toISOString(),

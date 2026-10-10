@@ -65,6 +65,7 @@ const SEED_GROUPS = [
   {
     id: "g1",
     name: "Tech Placement Info",
+    avatar: "/groups/group_tech_placement.jpg",
     members: 12,
     blurb: "Daily check-ins before noon.",
     posts: [
@@ -87,6 +88,7 @@ const SEED_GROUPS = [
   {
     id: "g2",
     name: "CSE S7 B",
+    avatar: "/groups/group_cse_class.jpg",
     members: 8,
     blurb: "Long pours, few distractions.",
     posts: [
@@ -109,6 +111,7 @@ const SEED_GROUPS = [
   {
     id: "g3",
     name: "Ship Club",
+    avatar: "/groups/group_ship_club.jpg",
     members: 21,
     blurb: "Finish something every week.",
     posts: [
@@ -130,12 +133,44 @@ const SEED_GROUPS = [
   },
 ];
 
+const GROUP_SVG_AVATARS = {
+  g1: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='bg1' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%231e3c72'/><stop offset='100%' stop-color='%232a5298'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(%23bg1)'/><path d='M30 38 L48 50 L30 62 M52 62 L70 62' stroke='%23ffffff' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>`,
+  g2: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='bg2' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%230052D4'/><stop offset='50%' stop-color='%234364F7'/><stop offset='100%' stop-color='%236FB1FC'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(%23bg2)'/><circle cx='50' cy='36' r='14' fill='%23ffffff'/><path d='M24 76 C24 58 34 52 50 52 C66 52 76 58 76 76 Z' fill='%23ffffff'/></svg>`,
+  g3: `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='bg3' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23ff416c'/><stop offset='100%' stop-color='%23ff4b2b'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(%23bg3)'/><path d='M50 20 C62 38 66 54 66 74 L34 74 C34 54 38 38 50 20 Z' fill='%23ffffff'/><circle cx='50' cy='46' r='6' fill='%23ff416c'/></svg>`,
+};
+
+function getGroupAvatar(id, name) {
+  if (id && GROUP_SVG_AVATARS[id]) {
+    return GROUP_SVG_AVATARS[id];
+  }
+  const colors = [
+    ["#4776E6", "#8E54E9"],
+    ["#FF512F", "#DD2476"],
+    ["#11998e", "#38ef7d"],
+    ["#FF8008", "#FFC837"],
+    ["#8E2DE2", "#4A00E0"],
+    ["#00c6ff", "#0072ff"],
+  ];
+  let sum = 0;
+  const str = String(id || "") + String(name || "Group");
+  for (let i = 0; i < str.length; i++) sum += str.charCodeAt(i);
+  const pair = colors[sum % colors.length];
+  const letter = (name || "G").trim().slice(0, 1).toUpperCase();
+
+  return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='dyn' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='${encodeURIComponent(pair[0])}'/><stop offset='100%' stop-color='${encodeURIComponent(pair[1])}'/></linearGradient></defs><circle cx='50' cy='50' r='50' fill='url(%23dyn)'/><text x='50' y='65' font-family='sans-serif' font-size='42' font-weight='bold' fill='%23ffffff' text-anchor='middle'>${letter}</text></svg>`;
+}
+
 function toDisplayGroup(g) {
+  const avatarUrl =
+    g.avatar && String(g.avatar).trim()
+      ? g.avatar
+      : getGroupAvatar(g.id, g.name);
   return {
     id: g.id,
     name: g.name,
     members: g.members ?? 1,
     blurb: g.blurb || "Your group",
+    avatar: avatarUrl,
     posts: Array.isArray(g.posts) ? g.posts : [],
     isCustom: Boolean(g.isCustom),
   };
@@ -1248,7 +1283,14 @@ export default function SocialPage({
           </button>
           <header className="social-group-hero">
             <span className="social-avatar social-avatar-group" aria-hidden="true">
-              {openGroup.name.slice(0, 1)}
+              <img
+                src={openGroup.avatar || getGroupAvatar(openGroup.id, openGroup.name)}
+                alt={openGroup.name}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getGroupAvatar(openGroup.id, openGroup.name);
+                }}
+              />
             </span>
             <div>
               <h1>{openGroup.name}</h1>
@@ -1554,7 +1596,14 @@ export default function SocialPage({
             >
               <div className="social-card-top">
                 <span className="social-avatar social-avatar-group" aria-hidden="true">
-                  {group.name.slice(0, 1)}
+                  <img
+                    src={group.avatar || getGroupAvatar(group.id, group.name)}
+                    alt={group.name}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = getGroupAvatar(group.id, group.name);
+                    }}
+                  />
                 </span>
                 <div>
                   <strong>{group.name}</strong>

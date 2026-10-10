@@ -57,7 +57,7 @@
   padding: 4px 6px;
   margin: -4px -6px;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .logo-snow-layer {
@@ -121,19 +121,17 @@
 
 .navbar-brand-text {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .navbar-wordmark {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   font-family: Figtree, system-ui, sans-serif;
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: 1;
 }
 
 .navbar-wordmark .sand {
@@ -157,19 +155,19 @@
 .santa-cap-svg {
   position: absolute;
   top: -15px;
-  left: -8px;
-  width: 25px;
-  height: 25px;
+  left: -9px;
+  width: 29px;
+  height: 29px;
   pointer-events: none;
   overflow: visible;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
-  transform: rotate(-10deg);
-  z-index: 2;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+  transform: rotate(-12deg);
+  z-index: 10;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .navbar-brand:hover .santa-cap-svg {
-  transform: rotate(-18deg) scale(1.18);
+  transform: rotate(-20deg) scale(1.22);
 }
 
 .navbar-tagline {
@@ -646,6 +644,65 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
+}
+
+.new-project-toggle-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.project-round-add-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 136, 255, 0.35);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.project-round-add-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 136, 255, 0.45);
+}
+
+.project-round-add-btn:active {
+  transform: scale(0.95);
+}
+
+.project-round-add-btn.is-open {
+  background: linear-gradient(135deg, #ea4335 0%, #c5221f 100%);
+  box-shadow: 0 2px 8px rgba(234, 67, 53, 0.35);
+}
+
+.project-round-add-icon {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.project-round-add-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0.9;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.project-round-add-label:hover {
+  opacity: 1;
+  color: #0088ff;
 }
 
 .new-project {

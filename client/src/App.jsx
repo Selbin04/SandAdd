@@ -625,7 +625,11 @@ export default function App() {
     };
 
     const onStorage = (e) => {
-      if (e.key === "sandadd.liveWorks" || e.key === "sandadd.liveWorkProgress") {
+      if (
+        e.key === "sandadd.liveWorks" ||
+        e.key === "sandadd.liveWorkProgress" ||
+        e.key === "sandadd.followedWorkGroups"
+      ) {
         requestSync();
       }
     };
@@ -643,12 +647,16 @@ export default function App() {
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("sandadd:followed-work-groups-changed", requestSync);
+    window.addEventListener("sandadd:templates-changed", requestSync);
     return () => {
       unsub();
       window.clearInterval(poll);
       if (syncTimer) window.clearTimeout(syncTimer);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("sandadd:followed-work-groups-changed", requestSync);
+      window.removeEventListener("sandadd:templates-changed", requestSync);
     };
   }, [loadProjects, authUser]);
 
@@ -1728,7 +1736,7 @@ export default function App() {
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
               importantAction="add"
-              emptyText="Create a project and add tasks. Star a project to move it to Important. Double-click a project to manage its tasks."
+              emptyText="Create a progress path folder and add tasks. Star a progress path to move it to Important . Open to view and manage its tasks"
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
               onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
               onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}

@@ -290,7 +290,7 @@
 
 .user-profile-post-works li.is-done {
   color: var(--muted);
-  text-decoration: line-through;
+  text-decoration: none;
 }
 
 .user-profile-post-proof {

@@ -58,9 +58,6 @@ export default function AuthPage({ onAuthed, busy = false, error = "", onClearEr
             <span className="sand">Sand</span>
             <span className="add">Add</span>
           </h1>
-          <p className="auth-tagline">
-            your progress shapes your skills
-          </p>
         </header>
 
         <form className="auth-card" onSubmit={submit}>

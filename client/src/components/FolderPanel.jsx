@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
@@ -17,21 +18,63 @@ export default function FolderPanel({
   onShareAssign,
   onMoveToFolder,
   onDeleteFolder,
+  onCreateInFolder,
 }) {
+  const [showAddFile, setShowAddFile] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+
+  const handleAddSubmit = (e) => {
+    e.preventDefault();
+    const name = newFileName.trim();
+    if (!name) return;
+    onCreateInFolder?.(folder.id, name);
+    setNewFileName("");
+    setShowAddFile(false);
+  };
+
   return (
     <aside className="panel folder-panel">
       <header className="panel-head folder-panel-head">
         <h2>{folder.name}</h2>
-        <button
-          type="button"
-          className="folder-delete-btn"
-          onClick={() => onDeleteFolder?.(folder)}
-          aria-label={`Delete folder ${folder.name}`}
-          title="Delete folder (projects return to the Projects list)"
-        >
-          ×
-        </button>
+        <div className="folder-head-actions">
+          {onCreateInFolder && (
+            <button
+              type="button"
+              className={`folder-round-add-btn ${showAddFile ? "is-open" : ""}`}
+              onClick={() => setShowAddFile((prev) => !prev)}
+              aria-label={showAddFile ? "Close add file field" : "Add progress file to folder"}
+              title={showAddFile ? "Close field" : "Add progress file to folder"}
+            >
+              <span className="folder-round-add-icon">{showAddFile ? "×" : "+"}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="folder-delete-btn"
+            onClick={() => onDeleteFolder?.(folder)}
+            aria-label={`Delete folder ${folder.name}`}
+            title="Delete folder (projects return to the Projects list)"
+          >
+            ×
+          </button>
+        </div>
       </header>
+
+      {showAddFile && (
+        <form className="folder-add-file-form" onSubmit={handleAddSubmit}>
+          <input
+            type="text"
+            maxLength={80}
+            placeholder="New Progress File name…"
+            value={newFileName}
+            onChange={(e) => setNewFileName(e.target.value)}
+            autoFocus
+          />
+          <button type="submit" className="chip active">
+            Add
+          </button>
+        </form>
+      )}
 
       {projects.length === 0 ? (
         <p className="empty">No progress in this folder yet.</p>

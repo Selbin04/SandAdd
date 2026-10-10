@@ -247,7 +247,7 @@
 }
 
 .sticky-text.done-text {
-  text-decoration: line-through;
+  text-decoration: none;
   opacity: 0.7;
 }
 

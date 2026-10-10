@@ -115,6 +115,16 @@ export function snapshotLiveWorks(project) {
     .slice(0, 80);
 }
 
+export function getCleanId(str) {
+  if (!str) return "";
+  let s = String(str);
+  if (s.startsWith("live-")) s = s.slice(5);
+  if (s.startsWith("view-")) s = s.slice(5);
+  if (s.startsWith("view-msg-")) s = s.slice(9);
+  if (s.startsWith("live-msg-")) s = s.slice(9);
+  return s;
+}
+
 /** Publish / refresh a live share so followers get updated tasks. */
 export function publishLiveWork(project, mode = "follow", author = null) {
   if (!project?._id || !project?.name) return null;
@@ -125,10 +135,12 @@ export function publishLiveWork(project, mode = "follow", author = null) {
     if (!k) return;
     const str = String(k);
     keysToRegister.add(str);
-    const clean = str.startsWith("live-") ? str.slice(5) : str;
-    const prefixed = `live-${clean}`;
-    keysToRegister.add(clean);
-    keysToRegister.add(prefixed);
+    const clean = getCleanId(str);
+    if (clean) {
+      keysToRegister.add(clean);
+      keysToRegister.add(`live-${clean}`);
+      keysToRegister.add(`view-${clean}`);
+    }
   };
 
   addKey(project._id);
@@ -168,9 +180,16 @@ export function getLiveWork(originId) {
   if (!originId) return null;
   const catalog = readCatalog();
   const id = String(originId);
-  const cleanId = id.startsWith("live-") ? id.slice(5) : id;
+  const cleanId = getCleanId(id);
   const prefixedId = `live-${cleanId}`;
-  return catalog[id] || catalog[cleanId] || catalog[prefixedId] || null;
+  const viewPrefixedId = `view-${cleanId}`;
+  return (
+    catalog[id] ||
+    catalog[cleanId] ||
+    catalog[prefixedId] ||
+    catalog[viewPrefixedId] ||
+    null
+  );
 }
 
 /** Mark a live work as deleted so followers drop it from Progress. */
@@ -252,15 +271,22 @@ export function applyLiveProgress(topics, originId) {
 export function mergeFollowerTopics(localTopics, liveWorks, originId = null) {
   const local = Array.isArray(localTopics) ? localTopics : [];
   const live = Array.isArray(liveWorks) ? liveWorks : [];
-  const localById = new Map(local.map((t) => [String(t.id), t]));
+  const localById = new Map();
+  const localByText = new Map();
+  local.forEach((t) => {
+    if (t.id) localById.set(String(t.id), t);
+    if (t.text) localByText.set(String(t.text).trim(), t);
+  });
+
   const merged = live.map((w, index) => {
     const id = String(w.id || `w-${index}`);
-    const prev = localById.get(id);
+    const text = String(w.text || "").trim().slice(0, 80);
+    const prev = localById.get(id) || localByText.get(text);
     const liveSources = Array.isArray(w.sources) ? w.sources : [];
     const prevSources = Array.isArray(prev?.sources) ? prev.sources : [];
     return {
       id,
-      text: String(w.text || "").trim().slice(0, 80),
+      text,
       // Prefer creator snapshot done; local done is fallback before progress merge
       done: Boolean(w.done) || Boolean(prev?.done),
       hasCheckbox: w.hasCheckbox !== false,
@@ -277,9 +303,14 @@ export function followerTopicsNeedSync(localTopics, liveWorks, originId = null) 
   const next = mergeFollowerTopics(localTopics, liveWorks, originId);
   const local = Array.isArray(localTopics) ? localTopics : [];
   if (next.length !== local.length) return true;
-  const localById = new Map(local.map((t) => [String(t.id), t]));
+  const localById = new Map();
+  const localByText = new Map();
+  local.forEach((t) => {
+    if (t.id) localById.set(String(t.id), t);
+    if (t.text) localByText.set(String(t.text).trim(), t);
+  });
   return next.some((t) => {
-    const prev = localById.get(String(t.id));
+    const prev = localById.get(String(t.id)) || localByText.get(String(t.text).trim());
     if (!prev) return true;
     const prevSourcesKey = JSON.stringify(prev.sources || []);
     const nextSourcesKey = JSON.stringify(t.sources || []);

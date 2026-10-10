@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { elapsedFromWorks, projectDuration } from "../lib/time.js";
 import { getProjectCreatorTagline } from "../lib/liveWorks.js";
 import "./MiddleTasksPanel.css";
@@ -13,8 +13,25 @@ export default function MiddleTasksPanel({
   onReset,
   isLocked = false,
 }) {
+  const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskText, setNewTaskText] = useState("");
   const [hasCheckbox, setHasCheckbox] = useState(true);
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    if (!showAddForm) return undefined;
+    const handleOutsideClick = (e) => {
+      if (formRef.current && !formRef.current.contains(e.target)) {
+        setShowAddForm(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick, true);
+    document.addEventListener("touchstart", handleOutsideClick, true);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick, true);
+      document.removeEventListener("touchstart", handleOutsideClick, true);
+    };
+  }, [showAddForm]);
 
   if (!project) return null;
 
@@ -175,30 +192,47 @@ export default function MiddleTasksPanel({
 
         {/* Add task input */}
         {!isLocked && (
-          <form className="middle-tasks-add-form" onSubmit={handleAddSubmit}>
-            <input
-              type="text"
-              placeholder="+ Add a task item..."
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              className="middle-tasks-input"
-            />
-            <label className="middle-tasks-checkbox-opt" title="Uncheck to create a note line without a checkbox">
-              <input
-                type="checkbox"
-                checked={hasCheckbox}
-                onChange={(e) => setHasCheckbox(e.target.checked)}
-              />
-              <span>Checkbox</span>
-            </label>
-            <button
-              type="submit"
-              disabled={!newTaskText.trim()}
-              className="middle-tasks-add-btn"
-            >
-              Add
-            </button>
-          </form>
+          <div className="middle-tasks-add-wrapper">
+            {!showAddForm ? (
+              <div className="middle-tasks-toggle-bar">
+                <button
+                  type="button"
+                  className="middle-round-add-btn"
+                  onClick={() => setShowAddForm(true)}
+                  aria-label="Add new task"
+                  title="Add new task"
+                >
+                  <span className="middle-round-add-icon">+</span>
+                </button>
+              </div>
+            ) : (
+              <form ref={formRef} className="middle-tasks-add-form" onSubmit={handleAddSubmit}>
+                <input
+                  type="text"
+                  placeholder="Task title..."
+                  value={newTaskText}
+                  onChange={(e) => setNewTaskText(e.target.value)}
+                  className="middle-tasks-input"
+                  autoFocus
+                />
+                <label className="middle-tasks-checkbox-opt" title="Uncheck to create a note line without a checkbox">
+                  <input
+                    type="checkbox"
+                    checked={hasCheckbox}
+                    onChange={(e) => setHasCheckbox(e.target.checked)}
+                  />
+                  <span>Checkbox</span>
+                </label>
+                <button
+                  type="submit"
+                  disabled={!newTaskText.trim()}
+                  className="middle-tasks-add-btn"
+                >
+                  Add
+                </button>
+              </form>
+            )}
+          </div>
         )}
       </div>
 

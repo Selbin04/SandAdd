@@ -70,18 +70,8 @@ export default function Navbar({
             e.preventDefault();
             onNavigate("progress");
           }}
-          aria-label="SandAdd - your progress shapes your skills"
+          aria-label="SandAdd"
         >
-          <span className="logo-snow-layer" aria-hidden="true">
-            <span className="snow-flake sf-1" />
-            <span className="snow-flake sf-2" />
-            <span className="snow-flake sf-3" />
-            <span className="snow-flake sf-4" />
-            <span className="snow-flake sf-5" />
-            <span className="snow-flake sf-6" />
-            <span className="snow-flake sf-7" />
-            <span className="snow-flake sf-8" />
-          </span>
           <img
             className="navbar-mark"
             src="/sandadd-mark.png?v=exact4"
@@ -89,47 +79,8 @@ export default function Navbar({
           />
           <div className="navbar-brand-text">
             <span className="navbar-wordmark" aria-hidden="true">
-              <span className="sand">
-                <span className="santa-s-wrapper">
-                  <svg
-                    className="santa-cap-svg"
-                    viewBox="0 0 100 100"
-                    aria-hidden="true"
-                  >
-                    {/* Main Santa hat body */}
-                    <path
-                      d="M 20,70 C 18,44 34,18 58,10 C 76,4 90,16 86,32 C 82,46 66,58 44,70 Z"
-                      fill="#e53935"
-                    />
-                    {/* Darker red depth shadow */}
-                    <path
-                      d="M 26,70 C 24,48 38,26 58,16 C 68,10 78,16 75,28 C 72,40 60,52 40,70 Z"
-                      fill="#b71c1c"
-                      opacity="0.85"
-                    />
-                    {/* Soft highlight */}
-                    <path
-                      d="M 32,58 C 30,40 44,24 58,16"
-                      stroke="rgba(255,255,255,0.4)"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    {/* White fluffy pom-pom at tip */}
-                    <circle cx="86" cy="32" r="12" fill="#ffffff" />
-                    <circle cx="84" cy="30" r="8" fill="#f5f5f5" />
-                    {/* White fluffy brim at base */}
-                    <rect x="12" y="62" width="70" height="20" rx="10" fill="#ffffff" />
-                    <rect x="16" y="65" width="62" height="14" rx="7" fill="#f0f0f0" opacity="0.7" />
-                  </svg>
-                  S
-                </span>
-                and
-              </span>
+              <span className="sand">Sand</span>
               <span className="add">Add</span>
-            </span>
-            <span className="navbar-tagline" aria-hidden="true">
-              your progress shapes your skills
             </span>
           </div>
         </a>

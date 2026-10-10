@@ -687,9 +687,9 @@ export default function ProfilePage({
             </div>
           </div>
 
-          <h3 className="profile-highlight-tasks-title">Tasks</h3>
+          <h3 className="profile-highlight-tasks-title">Progress Files</h3>
           {viewingTopics.length === 0 ? (
-            <p className="profile-empty">No tasks listed for this work yet.</p>
+            <p className="profile-empty">No progress files listed for this work yet.</p>
           ) : (
             <ul className="profile-highlight-task-list">
               {viewingTopics.map((topic) => (

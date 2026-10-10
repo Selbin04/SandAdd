@@ -14,16 +14,18 @@
 
 .profile-avatar {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--chip-on-fg);
   background: var(--brass-deep);
   border: 3px solid var(--brass);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
 }
 
 .profile-hero-text {
@@ -292,12 +294,36 @@
 .profile-highlight-task-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 6px 0 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 320px;
-  overflow: auto;
+  max-height: 220px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass) var(--surface-strong);
+  scrollbar-gutter: stable;
+  -ms-overflow-style: auto;
+}
+
+.profile-highlight-task-list::-webkit-scrollbar {
+  display: block !important;
+  width: 7px !important;
+}
+
+.profile-highlight-task-list::-webkit-scrollbar-track {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.profile-highlight-task-list::-webkit-scrollbar-thumb {
+  background: var(--brass);
+  border-radius: 4px;
+}
+
+.profile-highlight-task-list::-webkit-scrollbar-thumb:hover {
+  background: var(--brass-deep);
 }
 
 .profile-highlight-task-list li {
@@ -315,7 +341,7 @@
 
 .profile-highlight-task-list li.is-done {
   color: var(--muted);
-  text-decoration: line-through;
+  text-decoration: none;
 }
 
 .profile-highlight-plus {
@@ -424,12 +450,36 @@
 .profile-highlight-pick-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 6px 0 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 360px;
-  overflow: auto;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brass) var(--surface-strong);
+  scrollbar-gutter: stable;
+  -ms-overflow-style: auto;
+}
+
+.profile-highlight-pick-list::-webkit-scrollbar {
+  display: block !important;
+  width: 7px !important;
+}
+
+.profile-highlight-pick-list::-webkit-scrollbar-track {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.profile-highlight-pick-list::-webkit-scrollbar-thumb {
+  background: var(--brass);
+  border-radius: 4px;
+}
+
+.profile-highlight-pick-list::-webkit-scrollbar-thumb:hover {
+  background: var(--brass-deep);
 }
 
 .profile-highlight-pick-item {
