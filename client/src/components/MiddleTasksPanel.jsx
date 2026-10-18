@@ -129,7 +129,7 @@ export default function MiddleTasksPanel({
                         onClick={() => onRemoveTask(t.id || t._id)}
                         title="Delete task"
                       >
-                        ×
+                        <span aria-hidden="true" style={{ fontSize: "16px", lineHeight: 1 }}>⋮</span>
                       </button>
                     )}
                   </div>

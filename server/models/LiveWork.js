@@ -13,6 +13,7 @@ const liveWorkSchema = new mongoose.Schema(
     deletedAt: { type: Number, default: null },
     progress: { type: mongoose.Schema.Types.Mixed, default: null },
     author: { type: mongoose.Schema.Types.Mixed, default: null },
+    about: { type: String, default: "", maxlength: 2000 },
   },
   { timestamps: false }
 );

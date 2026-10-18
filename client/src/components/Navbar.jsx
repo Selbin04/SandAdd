@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const THEME_KEY = "sandadd.theme";
 
@@ -20,6 +20,7 @@ export default function Navbar({
 }) {
   const [theme, setTheme] = useState(readTheme);
   const [navVisible, setNavVisible] = useState(true);
+  const navRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -29,6 +30,39 @@ export default function Navbar({
       /* ignore */
     }
   }, [theme]);
+
+  // Dynamically measure navbar height so page content never overlaps in any display ratio
+  useEffect(() => {
+    const navEl = navRef.current;
+    if (!navEl) return undefined;
+
+    const syncHeight = () => {
+      const h = navEl.offsetHeight || navEl.getBoundingClientRect().height;
+      if (h > 0) {
+        document.documentElement.style.setProperty(
+          "--navbar-height",
+          `${Math.ceil(h)}px`
+        );
+      }
+    };
+
+    syncHeight();
+
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(syncHeight);
+      ro.observe(navEl);
+    }
+
+    window.addEventListener("resize", syncHeight, { passive: true });
+    window.addEventListener("orientationchange", syncHeight, { passive: true });
+
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", syncHeight);
+      window.removeEventListener("orientationchange", syncHeight);
+    };
+  }, []);
 
   useEffect(() => {
     let prevY = window.scrollY;
@@ -59,6 +93,7 @@ export default function Navbar({
 
   return (
     <nav
+      ref={navRef}
       className={`navbar ${navVisible ? "is-visible" : "is-hidden"}`}
       aria-label="Main"
     >
@@ -74,7 +109,7 @@ export default function Navbar({
         >
           <img
             className="navbar-mark"
-            src="/sandadd-mark.png?v=exact4"
+            src="/sandadd-mark.png?v=newlogo"
             alt=""
           />
           <div className="navbar-brand-text">

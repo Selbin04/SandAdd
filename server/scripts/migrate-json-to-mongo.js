@@ -1,13 +1,21 @@
 import "dotenv/config";
+import dns from "dns";
 import fs from "fs";
 import path from "path";
 import { createHash } from "crypto";
 import { fileURLToPath } from "url";
 import mongoose from "mongoose";
+import Folder from "../models/Folder.js";
 import LiveWork from "../models/LiveWork.js";
 import Project from "../models/Project.js";
 import Session from "../models/Session.js";
 import User from "../models/User.js";
+
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
+} catch {
+  /* ignore */
+}
 
 const serverDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dataDir = path.resolve(serverDir, process.env.DATA_DIR || "data");
@@ -15,7 +23,8 @@ const projectFile = path.join(
   dataDir,
   path.basename(process.env.PROJECTS_FILE || "projects.json")
 );
-const mongoUri = process.env.MONGODB_URL || process.env.MONGO_URI;
+const mongoUri =
+  process.env.MONGODB_URL || process.env.MONGODB_URI || process.env.MONGO_URI;
 const applyChanges = process.argv.includes("--apply");
 const checkTarget = applyChanges || process.argv.includes("--check-target");
 const sessionTtlMs = 30 * 24 * 60 * 60 * 1000;
@@ -48,20 +57,35 @@ function prepareTopics(topics) {
       const text = String(topic?.text || "").trim().slice(0, 80);
       if (!text) return null;
       const proof = topic?.sourceProof;
+      const hasCheckbox =
+        topic?.hasCheckbox !== false && topic?.checkboxEnabled !== false;
+      const sources = Array.isArray(topic?.sources) ? topic.sources : [];
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
         text,
         done: Boolean(topic?.done),
+        hasCheckbox,
+        checkboxEnabled: hasCheckbox,
         source: String(topic?.source || "").trim().slice(0, 500),
-        sourceProof: proof && typeof proof === "object"
-          ? {
-              mediaId: proof.mediaId || null,
-              name: String(proof.name || "").slice(0, 120),
-              type: String(proof.type || "").slice(0, 80),
-              size: Number(proof.size) || 0,
-              hasMedia: Boolean(proof.hasMedia || proof.mediaId || proof.dataUrl),
-            }
-          : null,
+        sourceTitle: String(topic?.sourceTitle || "").trim().slice(0, 120),
+        sourceProof:
+          proof && typeof proof === "object"
+            ? {
+                mediaId: proof.mediaId || null,
+                name: String(proof.name || "").slice(0, 120),
+                type: String(proof.type || "").slice(0, 80),
+                size: Number(proof.size) || 0,
+                hasMedia: Boolean(proof.hasMedia || proof.mediaId || proof.dataUrl),
+              }
+            : null,
+        sources,
+        aiSummary: String(topic?.aiSummary || "").slice(0, 2000),
+        likeCount: Math.max(0, Number(topic?.likeCount) || 0),
+        likes:
+          topic?.likes && typeof topic?.likes === "object" ? topic.likes : {},
+        comments: Array.isArray(topic?.comments) ? topic.comments : [],
+        reports: Array.isArray(topic?.reports) ? topic.reports : [],
+        asks: Array.isArray(topic?.asks) ? topic.asks : [],
       };
     })
     .filter(Boolean)
@@ -72,8 +96,14 @@ async function main() {
   const usersData = readJson(path.join(dataDir, "users.json"), {});
   const projectsData = readJson(projectFile, {});
   const liveData = readJson(path.join(dataDir, "liveWorks.json"), {});
+  const foldersData = readJson(path.join(dataDir, "folders.json"), []);
   const users = Array.isArray(usersData.users) ? usersData.users : [];
   const projects = Array.isArray(projectsData.projects) ? projectsData.projects : [];
+  const folders = Array.isArray(foldersData)
+    ? foldersData
+    : Array.isArray(foldersData?.folders)
+    ? foldersData.folders
+    : [];
   const sessions = Object.entries(usersData.sessions || {});
   const liveWorks = liveData.works && typeof liveData.works === "object"
     ? Object.entries(liveData.works)
@@ -82,11 +112,11 @@ async function main() {
     ? Object.entries(liveData.progress)
     : [];
 
-  for (const model of [LiveWork, Project, Session, User]) {
+  for (const model of [Folder, LiveWork, Project, Session, User]) {
     model.schema.set("autoIndex", false);
   }
 
-  if (!users.length && !projects.length && !sessions.length && !liveWorks.length) {
+  if (!users.length && !projects.length && !sessions.length && !liveWorks.length && !folders.length) {
     throw new Error("No legacy JSON data was found to migrate.");
   }
 
@@ -181,6 +211,9 @@ async function main() {
         passwordHash: user.passwordHash,
         name: String(user.name || "Progress user").trim(),
         handle: String(user.handle || email.split("@")[0]).trim().toLowerCase(),
+        bio: String(user.bio || "").slice(0, 500),
+        avatar: user.avatar || "",
+        initial: user.initial || "",
       });
       targetUsersByEmail.set(email, targetUser);
       usersCreated += 1;
@@ -215,6 +248,9 @@ async function main() {
       legacyImportKey: plan.legacyKey,
       ownerId,
       name: String(project.name || "Progress").trim().slice(0, 80),
+      about: String(project.about || "").slice(0, 2000),
+      creatorName: project.creatorName || "",
+      creatorHandle: project.creatorHandle || "",
       durationMs: Math.max(1, Number(project.durationMs || project.timeoutMs) || 30_000),
       elapsedMs: Math.max(0, Number(project.elapsedMs) || 0),
       completed: Boolean(project.completed),
@@ -267,6 +303,7 @@ async function main() {
       originId: mappedOriginId,
       ownerId,
       name: String(source.name || "Progress").slice(0, 80),
+      about: String(source.about || "").slice(0, 2000),
       mode: source.mode === "assign" ? "assign" : "follow",
       works: prepareTopics(source.works),
       durationMs: Number(source.durationMs) || 30_000,
@@ -279,6 +316,22 @@ async function main() {
     liveWorksCreated += 1;
   }
 
+  let foldersCreated = 0;
+  for (const folder of folders) {
+    const ownerId = userIdMap.get(String(folder.ownerId || folder.userId || "")) || "";
+    const name = String(folder.name || "").trim().slice(0, 80);
+    if (!name) continue;
+    const existing = await Folder.findOne({ ownerId, name });
+    if (existing) continue;
+    await Folder.create({
+      ownerId,
+      name,
+      createdAt: folder.createdAt || new Date(),
+      updatedAt: folder.updatedAt || new Date(),
+    });
+    foldersCreated += 1;
+  }
+
   console.log(JSON.stringify({
     ...summary,
     imported: {
@@ -286,6 +339,7 @@ async function main() {
       projectsCreated,
       sessionsCreated,
       liveWorksCreated,
+      foldersCreated,
     },
     sourceFilesChanged: false,
   }, null, 2));

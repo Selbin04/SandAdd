@@ -1,5 +1,49 @@
 import mongoose from "mongoose";
 
+const sourceItemSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    type: { type: String, enum: ["link", "text", "file"], default: "text" },
+    title: { type: String, default: "", trim: true, maxlength: 120 },
+    content: { type: String, default: "", trim: true, maxlength: 1000 },
+    proof: { type: mongoose.Schema.Types.Mixed, default: null },
+    createdAt: { type: mongoose.Schema.Types.Mixed, default: Date.now },
+  },
+  { _id: false }
+);
+
+const topicCommentSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    author: { type: String, default: "User", maxlength: 80 },
+    authorId: { type: String, default: "" },
+    text: { type: String, required: true, trim: true, maxlength: 1000 },
+    createdAt: { type: mongoose.Schema.Types.Mixed, default: () => new Date().toISOString() },
+  },
+  { _id: false }
+);
+
+const topicSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    text: { type: String, required: true, trim: true, maxlength: 120 },
+    done: { type: Boolean, default: false },
+    hasCheckbox: { type: Boolean, default: true },
+    checkboxEnabled: { type: Boolean, default: true },
+    source: { type: String, default: "", trim: true, maxlength: 1000 },
+    sourceTitle: { type: String, default: "", trim: true, maxlength: 120 },
+    sourceProof: { type: mongoose.Schema.Types.Mixed, default: null },
+    sources: { type: [sourceItemSchema], default: [] },
+    aiSummary: { type: String, default: "", maxlength: 2000 },
+    likeCount: { type: Number, default: 0, min: 0 },
+    likes: { type: mongoose.Schema.Types.Mixed, default: {} },
+    comments: { type: [topicCommentSchema], default: [] },
+    reports: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    asks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  },
+  { _id: false }
+);
+
 const projectSchema = new mongoose.Schema(
   {
     ownerId: { type: String, required: true, index: true },
@@ -11,16 +55,7 @@ const projectSchema = new mongoose.Schema(
     important: { type: Boolean, default: false },
     stars: { type: Number, min: 0, max: 5, default: 0 },
     topics: {
-      type: [
-        {
-          id: { type: String, required: true },
-          text: { type: String, required: true, trim: true, maxlength: 80 },
-          done: { type: Boolean, default: true },
-          source: { type: String, default: "", trim: true, maxlength: 500 },
-          sourceProof: { type: mongoose.Schema.Types.Mixed, default: null },
-          sources: { type: mongoose.Schema.Types.Mixed, default: [] },
-        },
-      ],
+      type: [topicSchema],
       default: [],
     },
     originId: { type: String, default: null, index: true },
@@ -30,6 +65,7 @@ const projectSchema = new mongoose.Schema(
     creatorName: { type: String, default: null },
     creatorHandle: { type: String, default: null },
     folderId: { type: String, default: null, index: true },
+    about: { type: String, default: "", trim: true, maxlength: 2000 },
     lastWorkedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

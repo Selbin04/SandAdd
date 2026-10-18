@@ -1,0 +1,226 @@
+.folder-about-small-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+/* Display Mode: No borders, clean reading view with small "About" title */
+.folder-about-display {
+  position: relative;
+  width: 100%;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-radius: 8px;
+}
+
+.folder-about-display:hover {
+  background: color-mix(in srgb, var(--surface) 40%, transparent);
+}
+
+.folder-about-display-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.folder-about-display-content {
+  padding: 0 4px;
+}
+
+.folder-about-saved-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--paper);
+  white-space: pre-wrap;
+  word-break: break-word;
+  letter-spacing: 0.01em;
+}
+
+.folder-about-edit-trigger {
+  opacity: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.folder-about-display:hover .folder-about-edit-trigger,
+.folder-about-display:focus-within .folder-about-edit-trigger {
+  opacity: 1;
+}
+
+.folder-about-edit-trigger:hover {
+  color: var(--paper);
+  border-color: var(--brass);
+}
+
+/* Edit Mode */
+.folder-about-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  box-sizing: border-box;
+  margin-top: 10px;
+  animation: folder-about-fade-in 0.2s ease both;
+}
+
+@keyframes folder-about-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.folder-about-head {
+  margin-bottom: 8px;
+}
+
+.folder-about-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.folder-about-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.folder-about-status.is-saved {
+  color: #10b981;
+}
+
+.folder-about-status.is-saving {
+  color: var(--brass);
+}
+
+.folder-about-status.is-error {
+  color: var(--danger, #ef4444);
+}
+
+.folder-about-body {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.folder-about-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--input-bg, var(--surface-strong));
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--paper);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 120px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.folder-about-textarea:focus {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 20%, transparent);
+}
+
+.folder-about-textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.folder-about-textarea:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  resize: none;
+}
+
+.folder-about-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.folder-about-counter {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace, monospace;
+}
+
+.folder-about-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folder-about-cancel-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.folder-about-cancel-btn:hover {
+  color: var(--paper);
+  border-color: var(--paper);
+}
+
+.folder-about-save-btn {
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: #ffffff;
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+
+.folder-about-save-btn:hover:not(:disabled) {
+  background: var(--brass-deep);
+  transform: translateY(-1px);
+}
+
+.folder-about-save-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.folder-about-save-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

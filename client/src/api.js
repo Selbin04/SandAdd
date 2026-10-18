@@ -132,3 +132,71 @@ export async function putLiveWorkProgress(originId, payload) {
   );
   return readJson(res, "Could not sync live progress");
 }
+
+export async function fetchFolders() {
+  const res = await fetch(`${API}/folders`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load folders");
+}
+
+export async function createFolderApi({ name }) {
+  const res = await fetch(`${API}/folders`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ name }),
+  });
+  return readJson(res, "Could not create folder");
+}
+
+export async function renameFolderApi(id, name) {
+  const res = await fetch(`${API}/folders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ name }),
+  });
+  return readJson(res, "Could not rename folder");
+}
+
+export async function deleteFolderApi(id) {
+  const res = await fetch(`${API}/folders/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not delete folder");
+}
+
+export async function likeTopicApi(projectId, topicId) {
+  const res = await fetch(
+    `${API}/projects/${encodeURIComponent(projectId)}/topics/${encodeURIComponent(topicId)}/like`,
+    {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+    }
+  );
+  return readJson(res, "Could not like topic");
+}
+
+export async function addTopicCommentApi(projectId, topicId, { text, author }) {
+  const res = await fetch(
+    `${API}/projects/${encodeURIComponent(projectId)}/topics/${encodeURIComponent(topicId)}/comments`,
+    {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ text, author }),
+    }
+  );
+  return readJson(res, "Could not add comment");
+}
+
+export async function deleteTopicCommentApi(projectId, topicId, commentId) {
+  const res = await fetch(
+    `${API}/projects/${encodeURIComponent(projectId)}/topics/${encodeURIComponent(topicId)}/comments/${encodeURIComponent(commentId)}`,
+    {
+      method: "DELETE",
+      headers: authHeaders(),
+    }
+  );
+  return readJson(res, "Could not delete comment");
+}
+

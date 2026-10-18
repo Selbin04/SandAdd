@@ -48,8 +48,8 @@ function parseProjectInput(body, { partial = false } = {}) {
     if (!Array.isArray(body.topics)) {
       return { error: "topics must be an array" };
     }
-    result.topics = body.topics.slice(0, 80).map((topic, index) => {
-      const text = String(topic?.text ?? "").trim().slice(0, 80);
+    result.topics = body.topics.slice(0, 100).map((topic, index) => {
+      const text = String(topic?.text ?? "").trim().slice(0, 120);
       if (!text) return null;
       const proof = topic?.sourceProof;
       let sourceProof = null;
@@ -80,20 +80,46 @@ function parseProjectInput(body, { partial = false } = {}) {
           }
           return {
             id: String(s.id || `src-${Date.now()}-${sIdx}`),
-            title: String(s.title || s.name || "").trim().slice(0, 80),
+            title: String(s.title || s.name || "").trim().slice(0, 120),
             type: sType === "file" ? "file" : sType === "link" ? "link" : "text",
-            content: String(s.content || s.text || s.source || "").slice(0, 500),
+            content: String(s.content || s.text || s.source || "").slice(0, 1000),
             proof: cleanProof,
           };
         }).filter(Boolean);
       }
+      const hasCheckbox = topic?.hasCheckbox !== false && topic?.checkboxEnabled !== false;
+      const sourceTitle = String(topic?.sourceTitle || "").trim().slice(0, 120);
+      const aiSummary = String(topic?.aiSummary || "").slice(0, 2000);
+      const likeCount = Math.max(0, Number(topic?.likeCount) || 0);
+      const likes = topic?.likes && typeof topic.likes === "object" ? topic.likes : {};
+      const comments = Array.isArray(topic?.comments)
+        ? topic.comments.slice(0, 100).map((c) => ({
+            id: String(c.id || `cmt-${Date.now()}`),
+            author: String(c.author || "User").slice(0, 80),
+            authorId: String(c.authorId || ""),
+            text: String(c.text || "").slice(0, 1000),
+            createdAt: c.createdAt || new Date().toISOString(),
+          }))
+        : [];
+      const reports = Array.isArray(topic?.reports) ? topic.reports : [];
+      const asks = Array.isArray(topic?.asks) ? topic.asks : [];
+
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
         text,
         done: Boolean(topic?.done),
-        source: String(topic?.source ?? "").trim().slice(0, 500),
+        hasCheckbox,
+        checkboxEnabled: hasCheckbox,
+        source: String(topic?.source ?? "").trim().slice(0, 1000),
+        sourceTitle,
         sourceProof,
         sources,
+        aiSummary,
+        likeCount,
+        likes,
+        comments,
+        reports,
+        asks,
       };
     }).filter(Boolean);
   }
@@ -146,6 +172,10 @@ function parseProjectInput(body, { partial = false } = {}) {
         : String(body.folderId).slice(0, 80);
   }
 
+  if (body.about !== undefined) {
+    result.about = String(body.about ?? "").slice(0, 2000);
+  }
+
   if (result.durationMs !== undefined && result.elapsedMs !== undefined) {
     result.elapsedMs = Math.min(result.elapsedMs, result.durationMs);
     result.completed = result.elapsedMs >= result.durationMs;
@@ -163,7 +193,18 @@ function asProject(doc) {
     durationMs,
     important: Boolean(obj.important),
     stars: Math.min(5, Math.max(0, Number(obj.stars) || 0)),
-    topics: Array.isArray(obj.topics) ? obj.topics : [],
+    topics: (Array.isArray(obj.topics) ? obj.topics : []).map((t) => ({
+      ...t,
+      hasCheckbox: t.hasCheckbox !== false && t.checkboxEnabled !== false,
+      checkboxEnabled: t.hasCheckbox !== false && t.checkboxEnabled !== false,
+      sourceTitle: String(t.sourceTitle || ""),
+      sources: Array.isArray(t.sources) ? t.sources : [],
+      likeCount: Number(t.likeCount) || 0,
+      likes: t.likes || {},
+      comments: Array.isArray(t.comments) ? t.comments : [],
+      reports: Array.isArray(t.reports) ? t.reports : [],
+      asks: Array.isArray(t.asks) ? t.asks : [],
+    })),
     originId: obj.originId || null,
     originMode: obj.originMode === "assign" || obj.originMode === "follow"
       ? obj.originMode
@@ -173,6 +214,7 @@ function asProject(doc) {
     creatorName: obj.creatorName || null,
     creatorHandle: obj.creatorHandle || null,
     folderId: obj.folderId || null,
+    about: String(obj.about || ""),
   };
 }
 
@@ -290,6 +332,9 @@ export default function projectRoutes(useMemory) {
       if (parsed.value.folderId !== undefined) {
         next.folderId = parsed.value.folderId;
       }
+      if (parsed.value.about !== undefined) {
+        next.about = parsed.value.about;
+      }
       if (parsed.value.bump) {
         next.lastWorkedAt = new Date();
       }
@@ -321,6 +366,112 @@ export default function projectRoutes(useMemory) {
       });
       if (!removed) return res.status(404).json({ error: "Not found" });
       res.json(asProject(removed));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Topic Comments: Add comment
+  router.post("/:id/topics/:topicId/comments", async (req, res) => {
+    try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+      const text = String(req.body?.text || "").trim();
+      if (!text) return res.status(400).json({ error: "Comment text required" });
+      const author = String(req.body?.author || req.user?.name || "You").slice(0, 80);
+
+      const comment = {
+        id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        author,
+        authorId: ownerId,
+        text: text.slice(0, 1000),
+        createdAt: new Date().toISOString(),
+      };
+
+      if (useMemory) {
+        const doc = await memoryStore.get(req.params.id, ownerId);
+        if (!doc) return res.status(404).json({ error: "Project not found" });
+        const topic = (doc.topics || []).find((t) => t.id === req.params.topicId);
+        if (!topic) return res.status(404).json({ error: "Topic not found" });
+        topic.comments = topic.comments || [];
+        topic.comments.push(comment);
+        await memoryStore.update(req.params.id, { topics: doc.topics }, ownerId);
+        return res.status(201).json(comment);
+      }
+
+      const project = await Project.findOne({ _id: req.params.id, ownerId });
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const topic = project.topics.find((t) => t.id === req.params.topicId);
+      if (!topic) return res.status(404).json({ error: "Topic not found" });
+      topic.comments = topic.comments || [];
+      topic.comments.push(comment);
+      await project.save();
+      return res.status(201).json(comment);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Topic Comments: Delete comment
+  router.delete("/:id/topics/:topicId/comments/:commentId", async (req, res) => {
+    try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
+      if (useMemory) {
+        const doc = await memoryStore.get(req.params.id, ownerId);
+        if (!doc) return res.status(404).json({ error: "Project not found" });
+        const topic = (doc.topics || []).find((t) => t.id === req.params.topicId);
+        if (!topic) return res.status(404).json({ error: "Topic not found" });
+        topic.comments = (topic.comments || []).filter((c) => c.id !== req.params.commentId);
+        await memoryStore.update(req.params.id, { topics: doc.topics }, ownerId);
+        return res.json({ ok: true });
+      }
+
+      const project = await Project.findOne({ _id: req.params.id, ownerId });
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const topic = project.topics.find((t) => t.id === req.params.topicId);
+      if (!topic) return res.status(404).json({ error: "Topic not found" });
+      topic.comments = (topic.comments || []).filter((c) => c.id !== req.params.commentId);
+      await project.save();
+      return res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Topic Like toggle
+  router.post("/:id/topics/:topicId/like", async (req, res) => {
+    try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
+      if (useMemory) {
+        const doc = await memoryStore.get(req.params.id, ownerId);
+        if (!doc) return res.status(404).json({ error: "Project not found" });
+        const topic = (doc.topics || []).find((t) => t.id === req.params.topicId);
+        if (!topic) return res.status(404).json({ error: "Topic not found" });
+        const likes = topic.likes || {};
+        const isLiked = !likes[ownerId];
+        likes[ownerId] = isLiked;
+        topic.likes = likes;
+        topic.likeCount = Math.max(0, (topic.likeCount || 0) + (isLiked ? 1 : -1));
+        await memoryStore.update(req.params.id, { topics: doc.topics }, ownerId);
+        return res.json({ isLiked, likeCount: topic.likeCount });
+      }
+
+      const project = await Project.findOne({ _id: req.params.id, ownerId });
+      if (!project) return res.status(404).json({ error: "Project not found" });
+      const topic = project.topics.find((t) => t.id === req.params.topicId);
+      if (!topic) return res.status(404).json({ error: "Topic not found" });
+      const likes = topic.likes || {};
+      const isLiked = !likes[ownerId];
+      likes[ownerId] = isLiked;
+      topic.likes = likes;
+      topic.likeCount = Math.max(0, (topic.likeCount || 0) + (isLiked ? 1 : -1));
+      project.markModified("topics");
+      await project.save();
+      return res.json({ isLiked, likeCount: topic.likeCount });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

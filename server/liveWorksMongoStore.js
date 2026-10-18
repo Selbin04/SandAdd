@@ -13,6 +13,7 @@ function serialize(entry) {
     deleted: Boolean(entry.deleted),
     deletedAt: entry.deletedAt || undefined,
     author: entry.author || null,
+    about: entry.about || "",
   };
 }
 
@@ -20,13 +21,19 @@ function sanitizeWorks(works) {
   if (!Array.isArray(works)) return [];
   return works
     .map((work, index) => {
-      const text = String(work?.text || "").trim().slice(0, 80);
+      const text = String(work?.text || "").trim().slice(0, 120);
       if (!text) return null;
+      const hasCheckbox = work?.hasCheckbox !== false && work?.checkboxEnabled !== false;
       return {
         id: String(work?.id || `w-${index}`),
         text,
         done: Boolean(work?.done),
-        source: String(work?.source || "").trim().slice(0, 500),
+        hasCheckbox,
+        checkboxEnabled: hasCheckbox,
+        source: String(work?.source || "").trim().slice(0, 1000),
+        sourceTitle: String(work?.sourceTitle || "").trim().slice(0, 120),
+        sources: Array.isArray(work?.sources) ? work.sources : [],
+        likeCount: Number(work?.likeCount) || 0,
         sourceProof: work?.sourceProof && typeof work.sourceProof === "object"
           ? {
               mediaId: work.sourceProof.mediaId || null,
@@ -106,6 +113,7 @@ export const liveWorksMongoStore = {
           deleted: false,
           deletedAt: null,
           author: payload?.author || previous?.author || null,
+          about: String(payload?.about || previous?.about || "").slice(0, 2000),
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }

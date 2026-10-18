@@ -51,7 +51,7 @@ export default function AuthPage({ onAuthed, busy = false, error = "", onClearEr
         <header className="auth-brand">
           <img
             className="auth-mark"
-            src="/sandadd-mark.png?v=exact4"
+            src="/sandadd-mark.png?v=newlogo"
             alt=""
           />
           <h1 className="auth-wordmark">

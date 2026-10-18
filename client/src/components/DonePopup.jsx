@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   PROOF_ACCEPT,
   fileToProof,
@@ -7,7 +8,9 @@ import {
   isVideoProof,
   restoreTopicSourceProof,
 } from "../lib/socialFeed.js";
-import { getProjectCreatorTagline } from "../lib/liveWorks.js";
+import { getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
+import { getFollowedWorkGroup } from "../lib/followingStore.js";
+import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import "./DonePopup.css";
 
@@ -60,6 +63,199 @@ export function getTopicSources(topic) {
 
 function topicHasSource(topic) {
   return getTopicSources(topic).length > 0;
+}
+
+const TASK_COMMENTS_KEY_PREFIX = "sandadd.taskComments.";
+
+function getTaskComments(projectId, topicOrId) {
+  const topicId = typeof topicOrId === "object" ? topicOrId?.id : topicOrId;
+  const fromTopic = typeof topicOrId === "object" && Array.isArray(topicOrId?.comments)
+    ? topicOrId.comments
+    : [];
+  if (!projectId || !topicId) return fromTopic;
+  try {
+    const raw = localStorage.getItem(`${TASK_COMMENTS_KEY_PREFIX}${projectId}.${topicId}`);
+    if (!raw) return fromTopic;
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || list.length === 0) return fromTopic;
+    const ids = new Set(list.map((c) => c.id));
+    for (const c of fromTopic) {
+      if (!ids.has(c.id)) list.push(c);
+    }
+    return list;
+  } catch {
+    return fromTopic;
+  }
+}
+
+function saveTaskComments(projectId, topicId, comments) {
+  if (!projectId || !topicId) return;
+  try {
+    localStorage.setItem(
+      `${TASK_COMMENTS_KEY_PREFIX}${projectId}.${topicId}`,
+      JSON.stringify(comments)
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function formatCommentTime(iso) {
+  if (!iso) return "Just now";
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffSec = Math.floor((now - d) / 1000);
+    if (diffSec < 45) return "Just now";
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "Recently";
+  }
+}
+
+function IconHeartBubble({ className = "", filled = false }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      <path
+        d="M15.8 9.2a2.5 2.5 0 0 0-3.5 0l-.3.4-.3-.4a2.5 2.5 0 0 0-3.5 0 2.5 2.5 0 0 0 0 3.5l3.8 3.8 3.8-3.8a2.5 2.5 0 0 0 0-3.5Z"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </svg>
+  );
+}
+
+function IconAsk({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function IconHeart({ className = "", filled = false }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function IconComment({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function IconReport({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+  );
+}
+
+function IconMoreVertical({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="5" r="2.2" />
+      <circle cx="12" cy="12" r="2.2" />
+      <circle cx="12" cy="19" r="2.2" />
+    </svg>
+  );
+}
+
+function IconTrash({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function IconCopy({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
 }
 
 function dataUrlToObjectUrl(proof) {
@@ -231,6 +427,7 @@ export default function DonePopup({
   topicIds = null,
   readOnlyTasks = false,
   inline = false,
+  isCollaborative = false,
 }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [text, setText] = useState("");
@@ -256,6 +453,65 @@ export default function DonePopup({
   const doneListRef = useRef(null);
   const pendingTopicIdRef = useRef(null);
   const formRef = useRef(null);
+  const [taskMenuTopic, setTaskMenuTopic] = useState(null);
+  const [taskMenuStyle, setTaskMenuStyle] = useState({});
+  const [taskLikes, setTaskLikes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`sandadd_likes_${project?._id || "default"}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [taskLikeCounts, setTaskLikeCounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`sandadd.taskLikeCounts.${project?._id || "default"}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const isCollaborativeWork = Boolean(
+    isCollaborative ||
+    project?.originId ||
+    project?.sharedTemplateId ||
+    project?.isShared ||
+    project?.originMode === "follow" ||
+    project?.originMode === "assign" ||
+    project?.shareMode === "follow" ||
+    project?.shareMode === "assign" ||
+    project?.mode === "assign" ||
+    project?.mode === "follow" ||
+    project?.tasksLocked ||
+    Boolean(getFollowedWorkGroup(project?.originId || project?.sharedTemplateId || project?._id)) ||
+    Boolean(getLiveWork(project?.originId || project?.sharedTemplateId || project?._id)) ||
+    Boolean(project?.creatorHandle && String(project.creatorHandle).trim().length > 0)
+  );
+
+  const getLikeCountForTopic = (topicId) => {
+    const topic = topics.find((t) => t.id === topicId);
+    const isLiked = Boolean(taskLikes[topicId]);
+    const stored = taskLikeCounts[topicId];
+    if (typeof stored === "number") return stored;
+    if (topic && typeof topic.likeCount === "number" && topic.likeCount > 0) return topic.likeCount;
+    return isLiked ? 1 : 0;
+  };
+  const [askModalTopic, setAskModalTopic] = useState(null);
+  const [askText, setAskText] = useState("");
+  const [commentModalTopic, setCommentModalTopic] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [taskComments, setTaskComments] = useState([]);
+  const [reportModalTopic, setReportModalTopic] = useState(null);
+  const [reportText, setReportText] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
+  const taskMenuRef = useRef(null);
+  const taskTriggerBtnRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
+  const [moreMenuTopic, setMoreMenuTopic] = useState(null);
+  const [moreMenuStyle, setMoreMenuStyle] = useState({});
+  const moreMenuRef = useRef(null);
+  const moreTriggerBtnRef = useRef(null);
 
   useEffect(() => {
     if (!showAddForm) return undefined;
@@ -285,8 +541,19 @@ export default function DonePopup({
     }
   }, [topics.length]);
 
-  const left = inline ? 8 : Math.min(Math.max(8, x), window.innerWidth - 340);
-  const top = inline ? 8 : Math.min(Math.max(8, y), window.innerHeight - 360);
+  const navH =
+    typeof window !== "undefined"
+      ? parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            "--navbar-height"
+          )
+        ) || 64
+      : 64;
+  const minTop = inline ? 8 : navH + 8;
+  const left = inline ? 8 : Math.min(Math.max(8, x), Math.max(8, window.innerWidth - 340));
+  const top = inline
+    ? 8
+    : Math.min(Math.max(minTop, y), Math.max(minTop, window.innerHeight - 360));
 
   useEffect(() => {
     if (!panelTopic) return;
@@ -330,6 +597,224 @@ export default function DonePopup({
     setEditingTitleId(null);
     setEditingContentId(null);
     setOpenSourceIndex(0);
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage("");
+    }, 3000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!taskMenuTopic && !moreMenuTopic) return undefined;
+    const handleDocClick = (e) => {
+      if (
+        taskMenuRef.current &&
+        !taskMenuRef.current.contains(e.target) &&
+        taskTriggerBtnRef.current &&
+        !taskTriggerBtnRef.current.contains(e.target)
+      ) {
+        setTaskMenuTopic(null);
+      }
+      if (
+        moreMenuRef.current &&
+        !moreMenuRef.current.contains(e.target) &&
+        moreTriggerBtnRef.current &&
+        !moreTriggerBtnRef.current.contains(e.target)
+      ) {
+        setMoreMenuTopic(null);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setTaskMenuTopic(null);
+        setMoreMenuTopic(null);
+      }
+    };
+    const handleScroll = (e) => {
+      if (taskMenuRef.current && taskMenuRef.current.contains(e.target)) return;
+      if (moreMenuRef.current && moreMenuRef.current.contains(e.target)) return;
+      setTaskMenuTopic(null);
+      setMoreMenuTopic(null);
+    };
+    document.addEventListener("mousedown", handleDocClick, true);
+    document.addEventListener("touchstart", handleDocClick, true);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleDocClick, true);
+      document.removeEventListener("touchstart", handleDocClick, true);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [taskMenuTopic, moreMenuTopic]);
+
+  const handleToggleTaskMenu = (topic, e) => {
+    e.stopPropagation();
+    setMoreMenuTopic(null);
+    if (taskMenuTopic?.id === topic.id) {
+      setTaskMenuTopic(null);
+      taskTriggerBtnRef.current = null;
+      return;
+    }
+    const btn = e.currentTarget;
+    taskTriggerBtnRef.current = btn;
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 160;
+    const menuHeight = 165;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const isAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+
+    const menuLeft = Math.max(8, Math.min(rect.left - 20, window.innerWidth - menuWidth - 8));
+
+    setTaskMenuStyle({
+      position: "fixed",
+      left: `${menuLeft}px`,
+      top: isAbove ? "auto" : `${rect.bottom + 6}px`,
+      bottom: isAbove ? `${window.innerHeight - rect.top + 6}px` : "auto",
+      zIndex: 100000,
+    });
+    setTaskMenuTopic(topic);
+  };
+
+  const handleToggleMoreMenu = (topic, e) => {
+    e.stopPropagation();
+    setTaskMenuTopic(null);
+    if (moreMenuTopic?.id === topic.id) {
+      setMoreMenuTopic(null);
+      moreTriggerBtnRef.current = null;
+      return;
+    }
+    const btn = e.currentTarget;
+    moreTriggerBtnRef.current = btn;
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 145;
+    const menuHeight = 85;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const isAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+
+    const menuLeft = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+
+    setMoreMenuStyle({
+      position: "fixed",
+      left: `${menuLeft}px`,
+      top: isAbove ? "auto" : `${rect.bottom + 6}px`,
+      bottom: isAbove ? `${window.innerHeight - rect.top + 6}px` : "auto",
+      zIndex: 100000,
+    });
+    setMoreMenuTopic(topic);
+  };
+
+  const handleActionAsk = (topic) => {
+    setTaskMenuTopic(null);
+    setAskText("");
+    setAskModalTopic(topic);
+  };
+
+  const handleActionLike = (topic) => {
+    const nextLiked = !taskLikes[topic.id];
+    setTaskLikes((prev) => {
+      const next = { ...prev, [topic.id]: nextLiked };
+      try {
+        localStorage.setItem(`sandadd_likes_${project?._id || "default"}`, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+
+    setTaskLikeCounts((prev) => {
+      const current = typeof prev[topic.id] === "number" ? prev[topic.id] : (taskLikes[topic.id] ? 1 : 0);
+      const nextCount = Math.max(0, current + (nextLiked ? 1 : -1));
+      const nextMap = { ...prev, [topic.id]: nextCount };
+      try {
+        localStorage.setItem(
+          `sandadd.taskLikeCounts.${project?._id || "default"}`,
+          JSON.stringify(nextMap)
+        );
+      } catch {
+        /* ignore */
+      }
+      return nextMap;
+    });
+
+    if (project?._id) {
+      likeTopicApi(project._id, topic.id).catch(() => {});
+    }
+
+    showToast(nextLiked ? `Liked "${topic.text}"` : `Unliked "${topic.text}"`);
+  };
+
+  const handleActionComment = (topic) => {
+    setTaskMenuTopic(null);
+    setCommentModalTopic(topic);
+    setCommentText("");
+    setTaskComments(getTaskComments(project?._id, topic));
+  };
+
+  const handleSubmitComment = (e) => {
+    e.preventDefault();
+    if (!commentModalTopic || !commentText.trim()) return;
+    const authorName = localStorage.getItem("sandadd.profile.name") || "You";
+    const newComment = {
+      id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      author: authorName,
+      text: commentText.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    const next = [...taskComments, newComment];
+    setTaskComments(next);
+    saveTaskComments(project?._id, commentModalTopic.id, next);
+    if (project?._id) {
+      addTopicCommentApi(project._id, commentModalTopic.id, { text: newComment.text, author: authorName }).catch(() => {});
+    }
+    setCommentText("");
+    showToast(`Comment added to "${commentModalTopic.text}"`);
+  };
+
+  const handleDeleteComment = (commentId) => {
+    if (!commentModalTopic) return;
+    const next = taskComments.filter((c) => c.id !== commentId);
+    setTaskComments(next);
+    saveTaskComments(project?._id, commentModalTopic.id, next);
+    if (project?._id) {
+      deleteTopicCommentApi(project._id, commentModalTopic.id, commentId).catch(() => {});
+    }
+    showToast("Comment deleted");
+  };
+
+  const handleActionReport = (topic) => {
+    setTaskMenuTopic(null);
+    setReportText("");
+    setReportModalTopic(topic);
+  };
+
+  const handleSubmitAsk = (e) => {
+    e.preventDefault();
+    if (!askModalTopic) return;
+    const q = askText.trim();
+    if (!q) return;
+    showToast(`Question submitted for "${askModalTopic.text}"`);
+    setAskModalTopic(null);
+    setAskText("");
+  };
+
+  const handleSubmitReport = (e) => {
+    e.preventDefault();
+    if (!reportModalTopic) return;
+    showToast(`Report received for "${reportModalTopic.text}". Thank you.`);
+    setReportModalTopic(null);
+    setReportText("");
   };
 
   const addSourceItem = (topic, newItem) => {
@@ -454,8 +939,9 @@ export default function DonePopup({
   };
 
   return (
-    <div
-      className={inline ? "done-inline" : "done-backdrop"}
+    <>
+      <div
+        className={inline ? "done-inline" : "done-backdrop"}
       onMouseDown={inline ? undefined : onClose}
       role="presentation"
     >
@@ -539,7 +1025,6 @@ export default function DonePopup({
               const sourceCount = sourceList.length;
               const hasSource = sourceCount > 0;
               const isOpen = sourcePanelId === topic.id;
-              const sourceBtnText = sourceCount > 0 ? `Source (${sourceCount})` : "Source";
 
               const showCheck = topic.hasCheckbox !== false;
               return (
@@ -564,6 +1049,24 @@ export default function DonePopup({
                       </button>
                     ) : null}
                     <span className="done-text">{topic.text}</span>
+                    {Boolean(
+                      isCollaborativeWork ||
+                      (Array.isArray(topic.comments) && topic.comments.length > 0) ||
+                      (typeof topic.likeCount === "number" && topic.likeCount > 0) ||
+                      Boolean(taskLikes[topic.id])
+                    ) ? (
+                      <button
+                        type="button"
+                        className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                        onClick={(e) => handleToggleTaskMenu(topic, e)}
+                        title="Actions (Ask, Like, Comment, Report)"
+                        aria-label={`Actions for ${topic.text}`}
+                        aria-haspopup="true"
+                        aria-expanded={taskMenuTopic?.id === topic.id}
+                      >
+                        <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className={`done-source ${hasSource ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
@@ -585,16 +1088,19 @@ export default function DonePopup({
                       aria-expanded={isOpen}
                       aria-label={`Source for ${topic.text}`}
                     >
-                      {sourceBtnText}
+                      Source
                     </button>
                     {!todayMode && !readOnlyTasks && (
                       <button
                         type="button"
-                        className="ghost"
-                        onClick={() => onRemove(project._id, topic.id)}
-                        aria-label={`Remove ${topic.text}`}
+                        className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                        onClick={(e) => handleToggleMoreMenu(topic, e)}
+                        aria-label={`Options for ${topic.text}`}
+                        title="More options"
+                        aria-haspopup="true"
+                        aria-expanded={moreMenuTopic?.id === topic.id}
                       >
-                        ×
+                        <IconMoreVertical />
                       </button>
                     )}
                   </div>
@@ -1099,5 +1605,372 @@ export default function DonePopup({
         )}
       </div>
     </div>
+
+    {taskMenuTopic &&
+      createPortal(
+        <ul
+          ref={taskMenuRef}
+          className="task-action-menu"
+          style={taskMenuStyle}
+          role="menu"
+          aria-label="Task actions"
+        >
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn"
+              onClick={() => handleActionAsk(taskMenuTopic)}
+            >
+              <span className="task-action-icon">
+                <IconAsk />
+              </span>
+              <span className="task-action-label">Ask</span>
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className={`task-action-item-btn ${taskLikes[taskMenuTopic.id] ? "is-liked" : ""}`}
+              onClick={() => handleActionLike(taskMenuTopic)}
+            >
+              <span className="task-action-icon">
+                <IconHeart filled={Boolean(taskLikes[taskMenuTopic.id])} />
+              </span>
+              <span className="task-action-label">
+                {taskLikes[taskMenuTopic.id] ? "Liked" : "Like"}
+              </span>
+              <span
+                className={`task-action-count-badge ${
+                  taskLikes[taskMenuTopic.id] ? "is-liked" : ""
+                }`}
+              >
+                {getLikeCountForTopic(taskMenuTopic.id)}
+              </span>
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn"
+              onClick={() => handleActionComment(taskMenuTopic)}
+            >
+              <span className="task-action-icon">
+                <IconComment />
+              </span>
+              <span className="task-action-label">Comment</span>
+              <span
+                className={`task-action-count-badge ${
+                  getTaskComments(project?._id, taskMenuTopic.id).length > 0 ? "has-comments" : ""
+                }`}
+              >
+                {getTaskComments(project?._id, taskMenuTopic.id).length}
+              </span>
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn is-report"
+              onClick={() => handleActionReport(taskMenuTopic)}
+            >
+              <span className="task-action-icon">
+                <IconReport />
+              </span>
+              <span className="task-action-label">Report</span>
+            </button>
+          </li>
+        </ul>,
+        document.body
+      )}
+
+    {moreMenuTopic &&
+      createPortal(
+        <ul
+          ref={moreMenuRef}
+          className="task-action-menu task-more-menu"
+          style={moreMenuStyle}
+          role="menu"
+          aria-label="More task options"
+        >
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn"
+              onClick={() => {
+                const textToCopy = moreMenuTopic.text;
+                setMoreMenuTopic(null);
+                if (navigator?.clipboard?.writeText) {
+                  navigator.clipboard.writeText(textToCopy).catch(() => {});
+                }
+                showToast(`Copied text to clipboard`);
+              }}
+            >
+              <span className="task-action-icon">
+                <IconCopy />
+              </span>
+              <span className="task-action-label">Copy text</span>
+            </button>
+          </li>
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn is-report"
+              onClick={() => {
+                const topicToRemove = moreMenuTopic;
+                setMoreMenuTopic(null);
+                onRemove(project._id, topicToRemove.id);
+                showToast(`Removed "${topicToRemove.text}"`);
+              }}
+            >
+              <span className="task-action-icon">
+                <IconTrash />
+              </span>
+              <span className="task-action-label">Delete task</span>
+            </button>
+          </li>
+        </ul>,
+        document.body
+      )}
+
+    {askModalTopic &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setAskModalTopic(null)}
+        >
+          <div
+            className="task-action-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ask-modal-title"
+          >
+            <div className="task-action-modal-head">
+              <h4 id="ask-modal-title">Ask about task</h4>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setAskModalTopic(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="task-action-modal-taskname">
+              Task: <strong>{askModalTopic.text}</strong>
+            </p>
+            <form onSubmit={handleSubmitAsk}>
+              <textarea
+                className="task-action-modal-textarea"
+                rows={3}
+                placeholder="What would you like to ask or clarify about this task?"
+                value={askText}
+                onChange={(e) => setAskText(e.target.value)}
+                autoFocus
+              />
+              <div className="task-action-modal-foot">
+                <button
+                  type="button"
+                  className="task-action-modal-cancel"
+                  onClick={() => setAskModalTopic(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="task-action-modal-submit"
+                  disabled={!askText.trim()}
+                >
+                  Send Question
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {commentModalTopic &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setCommentModalTopic(null)}
+        >
+          <div
+            className="task-action-modal-card task-comment-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="comment-modal-title"
+          >
+            <div className="task-action-modal-head">
+              <div className="task-comment-modal-title-row">
+                <h4 id="comment-modal-title">Comments</h4>
+                <span className="task-comment-count-badge">
+                  {taskComments.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setCommentModalTopic(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="task-action-modal-taskname">
+              Task: <strong>{commentModalTopic.text}</strong>
+            </p>
+
+            <div className="task-comment-body">
+              {taskComments.length === 0 ? (
+                <div className="task-comment-empty">
+                  <span>No comments yet. Write a comment below!</span>
+                </div>
+              ) : (
+                <div className="task-comment-list">
+                  {taskComments.map((c) => (
+                    <div key={c.id} className="task-comment-item">
+                      <div className="task-comment-header">
+                        <div className="task-comment-author-badge">
+                          <span className="task-comment-avatar-circle">
+                            {(c.author || "U").slice(0, 1).toUpperCase()}
+                          </span>
+                          <span className="task-comment-author-name">
+                            {c.author || "You"}
+                          </span>
+                        </div>
+                        <div className="task-comment-meta-right">
+                          <span className="task-comment-time">
+                            {formatCommentTime(c.createdAt)}
+                          </span>
+                          <button
+                            type="button"
+                            className="task-comment-delete-btn"
+                            onClick={() => handleDeleteComment(c.id)}
+                            title="Delete comment"
+                            aria-label="Delete comment"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                      <p className="task-comment-text">{c.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitComment} className="task-comment-form">
+                <textarea
+                  className="task-action-modal-textarea task-comment-input"
+                  rows={2}
+                  placeholder="Write a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (commentText.trim()) handleSubmitComment(e);
+                    }
+                  }}
+                  autoFocus
+                />
+                <div className="task-action-modal-foot">
+                  <button
+                    type="button"
+                    className="task-action-modal-cancel"
+                    onClick={() => setCommentModalTopic(null)}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="task-action-modal-submit"
+                    disabled={!commentText.trim()}
+                  >
+                    Post Comment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {reportModalTopic &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setReportModalTopic(null)}
+        >
+          <div
+            className="task-action-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+          >
+            <div className="task-action-modal-head">
+              <h4 id="report-modal-title">Report task</h4>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setReportModalTopic(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="task-action-modal-taskname">
+              Task: <strong>{reportModalTopic.text}</strong>
+            </p>
+            <form onSubmit={handleSubmitReport}>
+              <textarea
+                className="task-action-modal-textarea"
+                rows={3}
+                placeholder="Describe the issue or reason for reporting this task..."
+                value={reportText}
+                onChange={(e) => setReportText(e.target.value)}
+                autoFocus
+              />
+              <div className="task-action-modal-foot">
+                <button
+                  type="button"
+                  className="task-action-modal-cancel"
+                  onClick={() => setReportModalTopic(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="task-action-modal-submit is-danger"
+                  disabled={!reportText.trim()}
+                >
+                  Submit Report
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {toastMessage &&
+      createPortal(
+        <div className="done-action-toast" role="status" aria-live="polite">
+          {toastMessage}
+        </div>,
+        document.body
+      )}
+  </>
   );
 }

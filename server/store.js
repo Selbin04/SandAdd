@@ -48,6 +48,11 @@ function sortByWorked(list) {
 }
 
 export const memoryStore = {
+  async get(id, ownerId) {
+    const uid = String(ownerId || "");
+    return projects.find((p) => p._id === id && String(p.ownerId || "") === uid) || null;
+  },
+
   async list(ownerId) {
     const uid = String(ownerId || "");
     return sortByWorked(projects.filter((p) => String(p.ownerId || "") === uid));
@@ -80,6 +85,7 @@ export const memoryStore = {
     tasksLocked = false,
     sharedTemplateId = null,
     folderId = null,
+    about = "",
   }) {
     const now = new Date();
     const doc = {
@@ -97,6 +103,7 @@ export const memoryStore = {
       tasksLocked: Boolean(tasksLocked || originId),
       sharedTemplateId: sharedTemplateId ? String(sharedTemplateId) : null,
       folderId: folderId ? String(folderId) : null,
+      about: String(about || ""),
       createdAt: now,
       updatedAt: now,
       lastWorkedAt: now,
@@ -127,6 +134,9 @@ export const memoryStore = {
     }
     if (patch.folderId !== undefined) {
       doc.folderId = patch.folderId ? String(patch.folderId) : null;
+    }
+    if (patch.about !== undefined) {
+      doc.about = String(patch.about);
     }
     if (doc.elapsedMs > doc.durationMs) doc.elapsedMs = doc.durationMs;
     doc.completed = doc.elapsedMs >= doc.durationMs;

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import AuthPage from "./components/AuthPage.jsx";
-import Hourglass from "./components/Hourglass.jsx";
-import PourButton from "./components/PourButton.jsx";
 import ProjectPanel from "./components/ProjectPanel.jsx";
 import DonePopup from "./components/DonePopup.jsx";
 import DailyReviewModal from "./components/DailyReviewModal.jsx";
@@ -19,12 +17,16 @@ import FollowedWorkGroup from "./components/FollowedWorkGroup.jsx";
 import FolderPanel from "./components/FolderPanel.jsx";
 import CreateFolderModal from "./components/CreateFolderModal.jsx";
 import PopularFoldersBox from "./components/PopularFoldersBox.jsx";
+import FolderAboutField from "./components/FolderAboutField.jsx";
 import {
   createProject,
   deleteProject,
   fetchHealth,
   fetchMe,
   fetchProjects,
+  fetchFolders,
+  createFolderApi,
+  deleteFolderApi,
   loginAccount,
   logoutAccount,
   registerAccount,
@@ -610,6 +612,21 @@ export default function App() {
       return;
     }
     setFolders(loadFolders(authUser.id));
+    fetchFolders()
+      .then((serverFolders) => {
+        if (Array.isArray(serverFolders) && serverFolders.length > 0) {
+          setFolders((local) => {
+            const map = new Map();
+            for (const f of local) map.set(f.name.toLowerCase(), f);
+            for (const sf of serverFolders) {
+              map.set(sf.name.toLowerCase(), { id: sf.id, name: sf.name });
+            }
+            const merged = Array.from(map.values());
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
   }, [authUser?.id]);
 
   useEffect(() => {
@@ -1084,28 +1101,58 @@ export default function App() {
     }
   };
 
+  const handleSaveAbout = async (projectId, aboutText) => {
+    try {
+      const proj = projectsRef.current.find((p) => p._id === projectId);
+      if (!proj) return;
+      const trimmed = String(aboutText || "").slice(0, 2000);
+      setProjects((list) =>
+        patchProject(list, { ...proj, about: trimmed })
+      );
+      const updated = await updateProject(projectId, { about: trimmed });
+      setProjects((list) => patchProject(list, updated));
+      setApiError("");
+    } catch (err) {
+      setApiError(err.message || "Failed to save about notes");
+      throw err;
+    }
+  };
+
   const handleCreateFolder = async ({ name, workIds = [] } = {}) => {
     if (!authUser?.id) throw new Error("Sign in to create folders");
     const folder = createFolder(authUser.id, name);
     setFolders(loadFolders(authUser.id));
     setCreateFolderOpen(false);
 
+    let activeFolderId = folder.id;
+    try {
+      const serverFolder = await createFolderApi({ name });
+      if (serverFolder?.id) {
+        activeFolderId = serverFolder.id;
+        setFolders((list) =>
+          list.map((f) => (f.name.toLowerCase() === name.toLowerCase() ? { ...f, id: serverFolder.id } : f))
+        );
+      }
+    } catch {
+      /* local creation already active */
+    }
+
     const ids = Array.isArray(workIds) ? workIds : [];
     for (const id of ids) {
       const project = projectsRef.current.find((p) => p._id === id);
       if (!project) continue;
-      setWorkFolder(authUser.id, project._id, folder.id);
+      setWorkFolder(authUser.id, project._id, activeFolderId);
       setProjects((list) =>
-        patchProject(list, { ...project, folderId: folder.id })
+        patchProject(list, { ...project, folderId: activeFolderId })
       );
       try {
         const updated = await updateProject(project._id, {
-          folderId: folder.id,
+          folderId: activeFolderId,
         });
         setProjects((list) =>
           patchProject(list, {
             ...updated,
-            folderId: updated.folderId || folder.id,
+            folderId: updated.folderId || activeFolderId,
           })
         );
       } catch {
@@ -1156,6 +1203,7 @@ export default function App() {
       }
       deleteFolder(authUser.id, folder.id);
       setFolders(loadFolders(authUser.id));
+      deleteFolderApi(folder.id).catch(() => {});
       setApiError("");
     } catch (err) {
       setApiError(err.message);
@@ -1787,91 +1835,63 @@ export default function App() {
             if (event.target === event.currentTarget) handleCloseWork();
           }}
         >
-          <section
-            className="work-drawer"
-            role="dialog"
-            aria-modal="false"
-            aria-label={`${activeName || "Work"} workspace`}
-          >
-            <div className="work-drawer-stage">
-              {(() => {
-                const openProj = projects.find((p) => p._id === openWorkId);
-                if (!openProj) return null;
-                const originId = openProj.originId || openProj.sharedTemplateId || openProj._id;
-                const hasGroup = Boolean(
-                  openProj.originId ||
-                    openProj.sharedTemplateId ||
-                    openProj.isShared ||
-                    getFollowedWorkGroup(originId) ||
-                    getFollowedWorkGroup(openProj._id)
-                );
-                if (!hasGroup) return null;
-                return (
-                  <div className="hourglass-group-header">
-                    <FollowedWorkGroup
-                      originId={originId}
-                      project={openProj}
-                    />
-                  </div>
-                );
-              })()}
-              <div className="work-drawer-glass-row">
-                <div className="glass-wrap">
-                  <Hourglass
-                    progress={progress}
-                    pouring={pouring}
-                    finished={completed}
+          {(() => {
+            const openProj = projects.find((p) => p._id === openWorkId);
+            if (!openProj) return null;
+            const originId = openProj?.originId || openProj?.sharedTemplateId || openProj?._id;
+            const hasGroup = Boolean(
+              openProj && (
+                openProj.originId ||
+                openProj.sharedTemplateId ||
+                openProj.isShared ||
+                getFollowedWorkGroup(originId) ||
+                getFollowedWorkGroup(openProj._id)
+              )
+            );
+            return (
+              <section
+                className="work-drawer"
+                role="dialog"
+                aria-modal="false"
+                aria-label={`${activeName || "Work"} workspace`}
+              >
+                <div className="work-drawer-stage">
+                  {hasGroup && (
+                    <div className="hourglass-group-header">
+                      <FollowedWorkGroup
+                        originId={originId}
+                        project={openProj}
+                      />
+                    </div>
+                  )}
+                  <FolderAboutField
+                    project={openProj}
+                    onSaveAbout={(aboutText) => handleSaveAbout(openProj._id, aboutText)}
+                    isLocked={isTasksLocked(openProj)}
                   />
                 </div>
-                <PourButton
-                  pouring={pouring}
-                  disabled={completed}
-                  onPress={startPour}
-                  onRelease={stopPour}
-                  onReset={reset}
+                <DonePopup
+                  project={openProj}
+                  onClose={handleCloseWork}
+                  onAdd={handleAddTopic}
+                  onRemove={handleRemoveTopic}
+                  onToggle={handleToggleTopic}
+                  onSetSource={handleSetTopicSource}
+                  readOnlyTasks={isTasksLocked(openProj)}
+                  isCollaborative={Boolean(
+                    hasGroup ||
+                    openProj?.originId ||
+                    openProj?.sharedTemplateId ||
+                    openProj?.isShared ||
+                    openProj?.originMode ||
+                    openProj?.shareMode ||
+                    projects.some((p) => p._id !== openProj?._id && String(p.originId || "") === String(openProj?._id))
+                  )}
+                  inline
                 />
-              </div>
-              <div className="progress-done">
-                <div className="progress-done-label">
-                  <span>Progress</span>
-                  <strong>{Math.round(progress * 100)}%</strong>
-                </div>
-                <div
-                  className="progress-track"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(progress * 100)}
-                  aria-label="Progress done"
-                >
-                  <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
-                </div>
-              </div>
-              <button
-                type="button"
-                className="work-drawer-share-btn"
-                onClick={() => {
-                  setShareSeed(null);
-                  setShareOpen(true);
-                }}
-              >
-                Share
-              </button>
-
-            </div>
-            <DonePopup
-              project={projects.find((project) => project._id === openWorkId)}
-              onClose={handleCloseWork}
-              onAdd={handleAddTopic}
-              onRemove={handleRemoveTopic}
-              onToggle={handleToggleTopic}
-              onSetSource={handleSetTopicSource}
-              readOnlyTasks={isTasksLocked(
-                projects.find((project) => project._id === openWorkId)
-              )}
-              inline
-            />
-          </section>
+              </section>
+            );
+          })()}
         </div>
       ) : null}
       {worksPickerProject && (
@@ -1899,6 +1919,15 @@ export default function App() {
           mode={topicPopup.mode || "all"}
           topicIds={topicPopup.topicIds}
           readOnlyTasks={isTasksLocked(popupProject)}
+          isCollaborative={Boolean(
+            popupProject?.originId ||
+            popupProject?.sharedTemplateId ||
+            popupProject?.isShared ||
+            popupProject?.originMode ||
+            popupProject?.shareMode ||
+            getFollowedWorkGroup(popupProject?.originId || popupProject?._id) ||
+            projects.some((p) => p._id !== popupProject?._id && String(p.originId || "") === String(popupProject?._id))
+          )}
           onClose={closeTopicPopup}
           onAdd={handleAddTopic}
           onRemove={handleRemoveTopic}

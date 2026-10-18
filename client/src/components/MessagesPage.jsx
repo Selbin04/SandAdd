@@ -74,7 +74,7 @@ function ThreadAvatar({ thread }) {
     return (
       <img
         className="messages-avatar messages-avatar-logo"
-        src="/sandadd-mark.png?v=exact4"
+        src="/sandadd-mark.png?v=newlogo"
         alt=""
       />
     );
