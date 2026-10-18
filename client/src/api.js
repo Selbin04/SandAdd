@@ -9,7 +9,9 @@ async function readJson(res, fallbackMessage, { clearOn401 = true } = {}) {
       // Stale / missing session — drop local token so the gate can show login
       clearAuthSession();
     }
-    throw new Error(data.error || fallbackMessage);
+    const baseMessage = data.error || data.message || fallbackMessage;
+    const message = data.details ? `${baseMessage}: ${data.details}` : baseMessage;
+    throw new Error(message);
   }
   return res.json();
 }

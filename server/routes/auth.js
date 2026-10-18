@@ -106,7 +106,10 @@ export default function authRoutes(useMemory) {
       return res.status(201).json({ token, user: publicUser(user) });
     } catch (err) {
       console.error("register failed", err);
-      return res.status(500).json({ error: "Could not create account." });
+      return res.status(500).json({
+        error: "Could not create account.",
+        details: err?.message || String(err),
+      });
     }
   });
 
@@ -133,7 +136,10 @@ export default function authRoutes(useMemory) {
       return res.json({ token, user: publicUser(user) });
     } catch (err) {
       console.error("login failed", err);
-      return res.status(500).json({ error: "Could not sign in." });
+      return res.status(500).json({
+        error: "Could not sign in.",
+        details: err?.message || String(err),
+      });
     }
   });
 
@@ -150,7 +156,10 @@ export default function authRoutes(useMemory) {
       return res.json({ user: publicUser(user) });
     } catch (err) {
       console.error("me failed", err);
-      return res.status(500).json({ error: "Could not load session." });
+      return res.status(500).json({
+        error: "Could not load session.",
+        details: err?.message || String(err),
+      });
     }
   });
 
@@ -161,7 +170,10 @@ export default function authRoutes(useMemory) {
       return res.json({ ok: true });
     } catch (err) {
       console.error("logout failed", err);
-      return res.status(500).json({ error: "Could not sign out." });
+      return res.status(500).json({
+        error: "Could not sign out.",
+        details: err?.message || String(err),
+      });
     }
   });
 
@@ -194,7 +206,10 @@ export function requireAuth(useMemory) {
       next();
     } catch (err) {
       console.error("auth middleware failed", err);
-      return res.status(500).json({ error: "Auth check failed." });
+      return res.status(500).json({
+        error: "Auth check failed.",
+        details: err?.message || String(err),
+      });
     }
   };
 }

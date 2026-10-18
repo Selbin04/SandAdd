@@ -2,11 +2,19 @@
   "name": "hourglass",
   "version": "1.0.0",
   "private": true,
-  "description": "MERN hourglass for tracking how much work is finished on each project",
+  "type": "module",
   "scripts": {
+    "build": "npm run build --prefix client",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "start": "npm run start --prefix server"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

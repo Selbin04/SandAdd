@@ -13,6 +13,9 @@ export default async function handler(req, res) {
   } catch (error) {
     appPromise = null;
     console.error("Could not initialize API function", error);
-    return res.status(503).json({ error: "API database is not configured." });
+    return res.status(503).json({
+      error: "API database or server configuration error.",
+      details: error.message,
+    });
   }
 }
