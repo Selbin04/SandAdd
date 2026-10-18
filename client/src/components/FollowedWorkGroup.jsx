@@ -21,8 +21,43 @@ export default function FollowedWorkGroup({ originId, project }) {
   const [activeTab, setActiveTab] = useState("all"); // 'all' | 'updates' | 'chat'
   const [showQuickUpdates, setShowQuickUpdates] = useState(false);
   const messagesEndRef = useRef(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const effectiveOriginId = originId || project?.originId || project?._id;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handleOutside = (e) => {
+      if (
+        (panelRef.current && panelRef.current.contains(e.target)) ||
+        (triggerRef.current && triggerRef.current.contains(e.target))
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleOutside);
+      document.addEventListener("touchstart", handleOutside, { passive: true });
+      document.addEventListener("keydown", handleKeyDown);
+    }, 0);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   useEffect(() => {
     const refresh = () => {
@@ -106,8 +141,9 @@ export default function FollowedWorkGroup({ originId, project }) {
   };
 
   return (
-    <div className="work-group-anchor">
+    <div className={`work-group-anchor ${open ? "is-open" : ""}`}>
       <button
+        ref={triggerRef}
         type="button"
         className="work-group-trigger"
         aria-expanded={open}
@@ -138,7 +174,18 @@ export default function FollowedWorkGroup({ originId, project }) {
       </button>
 
       {open ? (
-        <section className="work-group-panel" aria-label={`${group.name} messages`}>
+        <>
+          <div
+            className="work-group-backdrop"
+            aria-hidden="true"
+            onClick={() => setOpen(false)}
+          />
+          <section
+            ref={panelRef}
+            className="work-group-panel"
+            aria-label={`${group.name} messages`}
+            onClick={(e) => e.stopPropagation()}
+          >
           <header className="work-group-panel-head">
             <div className="work-group-head-title">
               <strong>{group.name} Group</strong>
@@ -330,7 +377,8 @@ export default function FollowedWorkGroup({ originId, project }) {
             </button>
           </form>
         </section>
-      ) : null}
+      </>
+    ) : null}
     </div>
   );
 }

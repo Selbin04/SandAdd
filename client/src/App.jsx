@@ -1799,6 +1799,9 @@ export default function App() {
                 projects={projects.filter(
                   (p) => !p.important && p.folderId === folder.id
                 )}
+                allFolderProjects={projects.filter(
+                  (p) => p.folderId === folder.id
+                )}
                 activeId={activeId}
                 folders={folders}
                 onSelect={handleSelect}
@@ -1872,6 +1875,8 @@ export default function App() {
                 </div>
                 <DonePopup
                   project={openProj}
+                  folders={folders}
+                  allProjects={projects}
                   onClose={handleCloseWork}
                   onAdd={handleAddTopic}
                   onRemove={handleRemoveTopic}
@@ -1914,6 +1919,8 @@ export default function App() {
       {popupProject && (
         <DonePopup
           project={popupProject}
+          folders={folders}
+          allProjects={projects}
           x={topicPopup.x}
           y={topicPopup.y}
           mode={topicPopup.mode || "all"}

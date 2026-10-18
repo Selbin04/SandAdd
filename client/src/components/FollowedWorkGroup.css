@@ -4,6 +4,36 @@
   width: 100%;
 }
 
+.work-group-anchor.is-open {
+  z-index: 1145;
+}
+
+.work-group-anchor.is-open .work-group-trigger {
+  position: relative;
+  z-index: 1146;
+}
+
+/* Backdrop behind the open panel so clicking outside/surroundings immediately closes it */
+.work-group-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1140;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: work-group-fade-in 0.18s ease both;
+  cursor: pointer;
+}
+
+@keyframes work-group-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .work-group-trigger {
   display: flex;
   align-items: center;
@@ -96,6 +126,19 @@
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.12);
   color: var(--paper, #f0f4f1);
   overflow: hidden;
+  animation: work-group-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overscroll-behavior: contain;
+}
+
+@keyframes work-group-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .work-group-panel-head {
@@ -242,6 +285,7 @@
   min-height: 120px;
   max-height: 260px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px;
 }
 
@@ -460,4 +504,59 @@
 .work-group-compose button[type="submit"]:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* Small Screen Responsive Layout */
+@media (max-width: 760px) {
+  .work-group-backdrop {
+    background: rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .work-group-panel {
+    max-height: min(440px, 70vh);
+    border-radius: 14px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+
+  .work-group-messages {
+    max-height: 210px;
+    min-height: 80px;
+    padding: 10px;
+  }
+
+  .work-group-compose {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .work-group-panel {
+    max-height: min(420px, 66vh);
+  }
+
+  .work-group-messages {
+    max-height: 180px;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .work-group-panel-head {
+    padding: 8px 10px;
+  }
+
+  .work-group-head-title strong {
+    font-size: 13px;
+  }
+
+  .work-group-head-title span {
+    font-size: 10px;
+  }
+
+  .inform-update-btn {
+    padding: 3px 7px;
+    font-size: 10px;
+  }
 }

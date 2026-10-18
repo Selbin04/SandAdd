@@ -64,6 +64,44 @@
   line-height: 1;
 }
 
+.folder-hourglass-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface, rgba(255, 255, 255, 0.04));
+  color: #f59e0b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  padding: 0;
+}
+
+.folder-hourglass-btn:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  transform: translateY(-1px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.folder-hourglass-btn:active {
+  transform: scale(0.95);
+}
+
+.folder-hourglass-icon {
+  display: block;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.folder-hourglass-btn:hover .folder-hourglass-icon {
+  transform: rotate(180deg);
+}
+
 .folder-delete-btn {
   width: 28px;
   height: 28px;

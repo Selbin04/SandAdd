@@ -2,11 +2,13 @@ import { useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
+import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import "./FolderPanel.css";
 
 export default function FolderPanel({
   folder,
   projects,
+  allFolderProjects,
   activeId,
   folders = [],
   onSelect,
@@ -22,6 +24,7 @@ export default function FolderPanel({
 }) {
   const [showAddFile, setShowAddFile] = useState(false);
   const [newFileName, setNewFileName] = useState("");
+  const [showHourglassModal, setShowHourglassModal] = useState(false);
 
   const handleAddSubmit = (e) => {
     e.preventDefault();
@@ -50,6 +53,36 @@ export default function FolderPanel({
           )}
           <button
             type="button"
+            className="folder-hourglass-btn"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowHourglassModal(true);
+            }}
+            aria-label={`Open hourglass and progress for ${folder.name}`}
+            title="Open folder hourglass & progress"
+          >
+            <svg
+              className="folder-hourglass-icon"
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 22h14" />
+              <path d="M5 2h14" />
+              <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+              <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+            </svg>
+          </button>
+          <button
+            type="button"
             className="folder-delete-btn"
             onClick={() => onDeleteFolder?.(folder)}
             aria-label={`Delete folder ${folder.name}`}
@@ -59,6 +92,19 @@ export default function FolderPanel({
           </button>
         </div>
       </header>
+
+      {showHourglassModal && (
+        <FolderHourglassModal
+          folder={folder}
+          projects={
+            allFolderProjects && allFolderProjects.length > 0
+              ? allFolderProjects
+              : projects
+          }
+          onClose={() => setShowHourglassModal(false)}
+          onOpenWork={onOpenWork}
+        />
+      )}
 
       {showAddFile && (
         <form className="folder-add-file-form" onSubmit={handleAddSubmit}>

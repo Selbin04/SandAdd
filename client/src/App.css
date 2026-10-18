@@ -919,7 +919,8 @@
   margin-top: 5px;
 }
 
-.priority-stars button {
+.priority-stars button,
+.priority-stars .star-btn {
   width: 18px;
   height: 18px;
   padding: 0;
@@ -928,10 +929,17 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
 }
 
 .priority-stars button.is-on,
-.priority-stars button:hover {
+.priority-stars .star-btn.is-on,
+.priority-stars button:hover,
+.priority-stars .star-btn:hover {
   color: var(--brass);
 }
 
@@ -1664,6 +1672,45 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.done-head-hourglass-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  margin-top: -4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface, rgba(255, 255, 255, 0.04));
+  color: #f59e0b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  padding: 0;
+}
+
+.done-head-hourglass-btn:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  transform: translateY(-1px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.done-head-hourglass-btn:active {
+  transform: scale(0.95);
+}
+
+.done-head-hourglass-icon {
+  display: block;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.done-head-hourglass-btn:hover .done-head-hourglass-icon {
+  transform: rotate(180deg);
 }
 
 .done-inline-close {

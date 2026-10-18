@@ -12,6 +12,7 @@ import { getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
 import { getFollowedWorkGroup } from "../lib/followingStore.js";
 import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
+import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -428,7 +429,10 @@ export default function DonePopup({
   readOnlyTasks = false,
   inline = false,
   isCollaborative = false,
+  folders = [],
+  allProjects = [],
 }) {
+  const [showHourglassModal, setShowHourglassModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -987,6 +991,36 @@ export default function DonePopup({
                 <span className="creator-tagline-chip">{tagline}</span>
               );
             })()}
+            <button
+              type="button"
+              className="done-head-hourglass-btn"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowHourglassModal(true);
+              }}
+              aria-label={`Open hourglass and progress for ${project.name}`}
+              title="Open hourglass & progress"
+            >
+              <svg
+                className="done-head-hourglass-icon"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 22h14" />
+                <path d="M5 2h14" />
+                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+              </svg>
+            </button>
             {inline ? (
               <button
                 type="button"
@@ -1971,6 +2005,27 @@ export default function DonePopup({
         </div>,
         document.body
       )}
+
+    {showHourglassModal && (
+      <FolderHourglassModal
+        folder={
+          (folders || []).find((f) => f.id === project?.folderId) || {
+            name: project?.name || "Progress",
+          }
+        }
+        projects={
+          (() => {
+            const parent = (folders || []).find((f) => f.id === project?.folderId);
+            if (parent && Array.isArray(allProjects) && allProjects.length > 0) {
+              const inFolder = allProjects.filter((p) => p.folderId === parent.id);
+              if (inFolder.length > 0) return inFolder;
+            }
+            return project ? [project] : [];
+          })()
+        }
+        onClose={() => setShowHourglassModal(false)}
+      />
+    )}
   </>
   );
 }

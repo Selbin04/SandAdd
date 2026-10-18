@@ -161,15 +161,26 @@ export default function ProjectPanel({
                         {[1, 2, 3, 4, 5].map((n) => {
                           const current = Number(p.stars) || 0;
                           return (
-                            <button
+                            <span
                               key={n}
-                              type="button"
-                              className={n <= current ? "is-on" : ""}
-                              onClick={() => onSetStars(p, n === current ? 0 : n)}
+                              role="button"
+                              tabIndex={0}
+                              className={`star-btn ${n <= current ? "is-on" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSetStars(p, n === current ? 0 : n);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  onSetStars(p, n === current ? 0 : n);
+                                }
+                              }}
                               aria-label={`Set ${p.name} to ${n} star${n === 1 ? "" : "s"}`}
                             >
                               ★
-                            </button>
+                            </span>
                           );
                         })}
                       </span>
