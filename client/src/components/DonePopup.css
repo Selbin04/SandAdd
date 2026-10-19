@@ -51,9 +51,18 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  padding: 20px 20px 16px;
+  padding: 0;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.done-card-inline .done-head-bar,
+.done-card.done-card-inline .done-head-bar {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  box-sizing: border-box;
+  flex: 0 0 auto;
 }
 
 .done-head-bar {
@@ -177,16 +186,90 @@
 
 .done-card-inline .done-list,
 .done-card.done-card-inline .done-list {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   max-height: none;
+  height: auto;
+  overflow-y: visible;
+  overscroll-behavior: auto;
+  margin: 0 0 16px;
+  padding-right: 0;
+}
+
+/* Non-inline regular modal popup: transparent layout */
+.done-card:not(.done-card-inline) .done-scroll-content {
+  display: contents;
+}
+
+/* Inline drawer single-page scroll container */
+.done-card-inline .done-scroll-content,
+.done-card.done-card-inline .done-scroll-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100%;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-x: hidden;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
   -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
-  margin: 0 0 10px;
-  padding-right: 4px;
+}
+
+.done-card-inline .done-scroll-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.done-card-inline .done-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.done-card-inline .done-scroll-content::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+.done-card-inline .done-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+.done-about-section {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.done-tasks-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 10px;
+  flex: 0 0 auto;
+}
+
+.done-tasks-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.done-tasks-section-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace, monospace;
+}
+
+.done-card-inline .done-add-container,
+.done-card.done-card-inline .done-add-container {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 60%, transparent) 0%, var(--panel) 35%, var(--panel) 100%);
+  padding-bottom: 8px;
 }
 
 .done-list li {

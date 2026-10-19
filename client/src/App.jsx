@@ -214,6 +214,7 @@ export default function App() {
   const [socialGroupId, setSocialGroupId] = useState(null);
   const [messagesThreadId, setMessagesThreadId] = useState(null);
   const [folders, setFolders] = useState([]);
+  const [activeFolderId, setActiveFolderId] = useState(null);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const reviewStartedRef = useRef(false);
 
@@ -896,9 +897,15 @@ export default function App() {
         completed: false,
         creatorName: author.name || authUser?.name || "Me",
         creatorHandle: author.handle || "",
+        folderId: activeFolderId || null,
       });
+      if (activeFolderId && authUser?.id) {
+        setWorkFolder(authUser.id, created._id, activeFolderId);
+      }
       setNewName("");
-      setProjects((list) => upsertProject(list, created));
+      setProjects((list) =>
+        upsertProject(list, { ...created, folderId: activeFolderId || null })
+      );
       applyProject(created);
       setApiError("");
     } catch (err) {
@@ -1066,6 +1073,9 @@ export default function App() {
   const regularProjects = projects.filter(
     (p) => !p.important && !p.folderId
   );
+  const displayedRegularProjects = activeFolderId
+    ? projects.filter((p) => !p.important && p.folderId === activeFolderId)
+    : regularProjects;
   const importantProjects = projects
     .filter((p) => p.important)
     .sort((a, b) => {
@@ -1159,6 +1169,7 @@ export default function App() {
         /* local membership already saved */
       }
     }
+    setActiveFolderId(activeFolderId);
     setApiError("");
     return folder;
   };
@@ -1203,6 +1214,9 @@ export default function App() {
       }
       deleteFolder(authUser.id, folder.id);
       setFolders(loadFolders(authUser.id));
+      if (activeFolderId === folder.id) {
+        setActiveFolderId(null);
+      }
       deleteFolderApi(folder.id).catch(() => {});
       setApiError("");
     } catch (err) {
@@ -1771,7 +1785,7 @@ export default function App() {
           <div id="projects-panel" className="layout-projects">
             <ProjectPanel
               title="Projects"
-              projects={regularProjects}
+              projects={displayedRegularProjects}
               activeId={activeId}
               storage={storage}
               showStorage
@@ -1784,43 +1798,22 @@ export default function App() {
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
               importantAction="add"
-              emptyText="Create a progress path folder and add tasks. Star a progress path to move it to Important . Open to view and manage its tasks"
+              emptyText={
+                activeFolderId
+                  ? "No progress paths in this folder yet. Add one above."
+                  : "Create a progress path folder and add tasks. Star a progress path to move it to Important . Open to view and manage its tasks"
+              }
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
               onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
               onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
               folders={folders}
               onMoveToFolder={handleMoveToFolder}
               onCreateFolder={() => setCreateFolderOpen(true)}
+              onDeleteFolder={handleDeleteFolder}
+              activeFolderId={activeFolderId}
+              onSelectFolder={setActiveFolderId}
+              allProjects={projects}
             />
-            {folders.map((folder) => (
-              <FolderPanel
-                key={folder.id}
-                folder={folder}
-                projects={projects.filter(
-                  (p) => !p.important && p.folderId === folder.id
-                )}
-                allFolderProjects={projects.filter(
-                  (p) => p.folderId === folder.id
-                )}
-                activeId={activeId}
-                folders={folders}
-                onSelect={handleSelect}
-                onOpenWork={handleOpenWork}
-                onDelete={handleDelete}
-                onToggleImportant={handleToggleImportant}
-                onOpenTopics={(project, rect) =>
-                  handleOpenTopics(project, rect, "all")
-                }
-                onShareFollow={(project) =>
-                  setWorkShare({ project, mode: "follow" })
-                }
-                onShareAssign={(project) =>
-                  setWorkShare({ project, mode: "assign" })
-                }
-                onMoveToFolder={handleMoveToFolder}
-                onDeleteFolder={handleDeleteFolder}
-              />
-            ))}
           </div>
           <PopularFoldersBox
             onAddFolder={handleAddPopularFolder}
@@ -1853,26 +1846,11 @@ export default function App() {
             );
             return (
               <section
-                className="work-drawer"
+                className="work-drawer is-single-page"
                 role="dialog"
                 aria-modal="false"
                 aria-label={`${activeName || "Work"} workspace`}
               >
-                <div className="work-drawer-stage">
-                  {hasGroup && (
-                    <div className="hourglass-group-header">
-                      <FollowedWorkGroup
-                        originId={originId}
-                        project={openProj}
-                      />
-                    </div>
-                  )}
-                  <FolderAboutField
-                    project={openProj}
-                    onSaveAbout={(aboutText) => handleSaveAbout(openProj._id, aboutText)}
-                    isLocked={isTasksLocked(openProj)}
-                  />
-                </div>
                 <DonePopup
                   project={openProj}
                   folders={folders}
@@ -1893,6 +1871,23 @@ export default function App() {
                     projects.some((p) => p._id !== openProj?._id && String(p.originId || "") === String(openProj?._id))
                   )}
                   inline
+                  aboutSlot={
+                    <div className="work-drawer-about-wrap">
+                      {hasGroup && (
+                        <div className="hourglass-group-header">
+                          <FollowedWorkGroup
+                            originId={originId}
+                            project={openProj}
+                          />
+                        </div>
+                      )}
+                      <FolderAboutField
+                        project={openProj}
+                        onSaveAbout={(aboutText) => handleSaveAbout(openProj._id, aboutText)}
+                        isLocked={isTasksLocked(openProj)}
+                      />
+                    </div>
+                  }
                 />
               </section>
             );

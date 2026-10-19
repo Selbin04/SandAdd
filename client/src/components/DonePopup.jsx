@@ -432,6 +432,7 @@ export default function DonePopup({
   isCollaborative = false,
   folders = [],
   allProjects = [],
+  aboutSlot = null,
 }) {
   const [showHourglassModal, setShowHourglassModal] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -1052,6 +1053,22 @@ export default function DonePopup({
           </div>
         </div>
 
+        <div className="done-scroll-content">
+          {aboutSlot ? (
+            <div className="done-about-section">
+              {aboutSlot}
+            </div>
+          ) : null}
+
+          {inline && aboutSlot ? (
+            <div className="done-tasks-section-header">
+              <span className="done-tasks-section-title">Tasks</span>
+              <span className="done-tasks-section-count">
+                {topics.filter((t) => t.done).length}/{topics.length} done
+              </span>
+            </div>
+          ) : null}
+
         {topics.length === 0 ? (
           <p className="done-empty">
             {todayMode
@@ -1654,6 +1671,7 @@ export default function DonePopup({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
 

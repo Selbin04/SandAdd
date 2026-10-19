@@ -35,29 +35,29 @@
 
 @media (max-width: 980px) {
   :root {
-    --navbar-height: 104px;
-    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 16px);
+    --navbar-height: 94px;
+    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 14px);
   }
 }
 
 @media (max-width: 640px) {
   :root {
-    --navbar-height: 114px;
-    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 14px);
+    --navbar-height: 88px;
+    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 12px);
   }
 }
 
 @media (max-width: 480px) {
   :root {
-    --navbar-height: 122px;
-    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 14px);
+    --navbar-height: 84px;
+    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 12px);
   }
 }
 
 @media (max-width: 360px) {
   :root {
-    --navbar-height: 132px;
-    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 12px);
+    --navbar-height: 80px;
+    --navbar-clearance: calc(var(--navbar-height) + var(--safe-top) + 10px);
   }
 }
 
