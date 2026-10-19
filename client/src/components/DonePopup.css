@@ -1,12 +1,46 @@
 .done-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 1050;
   overflow: auto;
   overscroll-behavior: contain;
   background: transparent;
   /* Let tall works lists scroll with this surface (main overlay scroll) */
   padding-bottom: 48px;
+}
+
+.done-view-mode-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+  margin-top: 4px;
+}
+
+.done-view-mode-tab {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+
+.done-view-mode-tab:hover {
+  color: var(--paper);
+}
+
+.done-view-mode-tab.is-active {
+  background: var(--surface-strong);
+  color: var(--paper);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .done-card {

@@ -1258,10 +1258,18 @@ export default function App() {
   };
 
   const handleOpenTopics = (project, rect, view = "all") => {
-    const width = 260;
+    const width = 320;
     const gap = 8;
     const spaceRight = window.innerWidth - rect.right;
-    const x = spaceRight > width + 16 ? rect.right + gap : rect.left - width - gap;
+    const spaceLeft = rect.left;
+    let x;
+    if (spaceRight >= width + 16) {
+      x = rect.right + gap;
+    } else if (spaceLeft >= width + 16) {
+      x = rect.left - width - gap;
+    } else {
+      x = Math.max(8, Math.min(rect.left, window.innerWidth - width - 16));
+    }
 
     pourTargetRef.current = null;
     pouringRef.current = false;
@@ -1274,12 +1282,14 @@ export default function App() {
     };
 
     if (view === "today") {
+      const dailyIds = getDailyWorkIds(project._id);
+      const hasDaily = Array.isArray(dailyIds) && dailyIds.length > 0;
       setTopicPopup({
         projectId: project._id,
         x,
         y: rect.top,
-        mode: "today",
-        topicIds: getDailyWorkIds(project._id) || [],
+        mode: hasDaily ? "today" : "all",
+        topicIds: dailyIds || [],
       });
       return;
     }
@@ -1794,7 +1804,6 @@ export default function App() {
               projects={selectedProjects}
               activeId={activeId}
               onSelect={handleSelect}
-              onOpenWork={handleOpenWork}
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
             />
           </div>

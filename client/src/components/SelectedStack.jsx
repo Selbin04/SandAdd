@@ -5,7 +5,6 @@ export default function SelectedStack({
   activeId,
   onSelect,
   onOpenTopics,
-  onOpenWork,
 }) {
   return (
     <aside className="panel selected-panel">
@@ -15,7 +14,7 @@ export default function SelectedStack({
       </header>
       {projects.length === 0 ? (
         <p className="empty">
-          Projects and today&apos;s tasks from the morning review appear here. Double-click a project to see today&apos;s tasks.
+          Projects and today&apos;s tasks from the morning review appear here. Click a project to see today&apos;s tasks.
         </p>
       ) : (
         <div className="selected-boxes-scroll-wrapper">
@@ -32,16 +31,26 @@ export default function SelectedStack({
                 <div
                   key={p._id}
                   className={`selected-rect-box ${active ? "active" : ""} ${p.completed ? "done" : ""}`}
-                  onClick={() => onSelect(p)}
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onOpenTopics(p, rect);
+                  onClick={(e) => {
+                    onSelect?.(p);
+                    if (onOpenTopics) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      onOpenTopics(p, rect);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onSelect?.(p);
+                      if (onOpenTopics) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        onOpenTopics(p, rect);
+                      }
+                    }
                   }}
                   role="button"
                   tabIndex={0}
-                  title={`Double click to view today's tasks for ${p.name}`}
+                  title={`Click to view tasks for ${p.name}`}
                 >
                   <div className="selected-rect-top">
                     <span className="mini-glass" aria-hidden="true">
@@ -54,19 +63,6 @@ export default function SelectedStack({
                       <span className="selected-rect-time">
                         {fillLabel(p.elapsedMs, duration)}
                       </span>
-                    ) : null}
-                    {onOpenWork ? (
-                      <button
-                        type="button"
-                        className="selected-rect-open-btn"
-                        aria-label={`Open ${p.name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenWork(p);
-                        }}
-                      >
-                        Open
-                      </button>
                     ) : null}
                   </div>
 

@@ -535,7 +535,25 @@ export default function DonePopup({
   }, [showAddForm]);
 
   const allTopics = Array.isArray(project.topics) ? project.topics : [];
-  const todayMode = mode === "today";
+  const hasDailyTopics = Array.isArray(topicIds) && topicIds.length > 0;
+  const [filterMode, setFilterMode] = useState(() => (mode === "today" && hasDailyTopics ? "today" : "all"));
+
+  useEffect(() => {
+    setFilterMode(mode === "today" && hasDailyTopics ? "today" : "all");
+  }, [mode, hasDailyTopics, project?._id]);
+
+  useEffect(() => {
+    if (inline || !onClose) return;
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [inline, onClose]);
+
+  const todayMode = filterMode === "today" && hasDailyTopics;
   const topics = todayMode
     ? allTopics.filter((t) => (topicIds || []).includes(String(t.id)))
     : allTopics;
@@ -956,9 +974,14 @@ export default function DonePopup({
     <>
       <div
         className={inline ? "done-inline" : "done-backdrop"}
-      onMouseDown={inline ? undefined : onClose}
-      role="presentation"
-    >
+        onMouseDown={inline ? undefined : (e) => {
+          if (e.target === e.currentTarget) onClose?.();
+        }}
+        onClick={inline ? undefined : (e) => {
+          if (e.target === e.currentTarget) onClose?.();
+        }}
+        role="presentation"
+      >
       <input
         ref={topicFileRef}
         type="file"
@@ -977,6 +1000,7 @@ export default function DonePopup({
         className={`done-card ${inline ? "done-card-inline" : ""}`}
         style={inline ? undefined : { left, top }}
         onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         role={inline ? undefined : "dialog"}
         aria-label={inline ? undefined : todayMode
           ? `${project.name} tasks for today`
@@ -985,13 +1009,36 @@ export default function DonePopup({
         <div className={`done-head-bar ${inline ? "done-inline-head" : ""}`}>
           <div className="done-head-copy">
             <p className="done-title">{project.name}</p>
-            <p className="done-hint">
-              {todayMode
-                ? "Tasks for today"
-                : readOnlyTasks
-                  ? "Tasks sync from the creator — you can tick them, but not edit or add"
-                  : "Tasks"}
-            </p>
+            {hasDailyTopics ? (
+              <div className="done-view-mode-tabs" role="tablist" aria-label="Task view filter">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={todayMode}
+                  className={`done-view-mode-tab ${todayMode ? "is-active" : ""}`}
+                  onClick={() => setFilterMode("today")}
+                >
+                  Today ({allTopics.filter((t) => (topicIds || []).includes(String(t.id))).length})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={!todayMode}
+                  className={`done-view-mode-tab ${!todayMode ? "is-active" : ""}`}
+                  onClick={() => setFilterMode("all")}
+                >
+                  All ({allTopics.length})
+                </button>
+              </div>
+            ) : (
+              <p className="done-hint">
+                {todayMode
+                  ? "Tasks for today"
+                  : readOnlyTasks
+                    ? "Tasks sync from the creator — you can tick them, but not edit or add"
+                    : "Tasks"}
+              </p>
+            )}
           </div>
           <div className="done-head-right">
             {(() => {
