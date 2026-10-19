@@ -73,25 +73,31 @@ function sanitizeWorks(works) {
 
 export const liveWorksStore = {
   get(originId) {
-    const id = String(originId || "");
-    if (!id) return null;
-    return state.works[id] || null;
+    const rawId = String(originId || "");
+    const cleanId = rawId.replace(/^(live|view)-/, "");
+    if (!rawId) return null;
+    return state.works[cleanId] || state.works[rawId] || null;
   },
 
   getMany(ids) {
     const out = {};
     for (const raw of ids || []) {
-      const id = String(raw || "");
-      if (!id) continue;
-      if (state.works[id]) out[id] = state.works[id];
+      const rawId = String(raw || "");
+      const cleanId = rawId.replace(/^(live|view)-/, "");
+      const entry = state.works[cleanId] || state.works[rawId];
+      if (entry) {
+        out[rawId] = entry;
+        out[cleanId] = entry;
+      }
     }
     return out;
   },
 
   put(originId, payload, ownerId) {
-    const id = String(originId || "");
+    const rawId = String(originId || "");
+    const id = rawId.replace(/^(live|view)-/, "");
     if (!id) return null;
-    const prev = state.works[id];
+    const prev = state.works[id] || state.works[rawId];
     if (prev?.ownerId && String(prev.ownerId) !== String(ownerId)) {
       return { error: "forbidden" };
     }
@@ -118,6 +124,7 @@ export const liveWorksStore = {
       durationMs: Number(payload?.durationMs) || prev?.durationMs || 30_000,
       updatedAt: Date.now(),
       author: payload?.author || prev?.author || null,
+      about: String(payload?.about || prev?.about || "").slice(0, 2000),
       deleted: false,
     };
     state.works[id] = entry;

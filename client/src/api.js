@@ -211,4 +211,76 @@ export async function summarizeSourceApi({ type, content, proof, title }) {
   return readJson(res, "Could not summarize source");
 }
 
+export async function fetchSocialPosts({ scope = "view", groupId = null } = {}) {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (groupId) params.set("groupId", groupId);
+  const res = await fetch(`${API}/social/posts?${params}`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load social feed");
+}
+
+export async function createSocialPost(payload) {
+  const res = await fetch(`${API}/social/posts`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload || {}),
+  });
+  return readJson(res, "Could not create social post");
+}
+
+export async function deleteSocialPost(id) {
+  const res = await fetch(`${API}/social/posts/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not delete post");
+}
+
+export async function toggleLikeSocialPost(id) {
+  const res = await fetch(`${API}/social/posts/${encodeURIComponent(id)}/like`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+  });
+  return readJson(res, "Could not like post");
+}
+
+export async function addPostCommentApi(postId, text) {
+  const res = await fetch(
+    `${API}/social/posts/${encodeURIComponent(postId)}/comments`,
+    {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ text }),
+    }
+  );
+  return readJson(res, "Could not add comment");
+}
+
+export async function fetchSocialGroups() {
+  const res = await fetch(`${API}/social/groups`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load social groups");
+}
+
+export async function createSocialGroupApi({ name, blurb = "", avatar = "" }) {
+  const res = await fetch(`${API}/social/groups`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ name, blurb, avatar }),
+  });
+  return readJson(res, "Could not create group");
+}
+
+export async function joinSocialGroupApi(groupId) {
+  const res = await fetch(`${API}/social/groups/${encodeURIComponent(groupId)}/join`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+  });
+  return readJson(res, "Could not join group");
+}
+
+
 

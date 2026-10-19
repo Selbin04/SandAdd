@@ -7,6 +7,7 @@ import authRoutes, { requireAuth } from "./routes/auth.js";
 import createLiveWorksRouter from "./routes/liveWorks.js";
 import folderRoutes from "./routes/folders.js";
 import createAiRoutes from "./routes/ai.js";
+import createSocialRouter from "./routes/social.js";
 
 const LOCAL_MONGO_URI = "mongodb://127.0.0.1:27017/hourglass";
 let mongoConnectionPromise = null;
@@ -146,6 +147,7 @@ export async function createApp({ allowMemory = false } = {}) {
     requireAuth(useMemory),
     createLiveWorksRouter(useMemory)
   );
+  app.use("/api/social", requireAuth(useMemory), createSocialRouter(useMemory));
   app.use("/api/ai", createAiRoutes());
 
   app.use((err, _req, res, _next) => {

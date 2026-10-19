@@ -15,9 +15,9 @@ const socialPostSchema = new mongoose.Schema(
     authorId: { type: String, ref: "User", required: true, index: true },
     author: { type: authorSchema, default: () => ({}) },
     scope: { type: String, enum: ["view", "group"], default: "view", index: true },
-    groupId: { type: String, ref: "SocialGroup", default: null, index: true },
+    groupId: { type: String, default: null, index: true },
     groupName: { type: String, default: "", maxlength: 60 },
-    body: { type: String, default: "", maxlength: 280 },
+    body: { type: String, default: "", maxlength: 2000 },
     meta: { type: String, default: "", maxlength: 160 },
     projectId: { type: String, default: null, maxlength: 120 },
     projectName: { type: String, default: "", maxlength: 80 },
@@ -26,13 +26,15 @@ const socialPostSchema = new mongoose.Schema(
     sharedProject: { type: mongoose.Schema.Types.Mixed, default: null },
     proof: { type: mongoose.Schema.Types.Mixed, default: null },
     kind: { type: String, enum: ["post", "finished"], default: "post" },
+    likes: { type: [String], default: [] },
+    comments: { type: [mongoose.Schema.Types.Mixed], default: [] },
   },
   { timestamps: true }
 );
 
 socialPostSchema.index({ scope: 1, groupId: 1, createdAt: -1 });
 socialPostSchema.index({ authorId: 1, createdAt: -1 });
-socialPostSchema.index({ authorId: 1, clientId: 1 }, { unique: true });
+socialPostSchema.index({ clientId: 1 }, { unique: true });
 
 socialPostSchema.pre("validate", function validateGroupScope(next) {
   if (this.scope === "group" && !this.groupId) {

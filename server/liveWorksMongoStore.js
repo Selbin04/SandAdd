@@ -55,28 +55,47 @@ function sanitizeWorks(works) {
 
 export const liveWorksMongoStore = {
   async get(originId) {
-    const entry = await LiveWork.findOne({ originId: String(originId || "") }).lean();
+    const id = String(originId || "");
+    const cleanId = id.replace(/^(live|view)-/, "");
+    const entry = await LiveWork.findOne({
+      originId: { $in: [id, cleanId] },
+    }).lean();
     return serialize(entry);
   },
 
   async getMany(ids) {
+    const rawIds = ids.map(String);
+    const cleanIds = rawIds.map((id) => id.replace(/^(live|view)-/, ""));
+    const allQueryIds = Array.from(new Set([...rawIds, ...cleanIds]));
     const entries = await LiveWork.find({
-      originId: { $in: ids.map(String) },
+      originId: { $in: allQueryIds },
     }).lean();
-    return Object.fromEntries(entries.map((entry) => [entry.originId, serialize(entry)]));
+    const result = {};
+    for (const entry of entries) {
+      const s = serialize(entry);
+      result[entry.originId] = s;
+      result[`live-${entry.originId}`] = s;
+      result[`view-${entry.originId}`] = s;
+    }
+    return result;
   },
 
   async getProgress(originId) {
-    const entry = await LiveWork.findOne({ originId: String(originId || "") })
+    const id = String(originId || "");
+    const cleanId = id.replace(/^(live|view)-/, "");
+    const entry = await LiveWork.findOne({
+      originId: { $in: [id, cleanId] },
+    })
       .select("progress")
       .lean();
     return entry?.progress || null;
   },
 
   async put(originId, payload, ownerId) {
-    const id = String(originId || "");
+    const rawId = String(originId || "");
+    const id = rawId.replace(/^(live|view)-/, "");
     if (!id) return null;
-    const previous = await LiveWork.findOne({ originId: id });
+    const previous = await LiveWork.findOne({ originId: { $in: [id, rawId] } });
     if (previous?.ownerId && String(previous.ownerId) !== String(ownerId)) {
       return { error: "forbidden" };
     }
@@ -122,8 +141,9 @@ export const liveWorksMongoStore = {
   },
 
   async remove(originId, ownerId) {
-    const id = String(originId || "");
-    const previous = await LiveWork.findOne({ originId: id });
+    const rawId = String(originId || "");
+    const id = rawId.replace(/^(live|view)-/, "");
+    const previous = await LiveWork.findOne({ originId: { $in: [id, rawId] } });
     if (!previous) return { value: null };
     if (previous.ownerId && String(previous.ownerId) !== String(ownerId)) {
       return { error: "forbidden" };
@@ -137,9 +157,10 @@ export const liveWorksMongoStore = {
   },
 
   async putProgress(originId, byTopicPatch, author = null) {
-    const id = String(originId || "");
+    const rawId = String(originId || "");
+    const id = rawId.replace(/^(live|view)-/, "");
     if (!id) return null;
-    let entry = await LiveWork.findOne({ originId: id });
+    let entry = await LiveWork.findOne({ originId: { $in: [id, rawId] } });
     if (!entry) entry = new LiveWork({ originId: id, name: "Work" });
 
     const previous = entry.progress && typeof entry.progress === "object"

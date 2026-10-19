@@ -1,3 +1,14 @@
+import {
+  fetchSocialPosts,
+  createSocialPost,
+  deleteSocialPost,
+  toggleLikeSocialPost,
+  addPostCommentApi,
+  fetchSocialGroups,
+  createSocialGroupApi,
+  joinSocialGroupApi,
+} from "../api.js";
+
 const FEED_KEY = "sandadd.socialPosts";
 const GROUP_FEED_KEY = "sandadd.groupPosts";
 const CUSTOM_GROUPS_KEY = "sandadd.customGroups";
@@ -46,8 +57,31 @@ export function loadCustomGroups() {
 function saveCustomGroups(list) {
   try {
     localStorage.setItem(CUSTOM_GROUPS_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("sandadd:groups-changed"));
   } catch {
     /* ignore */
+  }
+}
+
+/** Sync groups from server so any user on any device sees newly created groups */
+export async function syncSocialGroupsFromServer() {
+  try {
+    const serverGroups = await fetchSocialGroups();
+    if (!Array.isArray(serverGroups)) return loadCustomGroups();
+    const custom = serverGroups
+      .filter((g) => g.isCustom || !SHARE_GROUPS.some((sg) => sg.id === g.id))
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        blurb: g.blurb || "",
+        avatar: g.avatar || getDummyAvatar(g.id, g.name),
+        members: g.members || 1,
+        isCustom: true,
+      }));
+    saveCustomGroups(custom);
+    return custom;
+  } catch {
+    return loadCustomGroups();
   }
 }
 
@@ -61,7 +95,7 @@ export function getShareGroups() {
   return [...SHARE_GROUPS, ...custom];
 }
 
-export function createCustomGroup({ name, blurb = "" }) {
+export async function createCustomGroup({ name, blurb = "", avatar = "" }) {
   const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) {
     throw new Error("Enter a group name");
@@ -73,17 +107,30 @@ export function createCustomGroup({ name, blurb = "" }) {
   if (existing.includes(trimmed.toLowerCase())) {
     throw new Error("A group with that name already exists");
   }
-  const id = `ug-${Date.now()}`;
+
+  // Create on server so other devices & accounts can see it
+  let serverGroup = null;
+  try {
+    serverGroup = await createSocialGroupApi({
+      name: trimmed,
+      blurb,
+      avatar,
+    });
+  } catch (err) {
+    console.warn("Could not create group on server:", err.message);
+  }
+
+  const id = serverGroup?.id || `ug-${Date.now()}`;
   const group = {
     id,
     name: trimmed.slice(0, 60),
     blurb: (typeof blurb === "string" ? blurb.trim() : "").slice(0, 120) || "Your group",
-    avatar: getDummyAvatar(id, trimmed),
+    avatar: avatar || serverGroup?.avatar || getDummyAvatar(id, trimmed),
     members: 1,
     isCustom: true,
     createdAt: new Date().toISOString(),
   };
-  saveCustomGroups([group, ...loadCustomGroups()]);
+  saveCustomGroups([group, ...loadCustomGroups().filter((g) => g.id !== id)]);
   return group;
 }
 
@@ -311,11 +358,15 @@ export async function buildSharePayloadFromProject(project) {
       return { ...w, sourceProof };
     })
   );
+  const originId = String(project.originId || project._id || "");
   return {
     works,
     sharedProject: {
       templateId: `fin-${project._id || "p"}-${Date.now()}`,
+      originId,
+      shareMode: project.originMode || "follow",
       name: project.name,
+      about: String(project.about || "").slice(0, 2000),
       works,
       durationMs: project.durationMs || project.timeoutMs || 30_000,
     },
@@ -549,7 +600,7 @@ function mergeWorksPreferMedia(aWorks, bWorks) {
   });
 }
 
-function mergeByIdPreferMedia(memoryList, storedList) {
+export function mergeByIdPreferMedia(memoryList, storedList) {
   const map = new Map();
   for (const item of storedList || []) {
     if (item?.id == null) continue;
@@ -730,11 +781,20 @@ export function saveUserPosts(posts) {
 
 export function addUserPost(post) {
   const nextPost = ensureProofId(post, "proof");
-  const next = [nextPost, ...loadUserPosts()];
+  const next = [nextPost, ...loadUserPosts().filter((p) => p.id !== nextPost.id)];
   saveUserPosts(next);
   if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
   void persistWorksMedia(nextPost.works);
   void persistWorksMedia(nextPost.sharedProject?.works);
+
+  // Asynchronously sync to server database so all accounts & devices receive this post
+  createSocialPost({
+    ...nextPost,
+    scope: "view",
+  }).catch((err) => {
+    console.warn("Could not save post to server:", err.message);
+  });
+
   return next;
 }
 
@@ -749,6 +809,7 @@ export function updateUserPost(id, patch) {
 export function deleteUserPost(id) {
   const next = loadUserPosts().filter((p) => p.id !== id);
   saveUserPosts(next);
+  deleteSocialPost(id).catch(() => {});
   return next;
 }
 
@@ -812,7 +873,40 @@ export function addPostComment(postId, text) {
     /* ignore */
   }
 
+  addPostCommentApi(id, text).catch((err) => {
+    console.warn("Could not sync comment to server:", err.message);
+  });
+
   return updated;
+}
+
+export function syncPostCommentsFromServer(postId, remoteComments) {
+  if (!postId || !Array.isArray(remoteComments) || remoteComments.length === 0) return;
+  const id = String(postId);
+  const map = loadAllPostComments();
+  const current = Array.isArray(map[id]) ? map[id] : [];
+  const commentMap = new Map();
+  for (const c of current) {
+    if (c.id) commentMap.set(String(c.id), c);
+  }
+  for (const rc of remoteComments) {
+    const rcId = String(rc.id || `${rc.name}-${rc.createdAt}`);
+    commentMap.set(rcId, {
+      id: rcId,
+      name: rc.name || rc.authorName || "User",
+      handle: rc.handle || rc.authorHandle || "",
+      avatar: rc.avatar || "",
+      text: rc.text || "",
+      createdAt: rc.createdAt || new Date().toISOString(),
+    });
+  }
+  map[id] = Array.from(commentMap.values());
+  try {
+    localStorage.setItem(POST_COMMENTS_KEY, JSON.stringify(map));
+    window.dispatchEvent(
+      new CustomEvent("sandadd:comments-changed", { detail: { postId: id } })
+    );
+  } catch {}
 }
 
 /** Count posts/messages linked to a topic (from tick → share flow). */
@@ -916,11 +1010,22 @@ export function addGroupPost(groupId, post) {
   const map = { ...loadAllGroupPosts() };
   const list = Array.isArray(map[groupId]) ? map[groupId] : [];
   const nextPost = ensureProofId(post, "gproof");
-  map[groupId] = [nextPost, ...list];
+  map[groupId] = [nextPost, ...list.filter((p) => p.id !== nextPost.id)];
   saveAllGroupPosts(map);
   if (nextPost.proof?.dataUrl) void persistProofMedia(nextPost.proof);
   void persistWorksMedia(nextPost.works);
   void persistWorksMedia(nextPost.sharedProject?.works);
+
+  // Asynchronously sync to server database so group members on other devices receive this post
+  createSocialPost({
+    ...nextPost,
+    scope: "group",
+    groupId,
+    groupName: post.groupName || "",
+  }).catch((err) => {
+    console.warn("Could not save group post to server:", err.message);
+  });
+
   return map[groupId];
 }
 
@@ -1022,6 +1127,24 @@ export async function hydrateSocialFeeds() {
   } catch {
     /* IDB blocked — memory + light localStorage only */
   }
+
+  // Sync latest posts and groups from server across devices
+  try {
+    const serverPosts = await fetchSocialPosts({ scope: "view" });
+    if (Array.isArray(serverPosts) && serverPosts.length > 0) {
+      userPostsCache = mergeByIdPreferMedia(serverPosts, userPostsCache || []);
+      writeJson(FEED_KEY, (userPostsCache || []).map(lightPost));
+      for (const p of serverPosts) {
+        if (Array.isArray(p.comments) && p.comments.length > 0) {
+          syncPostCommentsFromServer(p.id, p.comments);
+        }
+      }
+    }
+    await syncSocialGroupsFromServer();
+  } catch {
+    /* ignore if offline or unauthenticated */
+  }
+
   return {
     userPosts: loadUserPosts(),
     profilePosts: loadProfilePosts(),

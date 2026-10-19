@@ -13,9 +13,16 @@ import {
   loadPostComments,
   loadUserPosts,
   markTemplateAdded,
+  mergeByIdPreferMedia,
   PROOF_ACCEPT,
   readAuthorProfile,
+  syncPostCommentsFromServer,
+  syncSocialGroupsFromServer,
 } from "../lib/socialFeed.js";
+import {
+  fetchSocialPosts,
+  toggleLikeSocialPost,
+} from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import {
@@ -260,6 +267,7 @@ function PostActions({
   postId,
   liked,
   onLike,
+  likesCount = 0,
   commentsCount = 0,
   commentsOpen = false,
   onToggleComments,
@@ -274,6 +282,9 @@ function PostActions({
         onClick={() => onLike(postId)}
       >
         <IconLike filled={liked} />
+        {likesCount > 0 ? (
+          <span className="social-action-count">{likesCount}</span>
+        ) : null}
       </button>
       <button
         type="button"
@@ -452,9 +463,16 @@ function FeedCard({
       <ProofMedia proof={item.proof} />
       <PostActions
         postId={item.id}
-        liked={liked}
+        liked={Boolean(liked || item.liked)}
         onLike={onLike}
-        commentsCount={comments.length}
+        likesCount={
+          liked && !item.liked
+            ? (Number(item.likesCount) || 0) + 1
+            : !liked && item.liked
+              ? Math.max(0, (Number(item.likesCount) || 1) - 1)
+              : Number(item.likesCount) || 0
+        }
+        commentsCount={Math.max(comments.length, Number(item.commentsCount) || 0)}
         commentsOpen={commentsOpen}
         onToggleComments={onToggleComments}
       />
@@ -678,6 +696,40 @@ export default function SocialPage({
 
   useEffect(() => {
     let alive = true;
+    const fetchRemote = () => {
+      if (section === "view") {
+        fetchSocialPosts({ scope: "view" })
+          .then((serverPosts) => {
+            if (!alive || !Array.isArray(serverPosts)) return;
+            setViewPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
+            for (const p of serverPosts) {
+              if (Array.isArray(p.comments) && p.comments.length > 0) {
+                syncPostCommentsFromServer(p.id, p.comments);
+              }
+            }
+          })
+          .catch(() => {});
+      } else if (section === "groups" && openGroupId) {
+        fetchSocialPosts({ scope: "group", groupId: openGroupId })
+          .then((serverPosts) => {
+            if (!alive || !Array.isArray(serverPosts)) return;
+            setGroupUserPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
+            for (const p of serverPosts) {
+              if (Array.isArray(p.comments) && p.comments.length > 0) {
+                syncPostCommentsFromServer(p.id, p.comments);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+      syncSocialGroupsFromServer()
+        .then(() => {
+          if (!alive) return;
+          setCustomGroups(loadCustomGroups().map(toDisplayGroup));
+        })
+        .catch(() => {});
+    };
+
     hydrateSocialFeeds().then((data) => {
       if (!alive) return;
       setViewPosts(data.userPosts || []);
@@ -687,9 +739,14 @@ export default function SocialPage({
       } else {
         setGroupUserPosts([]);
       }
+      setCustomGroups(loadCustomGroups().map(toDisplayGroup));
+      fetchRemote();
     });
+
+    const interval = setInterval(fetchRemote, 3500);
     return () => {
       alive = false;
+      clearInterval(interval);
     };
   }, [section, openGroupId]);
 
@@ -945,13 +1002,18 @@ export default function SocialPage({
     };
   }, [openCommentsPostId, section, feed, groupFeed]);
 
-  const toggleLike = (id) => {
+  const toggleLike = async (id) => {
     setLikedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+    try {
+      await toggleLikeSocialPost(id);
+    } catch (err) {
+      console.warn("Could not sync like to server:", err.message);
+    }
   };
 
   const goGroupsList = () => {
@@ -972,11 +1034,11 @@ export default function SocialPage({
     setGroupCreateError("");
   };
 
-  const submitCreateGroup = (e) => {
+  const submitCreateGroup = async (e) => {
     e.preventDefault();
     setGroupCreateError("");
     try {
-      const group = createCustomGroup({
+      const group = await createCustomGroup({
         name: newGroupName,
         blurb: newGroupBlurb,
       });

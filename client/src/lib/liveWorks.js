@@ -1,4 +1,10 @@
 /** Live work shares: creator publishes task lists; followers sync them. */
+import {
+  putLiveWork,
+  deleteLiveWork,
+  putLiveWorkProgress,
+  fetchLiveWorks,
+} from "../api.js";
 
 const LIVE_WORKS_KEY = "sandadd.liveWorks";
 const LIVE_PROGRESS_KEY = "sandadd.liveWorkProgress";
@@ -159,6 +165,7 @@ export function publishLiveWork(project, mode = "follow", author = null) {
     mode: mode === "assign" ? "assign" : prev?.mode === "assign" ? "assign" : "follow",
     works: snapshotLiveWorks(project),
     durationMs: project.durationMs || project.timeoutMs || 30_000,
+    about: String(project.about || prev?.about || "").slice(0, 2000),
     updatedAt: Date.now(),
     author: author || prev?.author || null,
   };
@@ -173,6 +180,23 @@ export function publishLiveWork(project, mode = "follow", author = null) {
   for (const key of keysToRegister) {
     publishTopicsProgress(key, project.topics || [], author);
   }
+
+  // Asynchronously sync creator's work to server database so followers & contributors on other devices receive it
+  const cleanOrigin = getCleanId(project._id);
+  if (cleanOrigin) {
+    putLiveWork(cleanOrigin, {
+      originId: cleanOrigin,
+      name: entry.name,
+      mode: entry.mode,
+      works: entry.works,
+      durationMs: entry.durationMs,
+      about: entry.about,
+      author: entry.author,
+    }).catch((err) => {
+      console.warn("Could not sync live work to server:", err.message);
+    });
+  }
+
   return entry;
 }
 
@@ -209,6 +233,11 @@ export function unpublishLiveWork(originId) {
     delete progress[id];
     writeProgressCatalog(progress);
   }
+
+  const clean = getCleanId(id);
+  if (clean) {
+    deleteLiveWork(clean).catch(() => {});
+  }
 }
 
 export function isLiveWorkDeleted(originId) {
@@ -244,7 +273,80 @@ export function reportLiveTopicProgress(originId, topicId, done, author = null) 
     updatedAt: Date.now(),
   };
   writeProgressCatalog(catalog);
+
+  // Asynchronously sync tick to server database
+  const cleanOrigin = getCleanId(originId);
+  if (cleanOrigin && tid) {
+    putLiveWorkProgress(cleanOrigin, {
+      topicId: tid,
+      done: Boolean(done),
+      author,
+    }).catch((err) => {
+      console.warn("Could not sync live progress to server:", err.message);
+    });
+  }
+
   return catalog[oid];
+}
+
+/** Sync live works & progress from server for the given origin IDs */
+export async function syncLiveWorksFromServer(originIds) {
+  const ids = (Array.isArray(originIds) ? originIds : [])
+    .map(getCleanId)
+    .filter(Boolean);
+  if (ids.length === 0) return { works: {}, progress: {} };
+
+  try {
+    const data = await fetchLiveWorks(ids);
+    const catalog = readCatalog();
+    const progressCatalog = readProgressCatalog();
+    let catalogChanged = false;
+    let progressChanged = false;
+
+    if (data?.works && typeof data.works === "object") {
+      for (const [key, remoteEntry] of Object.entries(data.works)) {
+        if (!remoteEntry) continue;
+        const clean = getCleanId(key);
+        const existing = catalog[clean];
+        if (
+          !existing ||
+          (remoteEntry.updatedAt && remoteEntry.updatedAt > (existing.updatedAt || 0)) ||
+          JSON.stringify(remoteEntry.works) !== JSON.stringify(existing.works) ||
+          remoteEntry.name !== existing.name ||
+          remoteEntry.about !== existing.about
+        ) {
+          catalog[clean] = remoteEntry;
+          catalog[`live-${clean}`] = remoteEntry;
+          catalog[`view-${clean}`] = remoteEntry;
+          catalogChanged = true;
+        }
+      }
+    }
+
+    if (data?.progress && typeof data.progress === "object") {
+      for (const [key, remoteProg] of Object.entries(data.progress)) {
+        if (!remoteProg?.byTopic) continue;
+        const clean = getCleanId(key);
+        const existing = progressCatalog[clean];
+        if (
+          !existing ||
+          JSON.stringify(remoteProg.byTopic) !== JSON.stringify(existing.byTopic)
+        ) {
+          progressCatalog[clean] = remoteProg;
+          progressCatalog[`live-${clean}`] = remoteProg;
+          progressCatalog[`view-${clean}`] = remoteProg;
+          progressChanged = true;
+        }
+      }
+    }
+
+    if (catalogChanged) writeCatalog(catalog);
+    if (progressChanged) writeProgressCatalog(progressCatalog);
+
+    return data;
+  } catch {
+    return { works: {}, progress: {} };
+  }
 }
 
 export function publishTopicsProgress(originId, topics, author = null) {
@@ -332,6 +434,7 @@ export function buildLiveShareTemplate(project, mode, author = null) {
     originId: entry.originId,
     shareMode: entry.mode,
     name: entry.name,
+    about: entry.about || "",
     works: entry.works,
     durationMs: entry.durationMs,
     live: true,

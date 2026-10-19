@@ -71,6 +71,7 @@ import {
   publishLiveWork,
   reportLiveTopicProgress,
   subscribeLiveSync,
+  syncLiveWorksFromServer,
   unpublishLiveWork,
 } from "./lib/liveWorks.js";
 import {
@@ -415,6 +416,15 @@ export default function App() {
       setStorage(health.storage || "file");
       let withMedia = await restoreProjectsTopicMedia(list);
 
+      const liveKeys = withMedia
+        .map((p) => p.originId || p.sharedTemplateId)
+        .filter(Boolean);
+      if (liveKeys.length > 0) {
+        try {
+          await syncLiveWorksFromServer(liveKeys);
+        } catch {}
+      }
+
       const synced = [];
       for (const project of withMedia) {
         const isFollowerProject = Boolean(
@@ -504,6 +514,7 @@ export default function App() {
         const elapsedMs = elapsedFromWorks(topics, duration);
         const completed = topics.length > 0 && elapsedMs >= duration;
         const name = live.name || project.name;
+        const about = live.about !== undefined ? live.about : (project.about || "");
         const needsSync = followerTopicsNeedSync(
           project.topics,
           live.works,
@@ -512,11 +523,13 @@ export default function App() {
         const elapsedChanged =
           Math.abs((Number(project.elapsedMs) || 0) - elapsedMs) > 0.5 ||
           Boolean(project.completed) !== completed ||
-          (live.name && live.name !== project.name);
+          (live.name && live.name !== project.name) ||
+          (live.about !== undefined && live.about !== (project.about || ""));
         if (!needsSync && !elapsedChanged) {
           synced.push({
             ...project,
             name,
+            about,
             topics,
             tasksLocked: true,
             originId: project.originId,
@@ -528,6 +541,7 @@ export default function App() {
           const topicsForSave = await prepareTopicsForSave(topics);
           const updated = await updateProject(project._id, {
             name,
+            about,
             topics: topicsForSave,
             durationMs: duration,
             elapsedMs,
@@ -653,14 +667,24 @@ export default function App() {
     };
     const onFocus = () => requestSync();
     const unsub = subscribeLiveSync(requestSync);
-    const poll = window.setInterval(() => {
+    const poll = window.setInterval(async () => {
       const list = projectsRef.current || [];
       const cares = list.some((p) => {
         if (p.originId || p.sharedTemplateId || p.tasksLocked) return true;
         const live = getLiveWork(p._id);
         return Boolean(live && !live.deleted);
       });
-      if (cares) requestSync();
+      if (cares) {
+        const originIds = list
+          .map((p) => p.originId || p.sharedTemplateId)
+          .filter(Boolean);
+        if (originIds.length > 0) {
+          try {
+            await syncLiveWorksFromServer(originIds);
+          } catch {}
+        }
+        requestSync();
+      }
     }, 2500);
 
     window.addEventListener("storage", onStorage);
@@ -1122,6 +1146,15 @@ export default function App() {
       const updated = await updateProject(projectId, { about: trimmed });
       setProjects((list) => patchProject(list, updated));
       setApiError("");
+
+      const live = getLiveWork(projectId);
+      if (live && !live.deleted) {
+        publishLiveWork(
+          { ...proj, ...updated, about: trimmed },
+          live.mode || "follow",
+          readAuthorProfile()
+        );
+      }
     } catch (err) {
       setApiError(err.message || "Failed to save about notes");
       throw err;
@@ -1650,9 +1683,15 @@ export default function App() {
       template.author?.handle ||
       "";
 
+    if (liveOrigin) {
+      try {
+        await syncLiveWorksFromServer([liveOrigin]);
+      } catch {}
+    }
     const locked = shareMode === "assign" ? false : Boolean(liveOrigin || template.tasksLocked || template.live);
     const created = await createProject({
       name: template.name,
+      about: template.about || "",
       durationMs,
       elapsedMs: 0,
       completed: false,
