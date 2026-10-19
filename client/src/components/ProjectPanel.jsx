@@ -312,9 +312,11 @@ export default function ProjectPanel({
                               style={{ height: `${progress * 100}%` }}
                             />
                           </span>
-                          <span className="important-rect-time">
-                            {fillLabel(p.elapsedMs, duration)}
-                          </span>
+                          {fillLabel(p.elapsedMs, duration) ? (
+                            <span className="important-rect-time">
+                              {fillLabel(p.elapsedMs, duration)}
+                            </span>
+                          ) : null}
                         </div>
 
                         <div
@@ -336,20 +338,9 @@ export default function ProjectPanel({
                                 ? (folderId) => onMoveToFolder(p, folderId)
                                 : undefined
                             }
+                            onRemoveImportant={() => onToggleImportant?.(p, false)}
                             onDelete={() => onDelete(p._id)}
                           />
-                          <button
-                            type="button"
-                            className="important-rect-star-btn is-on"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleImportant(p, false);
-                            }}
-                            aria-label={markLabel}
-                            title={markLabel}
-                          >
-                            ★
-                          </button>
                         </div>
                       </div>
 
@@ -467,7 +458,9 @@ export default function ProjectPanel({
                         </span>
                       ) : null}
                     </strong>
-                    <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    {fillLabel(p.elapsedMs, duration) ? (
+                      <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    ) : null}
                     <span className="project-progress-track" aria-hidden="true">
                       <span style={{ width: `${Math.round(progress * 100)}%` }} />
                     </span>
@@ -534,6 +527,17 @@ export default function ProjectPanel({
                       ? (folderId) => onMoveToFolder(p, folderId)
                       : undefined
                   }
+                  onRemoveImportant={
+                    importantAction === "remove"
+                      ? () => onToggleImportant?.(p, false)
+                      : undefined
+                  }
+                  onToggleImportant={
+                    onToggleImportant
+                      ? () => onToggleImportant(p, !p.important)
+                      : undefined
+                  }
+                  isImportant={Boolean(p.important)}
                   onDelete={() => onDelete(p._id)}
                 />
                 <button

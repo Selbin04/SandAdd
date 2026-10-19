@@ -25,7 +25,7 @@ export function fillProgress(elapsedMs, durationMs) {
 
 export function fillLabel(elapsedMs, durationMs) {
   const p = fillProgress(elapsedMs, durationMs);
-  if (p <= 0.02) return "Not started";
+  if (p <= 0.02) return "";
   if (p >= 0.98) return "Finished";
   return `${Math.round(p * 100)}% done`;
 }

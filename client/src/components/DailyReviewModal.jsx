@@ -33,7 +33,9 @@ export default function DailyReviewModal({
           Today&apos;s important · {index + 1} of {total}
         </p>
         <h2 id="daily-review-title">{project.name}</h2>
-        <p className="daily-review-meta">{fillLabel(project.elapsedMs, duration)}</p>
+        {fillLabel(project.elapsedMs, duration) ? (
+          <p className="daily-review-meta">{fillLabel(project.elapsedMs, duration)}</p>
+        ) : null}
         {stars > 0 && (
           <p className="daily-review-stars" aria-label={`${stars} stars`}>
             {"★".repeat(stars)}

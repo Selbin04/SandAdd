@@ -246,25 +246,23 @@ export default function FolderHourglassModal({
         <section className="folder-hg-progress-card">
           <div className="folder-hg-progress-headline">
             <span className="folder-hg-percent">{activePercent}%</span>
-            <span
-              className={`folder-hg-status-pill ${
-                activeFinished
-                  ? "pill-done"
+            {(activeFinished || isPouring || activeProgress > 0) && (
+              <span
+                className={`folder-hg-status-pill ${
+                  activeFinished
+                    ? "pill-done"
+                    : isPouring
+                    ? "pill-pouring"
+                    : "pill-active"
+                }`}
+              >
+                {activeFinished
+                  ? "Completed"
                   : isPouring
-                  ? "pill-pouring"
-                  : activeProgress > 0
-                  ? "pill-active"
-                  : "pill-empty"
-              }`}
-            >
-              {activeFinished
-                ? "Completed"
-                : isPouring
-                ? "Pouring Sand…"
-                : activeProgress > 0
-                ? "In Progress"
-                : "Not Started"}
-            </span>
+                  ? "Pouring Sand…"
+                  : "In Progress"}
+              </span>
+            )}
           </div>
 
           <div

@@ -592,7 +592,9 @@ export default function ProfilePage({
                       />
                       <span className="profile-highlight-pick-copy">
                         <strong>{work.name || "Untitled"}</strong>
-                        <span>{fillLabel(elapsed, duration)}</span>
+                        {fillLabel(elapsed, duration) ? (
+                          <span>{fillLabel(elapsed, duration)}</span>
+                        ) : null}
                       </span>
                     </label>
                     <div className="profile-highlight-pick-right">
@@ -920,8 +922,9 @@ export default function ProfilePage({
                     <span className="profile-project-main">
                       <strong>{project.name || "Untitled"}</strong>
                       <span className="profile-project-meta">
-                        {project.important ? "Important · " : ""}
-                        {done}
+                        {project.important ? "Important" : ""}
+                        {project.important && done ? " · " : ""}
+                        {done || ""}
                       </span>
                     </span>
                     <span className="profile-project-pct" aria-hidden="true">

@@ -902,6 +902,12 @@
   color: var(--muted);
 }
 
+.project-copy > span:not(.project-progress-track):empty,
+.important-rect-time:empty,
+.selected-rect-time:empty {
+  display: none !important;
+}
+
 .project-copy .project-progress-track {
   height: 3px;
   margin-top: 5px;
@@ -1403,6 +1409,10 @@
   }
 
   .important-desktop-view {
+    display: none !important;
+  }
+
+  .important-rect-star-btn {
     display: none !important;
   }
 }

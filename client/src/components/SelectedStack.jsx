@@ -50,9 +50,11 @@ export default function SelectedStack({
                         style={{ height: `${progress * 100}%` }}
                       />
                     </span>
-                    <span className="selected-rect-time">
-                      {fillLabel(p.elapsedMs, duration)}
-                    </span>
+                    {fillLabel(p.elapsedMs, duration) ? (
+                      <span className="selected-rect-time">
+                        {fillLabel(p.elapsedMs, duration)}
+                      </span>
+                    ) : null}
                     {onOpenWork ? (
                       <button
                         type="button"

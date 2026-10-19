@@ -10,6 +10,9 @@ export default function WorkMenu({
   folders = [],
   currentFolderId = null,
   onMoveToFolder,
+  onRemoveImportant,
+  onToggleImportant,
+  isImportant = false,
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(null);
@@ -162,6 +165,36 @@ export default function WorkMenu({
             </li>
           ) : null}
         </>
+      ) : null}
+
+      {onRemoveImportant ? (
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onRemoveImportant();
+            }}
+          >
+            Remove from important
+          </button>
+        </li>
+      ) : onToggleImportant ? (
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onToggleImportant();
+            }}
+          >
+            {isImportant ? "Remove from important" : "Add to important"}
+          </button>
+        </li>
       ) : null}
 
       <li role="none">

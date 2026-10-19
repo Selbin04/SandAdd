@@ -173,7 +173,9 @@ export default function FolderPanel({
                         </span>
                       ) : null}
                     </strong>
-                    <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    {fillLabel(p.elapsedMs, duration) ? (
+                      <span>{fillLabel(p.elapsedMs, duration)}</span>
+                    ) : null}
                   </span>
                 </button>
                 <button
@@ -216,6 +218,12 @@ export default function FolderPanel({
                       ? (folderId) => onMoveToFolder(p, folderId)
                       : undefined
                   }
+                  onToggleImportant={
+                    onToggleImportant
+                      ? () => onToggleImportant(p, !p.important)
+                      : undefined
+                  }
+                  isImportant={Boolean(p.important)}
                   onDelete={() => onDelete(p._id)}
                 />
                 <button
