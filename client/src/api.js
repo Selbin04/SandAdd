@@ -202,3 +202,13 @@ export async function deleteTopicCommentApi(projectId, topicId, commentId) {
   return readJson(res, "Could not delete comment");
 }
 
+export async function summarizeSourceApi({ type, content, proof, title }) {
+  const res = await fetch(`${API}/ai/summarize-source`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ type, content, proof, title }),
+  });
+  return readJson(res, "Could not summarize source");
+}
+
+

@@ -5,6 +5,7 @@ import {
   isVideoProof,
   restoreTopicSourceProof,
 } from "../lib/socialFeed.js";
+import AiSourceSummary from "./AiSourceSummary.jsx";
 import "./SourceMedia.css";
 
 export function normalizeSourceUrl(raw) {
@@ -279,21 +280,52 @@ export function WorkSourceControl({ work }) {
           {tab === "open" ? (
             <div className="work-source-pane">
               {hasFile ? (
-                <SourceFileViewer proof={work.sourceProof} />
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                  <AiSourceSummary
+                    source={{
+                      type: "file",
+                      content: work?.source,
+                      proof: work?.sourceProof,
+                      title: work?.title || work?.name || "Source",
+                      aiSummary: work?.aiSummary,
+                    }}
+                  />
+                  <SourceFileViewer proof={work.sourceProof} />
+                </div>
               ) : isUrl ? (
                 <>
                   <p className="source-media-meta">{work.source}</p>
-                  <button
-                    type="button"
-                    className="work-source-primary"
-                    onClick={() => openSourceUrl(work.source)}
-                  >
-                    Open link
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <AiSourceSummary
+                      source={{
+                        type: "link",
+                        content: work?.source,
+                        title: work?.title || work?.name || "Source",
+                        aiSummary: work?.aiSummary,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="work-source-primary"
+                      onClick={() => openSourceUrl(work.source)}
+                    >
+                      Open link
+                    </button>
+                  </div>
                 </>
               ) : work.source ? (
                 <div className="source-media-text-card">
                   <p className="source-media-text-content">{work.source}</p>
+                  <div style={{ marginTop: "8px" }}>
+                    <AiSourceSummary
+                      source={{
+                        type: "text",
+                        content: work?.source,
+                        title: work?.title || "Note",
+                        aiSummary: work?.aiSummary,
+                      }}
+                    />
+                  </div>
                 </div>
               ) : (
                 <p className="source-media-meta">No source available.</p>

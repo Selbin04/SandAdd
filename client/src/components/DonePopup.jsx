@@ -13,6 +13,7 @@ import { getFollowedWorkGroup } from "../lib/followingStore.js";
 import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
+import AiSourceSummary from "./AiSourceSummary.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -850,6 +851,14 @@ export default function DonePopup({
     onSetSource?.(project._id, topic.id, { sources: updated });
   };
 
+  const updateSourceItemSummary = (topic, sourceId, aiSummary) => {
+    const current = getTopicSources(topic);
+    const updated = current.map((s) =>
+      s.id === sourceId ? { ...s, aiSummary } : s
+    );
+    onSetSource?.(project._id, topic.id, { sources: updated });
+  };
+
   const removeSourceItem = (topic, sourceId) => {
     const current = getTopicSources(topic);
     const updated = current.filter((s) => s.id !== sourceId);
@@ -1221,9 +1230,17 @@ export default function DonePopup({
 
                                 <div className="done-source-item">
                                   <header className="done-source-item-head">
-                                    <span className="done-source-item-badge">
-                                      {activeItem.type ? activeItem.type.toUpperCase() : "SOURCE"} {sourceCount > 1 ? `(#${safeIdx + 1})` : ""}
-                                    </span>
+                                    <div className="done-source-item-head-left">
+                                      <AiSourceSummary
+                                        source={activeItem}
+                                        onSaveSummary={(summaryData) =>
+                                          updateSourceItemSummary(topic, activeItem.id, summaryData)
+                                        }
+                                      />
+                                      <span className="done-source-item-badge">
+                                        {activeItem.type ? activeItem.type.toUpperCase() : "SOURCE"} {sourceCount > 1 ? `(#${safeIdx + 1})` : ""}
+                                      </span>
+                                    </div>
                                     {isSourceEditMode && !readOnlyTasks && (
                                       <button
                                         type="button"
