@@ -398,29 +398,35 @@
   align-self: stretch;
   min-width: 0;
   min-height: auto;
-  height: auto;
+  height: auto !important;
+  max-height: none !important;
   display: flex;
   flex-direction: column;
   gap: 0;
+  background: linear-gradient(180deg, var(--panel-top), var(--panel));
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0;
-  max-height: min(78vh, 900px);
-  overflow: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  transition: height 0.3s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible !important;
+  transition: none;
 }
 
 .layout-projects::-webkit-scrollbar {
   display: none;
 }
 
-.layout-projects .panel {
+.layout-projects .panel,
+.layout-projects .projects-panel,
+.projects-panel:not(.important-panel),
+#projects-panel,
+#projects-panel .panel {
   min-height: 0;
+  height: auto !important;
+  max-height: none !important;
   flex-shrink: 0;
   border: 0;
   border-radius: 0;
+  overflow: visible !important;
 }
 
 .layout-projects > .panel + .panel {
@@ -740,6 +746,9 @@
 
   .layout-projects .project-list {
     padding: 8px 14px 14px;
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   .layout-projects .empty {
@@ -770,8 +779,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 520px;
-  overflow: visible;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 .project-list li {
@@ -1375,8 +1385,28 @@
 }
 
 /* ==========================================================================
-   Important Progress Folders (Horizontal Rectangle Small Boxes)
+   Important Progress Folders
+   - Desktop screen (> 768px): previous state (vertical list)
+   - Small screen (<= 768px): horizontal rectangle boxes
    ========================================================================== */
+.important-mobile-view {
+  display: none !important;
+}
+
+.important-desktop-view {
+  display: flex !important;
+}
+
+@media (max-width: 768px) {
+  .important-mobile-view {
+    display: block !important;
+  }
+
+  .important-desktop-view {
+    display: none !important;
+  }
+}
+
 .important-boxes-scroll-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -1901,7 +1931,8 @@
   }
 
   .layout-projects {
-    max-height: min(72vh, 700px);
+    max-height: none;
+    overflow: visible;
   }
 
   .layout-selected .panel,
@@ -2099,9 +2130,27 @@
   }
 
   .layout-projects {
-    max-height: none;
+    max-height: none !important;
     min-height: 0;
-    overflow: visible;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .layout-projects .panel,
+  .layout-projects .projects-panel,
+  .projects-panel {
+    max-height: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .layout-projects .project-list,
+  .projects-panel .project-list,
+  .project-list {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   .layout-projects .panel-head {

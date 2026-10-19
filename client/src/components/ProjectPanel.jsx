@@ -260,159 +260,164 @@ export default function ProjectPanel({
 
       {projects.length === 0 ? (
         <p className="empty">{emptyText}</p>
-      ) : importantAction === "remove" ? (
-        <div className="important-boxes-scroll-wrapper">
-          <div
-            className="important-boxes-row"
-            role="list"
-            aria-label="Important progress folders"
-          >
-            {projects.map((p) => {
-              const duration = projectDuration(p);
-              const progress = fillProgress(p.elapsedMs, duration);
-              const active = p._id === activeId;
-              const locked = isTasksLocked(p);
-              const markLabel = `Remove ${p.name} from important`;
-              return (
-                <div
-                  key={p._id}
-                  className={`important-rect-box ${active ? "is-active" : ""} ${p.completed ? "done" : ""}`}
-                  onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      if (onOpenWork) onOpenWork(p);
-                      else onSelect(p);
-                    }
-                  }}
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    onOpenTopics(p, rect);
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  title={`Open ${p.name}`}
-                >
-                  {locked || p.originId || p.sharedTemplateId ? (
-                    <span
-                      className="update-red-dot corner-red-dot"
-                      title="New update added in this progress path"
-                    />
-                  ) : null}
-
-                  <div className="important-rect-top">
-                    <div className="important-rect-top-left">
-                      <span className="mini-glass" aria-hidden="true">
-                        <span
-                          className="mini-sand"
-                          style={{ height: `${progress * 100}%` }}
-                        />
-                      </span>
-                      <span className="important-rect-time">
-                        {fillLabel(p.elapsedMs, duration)}
-                      </span>
-                    </div>
-
-                    <div
-                      className="important-rect-actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <WorkMenu
-                        workName={p.name}
-                        onShareFollow={
-                          locked ? undefined : () => onShareFollow?.(p)
-                        }
-                        onShareAssign={
-                          locked ? undefined : () => onShareAssign?.(p)
-                        }
-                        folders={folders}
-                        currentFolderId={p.folderId || null}
-                        onMoveToFolder={
-                          onMoveToFolder
-                            ? (folderId) => onMoveToFolder(p, folderId)
-                            : undefined
-                        }
-                        onDelete={() => onDelete(p._id)}
-                      />
-                      <button
-                        type="button"
-                        className="important-rect-star-btn is-on"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleImportant(p, false);
-                        }}
-                        aria-label={markLabel}
-                        title={markLabel}
-                      >
-                        ★
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="important-rect-body">
-                    <div className="important-rect-name" title={p.name}>
-                      {p.name}
-                    </div>
-                    {locked || p.originId || p.sharedTemplateId ? (
-                      <span
-                        className="work-lock-pill"
-                        title="Tasks sync from creator — new update added"
-                      >
-                        {p.originMode === "assign" ? "CONTRIB" : "FOLLOW"}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="important-rect-foot">
-                    {onSetStars ? (
-                      <span
-                        className="priority-stars"
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => {
-                          const current = Number(p.stars) || 0;
-                          return (
-                            <span
-                              key={n}
-                              role="button"
-                              tabIndex={0}
-                              className={`star-btn ${n <= current ? "is-on" : ""}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSetStars(p, n === current ? 0 : n);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  onSetStars(p, n === current ? 0 : n);
-                                }
-                              }}
-                              aria-label={`Set ${p.name} to ${n} star${n === 1 ? "" : "s"}`}
-                            >
-                              ★
-                            </span>
-                          );
-                        })}
-                      </span>
-                    ) : null}
-                    <div className="important-rect-track" aria-hidden="true">
-                      <span
-                        className="important-rect-fill"
-                        style={{ width: `${Math.round(progress * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       ) : (
-        <ul className="project-list">
+        <>
+          {importantAction === "remove" && (
+            <div className="important-boxes-scroll-wrapper important-mobile-view">
+              <div
+                className="important-boxes-row"
+                role="list"
+                aria-label="Important progress folders"
+              >
+                {projects.map((p) => {
+                  const duration = projectDuration(p);
+                  const progress = fillProgress(p.elapsedMs, duration);
+                  const active = p._id === activeId;
+                  const locked = isTasksLocked(p);
+                  const markLabel = `Remove ${p.name} from important`;
+                  return (
+                    <div
+                      key={`mob-${p._id}`}
+                      className={`important-rect-box ${active ? "is-active" : ""} ${p.completed ? "done" : ""}`}
+                      onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          if (onOpenWork) onOpenWork(p);
+                          else onSelect(p);
+                        }
+                      }}
+                      onDoubleClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        onOpenTopics(p, rect);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      title={`Open ${p.name}`}
+                    >
+                      {locked || p.originId || p.sharedTemplateId ? (
+                        <span
+                          className="update-red-dot corner-red-dot"
+                          title="New update added in this progress path"
+                        />
+                      ) : null}
+
+                      <div className="important-rect-top">
+                        <div className="important-rect-top-left">
+                          <span className="mini-glass" aria-hidden="true">
+                            <span
+                              className="mini-sand"
+                              style={{ height: `${progress * 100}%` }}
+                            />
+                          </span>
+                          <span className="important-rect-time">
+                            {fillLabel(p.elapsedMs, duration)}
+                          </span>
+                        </div>
+
+                        <div
+                          className="important-rect-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <WorkMenu
+                            workName={p.name}
+                            onShareFollow={
+                              locked ? undefined : () => onShareFollow?.(p)
+                            }
+                            onShareAssign={
+                              locked ? undefined : () => onShareAssign?.(p)
+                            }
+                            folders={folders}
+                            currentFolderId={p.folderId || null}
+                            onMoveToFolder={
+                              onMoveToFolder
+                                ? (folderId) => onMoveToFolder(p, folderId)
+                                : undefined
+                            }
+                            onDelete={() => onDelete(p._id)}
+                          />
+                          <button
+                            type="button"
+                            className="important-rect-star-btn is-on"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleImportant(p, false);
+                            }}
+                            aria-label={markLabel}
+                            title={markLabel}
+                          >
+                            ★
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="important-rect-body">
+                        <div className="important-rect-name" title={p.name}>
+                          {p.name}
+                        </div>
+                        {locked || p.originId || p.sharedTemplateId ? (
+                          <span
+                            className="work-lock-pill"
+                            title="Tasks sync from creator — new update added"
+                          >
+                            {p.originMode === "assign" ? "CONTRIB" : "FOLLOW"}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="important-rect-foot">
+                        {onSetStars ? (
+                          <span
+                            className="priority-stars"
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
+                          >
+                            {[1, 2, 3, 4, 5].map((n) => {
+                              const current = Number(p.stars) || 0;
+                              return (
+                                <span
+                                  key={n}
+                                  role="button"
+                                  tabIndex={0}
+                                  className={`star-btn ${n <= current ? "is-on" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSetStars(p, n === current ? 0 : n);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      onSetStars(p, n === current ? 0 : n);
+                                    }
+                                  }}
+                                  aria-label={`Set ${p.name} to ${n} star${n === 1 ? "" : "s"}`}
+                                >
+                                  ★
+                                </span>
+                              );
+                            })}
+                          </span>
+                        ) : null}
+                        <div className="important-rect-track" aria-hidden="true">
+                          <span
+                            className="important-rect-fill"
+                            style={{ width: `${Math.round(progress * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <ul
+            className={`project-list ${importantAction === "remove" ? "important-desktop-view" : ""}`}
+          >
           {projects.map((p) => {
             const duration = projectDuration(p);
             const progress = fillProgress(p.elapsedMs, duration);
@@ -544,6 +549,7 @@ export default function ProjectPanel({
             );
           })}
         </ul>
+        </>
       )}
 
       {hourglassFolder && (
