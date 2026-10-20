@@ -3,6 +3,7 @@ import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
+import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 
 export default function ProjectPanel({
   title,
@@ -35,6 +36,8 @@ export default function ProjectPanel({
   const sentinelRef = useRef(null);
   const [isFloating, setIsFloating] = useState(false);
   const [hourglassFolder, setHourglassFolder] = useState(null);
+  const folderScroll = useHorizontalScroll();
+  const importantScroll = useHorizontalScroll();
 
   useEffect(() => {
     if (!showCreate) return;
@@ -120,11 +123,38 @@ export default function ProjectPanel({
           {/* New folders used to arrange the progress folders, ordered horizontally in rectangle small boxes */}
           <div className="folder-arrange-bar">
             <div className="folder-arrange-label-wrap">
-              <span className="folder-arrange-title">Folders</span>
-              <span className="folder-arrange-hint">Arrange progress paths</span>
+              <div className="folder-arrange-title-group">
+                <span className="folder-arrange-title">Folders</span>
+                <span className="folder-arrange-hint">Arrange progress paths</span>
+              </div>
+              <div className="folder-scroll-controls">
+                <button
+                  type="button"
+                  className={`folder-scroll-arrow ${!folderScroll.canScrollLeft ? "is-disabled" : ""}`}
+                  onClick={() => folderScroll.scrollByAmount(-220)}
+                  disabled={!folderScroll.canScrollLeft}
+                  title="Scroll folders left"
+                  aria-label="Scroll folders left"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className={`folder-scroll-arrow ${!folderScroll.canScrollRight ? "is-disabled" : ""}`}
+                  onClick={() => folderScroll.scrollByAmount(220)}
+                  disabled={!folderScroll.canScrollRight}
+                  title="Scroll folders right"
+                  aria-label="Scroll folders right"
+                >
+                  ›
+                </button>
+              </div>
             </div>
 
-            <div className="folder-boxes-scroll-wrapper">
+            <div
+              ref={folderScroll.elRef}
+              className="folder-boxes-scroll-wrapper"
+            >
               <div
                 className="folder-boxes-row"
                 role="tablist"
@@ -140,11 +170,12 @@ export default function ProjectPanel({
                   title="All unfiled progress folders"
                 >
                   <div className="folder-rect-top">
-                    <span className="folder-rect-icon">📁</span>
+                    <div className="folder-rect-name">All Paths</div>
+                  </div>
+                  <div className="folder-rect-bottom">
+                    <div className="folder-rect-sub">Unfiled progress</div>
                     <span className="folder-rect-badge">{unfiledCount}</span>
                   </div>
-                  <div className="folder-rect-name">All Paths</div>
-                  <div className="folder-rect-sub">Unfiled progress</div>
                 </button>
 
                 {/* Box 2..N: Folders used to arrange progress folders */}
@@ -158,14 +189,21 @@ export default function ProjectPanel({
                       key={folder.id}
                       className={`folder-rect-box ${isSelected ? "is-active" : ""}`}
                       onClick={() => onSelectFolder?.(folder.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectFolder?.(folder.id);
+                        }
+                      }}
                       role="tab"
                       aria-selected={isSelected}
                       tabIndex={0}
                       title={`Folder: ${folder.name}`}
                     >
                       <div className="folder-rect-top">
-                        <span className="folder-rect-icon">📂</span>
-                        <span className="folder-rect-badge">{count}</span>
+                        <div className="folder-rect-name" title={folder.name}>
+                          {folder.name}
+                        </div>
                         <div
                           className="folder-rect-actions"
                           onClick={(e) => e.stopPropagation()}
@@ -211,11 +249,11 @@ export default function ProjectPanel({
                           ) : null}
                         </div>
                       </div>
-                      <div className="folder-rect-name" title={folder.name}>
-                        {folder.name}
-                      </div>
-                      <div className="folder-rect-sub">
-                        {count} {count === 1 ? "path" : "paths"}
+                      <div className="folder-rect-bottom">
+                        <div className="folder-rect-sub">
+                          {count} {count === 1 ? "path" : "paths"}
+                        </div>
+                        <span className="folder-rect-badge">{count}</span>
                       </div>
                     </div>
                   );
@@ -230,11 +268,13 @@ export default function ProjectPanel({
                     title="Create new folder to arrange progress folders"
                   >
                     <div className="folder-rect-top">
+                      <div className="folder-rect-name">New Folder</div>
                       <span className="folder-new-plus-icon">+</span>
+                    </div>
+                    <div className="folder-rect-bottom">
+                      <div className="folder-rect-sub">Arrange progress</div>
                       <span className="folder-new-tag">NEW</span>
                     </div>
-                    <div className="folder-rect-name">New Folder</div>
-                    <div className="folder-rect-sub">Arrange progress</div>
                   </button>
                 ) : null}
               </div>
@@ -263,7 +303,10 @@ export default function ProjectPanel({
       ) : (
         <>
           {importantAction === "remove" && (
-            <div className="important-boxes-scroll-wrapper important-mobile-view">
+            <div
+              ref={importantScroll.elRef}
+              className="important-boxes-scroll-wrapper important-mobile-view"
+            >
               <div
                 className="important-boxes-row"
                 role="list"
@@ -422,6 +465,17 @@ export default function ProjectPanel({
               <li
                 key={p._id}
                 className={`${active ? "active" : ""} ${p.completed ? "done" : ""}`}
+                role="button"
+                tabIndex={0}
+                title={`Open ${p.name}`}
+                onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (onOpenWork) onOpenWork(p);
+                    else onSelect(p);
+                  }
+                }}
               >
                 {locked || p.originId || p.sharedTemplateId ? (
                   <span
@@ -429,10 +483,8 @@ export default function ProjectPanel({
                     title="New update added in this progress path"
                   />
                 ) : null}
-                <button
-                  type="button"
+                <div
                   className="project-select"
-                  onClick={() => onSelect(p)}
                   onDoubleClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -498,57 +550,52 @@ export default function ProjectPanel({
                       </span>
                     )}
                   </span>
-                </button>
-                {onOpenWork ? (
+                </div>
+                <div
+                  className="project-row-actions"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <WorkMenu
+                    workName={p.name}
+                    onShareFollow={
+                      locked ? undefined : () => onShareFollow?.(p)
+                    }
+                    onShareAssign={
+                      locked ? undefined : () => onShareAssign?.(p)
+                    }
+                    folders={folders}
+                    currentFolderId={p.folderId || null}
+                    onMoveToFolder={
+                      onMoveToFolder
+                        ? (folderId) => onMoveToFolder(p, folderId)
+                        : undefined
+                    }
+                    onRemoveImportant={
+                      importantAction === "remove"
+                        ? () => onToggleImportant?.(p, false)
+                        : undefined
+                    }
+                    onToggleImportant={
+                      onToggleImportant
+                        ? () => onToggleImportant(p, !p.important)
+                        : undefined
+                    }
+                    isImportant={Boolean(p.important)}
+                    onDelete={() => onDelete(p._id)}
+                  />
                   <button
                     type="button"
-                    className="open-work-btn"
-                    aria-label={`Open ${p.name}`}
+                    className={`mark-important ${importantAction === "remove" ? "is-on" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenWork(p);
+                      onToggleImportant(p, importantAction === "add");
                     }}
+                    aria-label={markLabel}
+                    title={markLabel}
                   >
-                    Open
+                    ★
                   </button>
-                ) : null}
-                <WorkMenu
-                  workName={p.name}
-                  onShareFollow={
-                    locked ? undefined : () => onShareFollow?.(p)
-                  }
-                  onShareAssign={
-                    locked ? undefined : () => onShareAssign?.(p)
-                  }
-                  folders={folders}
-                  currentFolderId={p.folderId || null}
-                  onMoveToFolder={
-                    onMoveToFolder
-                      ? (folderId) => onMoveToFolder(p, folderId)
-                      : undefined
-                  }
-                  onRemoveImportant={
-                    importantAction === "remove"
-                      ? () => onToggleImportant?.(p, false)
-                      : undefined
-                  }
-                  onToggleImportant={
-                    onToggleImportant
-                      ? () => onToggleImportant(p, !p.important)
-                      : undefined
-                  }
-                  isImportant={Boolean(p.important)}
-                  onDelete={() => onDelete(p._id)}
-                />
-                <button
-                  type="button"
-                  className={`mark-important ${importantAction === "remove" ? "is-on" : ""}`}
-                  onClick={() => onToggleImportant(p, importantAction === "add")}
-                  aria-label={markLabel}
-                  title={markLabel}
-                >
-                  ★
-                </button>
+                </div>
               </li>
             );
           })}

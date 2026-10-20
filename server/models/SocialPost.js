@@ -21,6 +21,8 @@ const socialPostSchema = new mongoose.Schema(
     meta: { type: String, default: "", maxlength: 160 },
     projectId: { type: String, default: null, maxlength: 120 },
     projectName: { type: String, default: "", maxlength: 80 },
+    creatorName: { type: String, default: "", maxlength: 80 },
+    creatorHandle: { type: String, default: "", maxlength: 40 },
     topicId: { type: String, default: null, maxlength: 120 },
     works: { type: [mongoose.Schema.Types.Mixed], default: [] },
     sharedProject: { type: mongoose.Schema.Types.Mixed, default: null },

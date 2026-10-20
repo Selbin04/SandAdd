@@ -275,6 +275,15 @@ export default function FollowedWorkGroup({ originId, project }) {
                 const isSysUpdate = message.from === "update";
                 const isMsgMine = message.from === "me" || message.author === readAuthorProfile().name;
                 const isMsgCreator = message.role === "Creator" || message.author === group.creatorName;
+                const creatorAcc = message.creatorHandle
+                  ? (message.creatorHandle.startsWith("@") ? message.creatorHandle : `@${message.creatorHandle}`)
+                  : (message.creatorName && message.creatorName !== "Me" && message.creatorName !== "Work Creator")
+                  ? (message.creatorName.startsWith("@") ? message.creatorName : `@${message.creatorName}`)
+                  : (isMsgCreator && (group.creatorHandle || (group.creatorName && group.creatorName !== "Me" && group.creatorName !== "Work Creator")))
+                  ? (group.creatorHandle
+                      ? (group.creatorHandle.startsWith("@") ? group.creatorHandle : `@${group.creatorHandle}`)
+                      : `@${group.creatorName}`)
+                  : null;
 
                 return (
                   <article
@@ -283,6 +292,12 @@ export default function FollowedWorkGroup({ originId, project }) {
                       isSysUpdate ? "is-update" : isMsgMine ? "is-mine" : ""
                     }`}
                   >
+                    {creatorAcc ? (
+                      <div className="msg-creator-tag" title={`Exact Creator: ${creatorAcc}`}>
+                        <span className="msg-creator-badge">Creator</span>
+                        <span className="msg-creator-name">{creatorAcc}</span>
+                      </div>
+                    ) : null}
                     <header className="msg-header">
                       <strong className="msg-author">
                         {isSysUpdate

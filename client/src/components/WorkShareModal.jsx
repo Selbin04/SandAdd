@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import {
   SHARE_THREADS,
   addGroupPost,
@@ -7,10 +8,62 @@ import {
   getShareGroups,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
-import { buildLiveShareTemplate } from "../lib/liveWorks.js";
-import { joinFollowedWorkGroup } from "../lib/followingStore.js";
+import { buildLiveShareTemplate, getLiveWork } from "../lib/liveWorks.js";
+import { joinFollowedWorkGroup, getFollowedWorkGroup } from "../lib/followingStore.js";
+import { getAuthUser } from "../lib/auth.js";
 import TaskSelector from "./TaskSelector.jsx";
 import "./WorkShareModal.css";
+
+function resolveExactCreator(project, author) {
+  const authUser = getAuthUser();
+  const isFollowed = Boolean(project?.originId || project?.sharedTemplateId);
+
+  if (isFollowed) {
+    const originKey = project.originId || project.sharedTemplateId;
+    let live = null;
+    try {
+      live = getLiveWork(originKey);
+    } catch {
+      /* ignore */
+    }
+    const group = getFollowedWorkGroup(originKey);
+
+    const name =
+      (project?.creatorName && project.creatorName !== "Work Creator" && project.creatorName !== "Creator" && project.creatorName !== "Me"
+        ? project.creatorName
+        : null) ||
+      live?.author?.name ||
+      group?.creatorName ||
+      project?.creatorName ||
+      author?.name ||
+      "Creator";
+
+    const handle =
+      project?.creatorHandle ||
+      live?.author?.handle ||
+      group?.creatorHandle ||
+      "";
+
+    return { name, handle };
+  }
+
+  // User's own project
+  const name =
+    (project?.creatorName && project.creatorName !== "Me" && project.creatorName !== "Work Creator"
+      ? project.creatorName
+      : null) ||
+    author?.name ||
+    authUser?.name ||
+    "User";
+
+  const handle =
+    project?.creatorHandle ||
+    author?.handle ||
+    authUser?.handle ||
+    "";
+
+  return { name, handle };
+}
 
 const TARGETS = [
   { id: "post", label: "Post", hint: "Share to Social → View" },
@@ -94,6 +147,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
     setError("");
     try {
       const author = readAuthorProfile();
+      const creator = resolveExactCreator(project, author);
       let sharedProject = buildLiveShareTemplate(project, mode, author);
       if (!sharedProject) throw new Error("Could not prepare share.");
 
@@ -115,6 +169,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         body,
         projectId: project._id,
         projectName: project.name,
+        creatorName: creator.name,
+        creatorHandle: creator.handle,
         works: finalWorks,
         sharedProject,
         proof: null,
@@ -130,6 +186,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           meta: `${isAssign ? "assigned" : "follow"} · ${project.name} · ${selectedGroup?.name || "group"}`,
           groupId,
           groupName: selectedGroup?.name || "",
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
         });
       } else if (target === "messages") {
         addSharedMessage(threadId, {
@@ -138,6 +196,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           text: body,
           authorName: author.name,
           authorHandle: author.handle,
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
           proof: null,
           projectName: project.name,
           works: sharedProject.works,
@@ -151,6 +211,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           meta: `${isAssign ? "assigned" : "open to follow"} · ${project.name}`,
           groupId: null,
           groupName: "",
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
         });
       }
 
@@ -160,8 +222,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           originId: project._id,
           templateId: project._id,
           name: project.name,
-          creatorName: author?.name || "Work Creator",
-          creatorHandle: author?.handle || "",
+          creatorName: creator.name || author?.name || "Work Creator",
+          creatorHandle: creator.handle || author?.handle || "",
           currentUser: author,
           isCreator: true,
         });
@@ -204,7 +266,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         ? `Send to ${selectedThread?.name || "chat"}`
         : "Post to View";
 
-  return (
+  const modalContent = (
     <div className="work-share-backdrop" onMouseDown={onClose} role="presentation">
       <div
         className="work-share-card"
@@ -347,4 +409,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

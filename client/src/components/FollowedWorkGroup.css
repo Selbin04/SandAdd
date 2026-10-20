@@ -323,6 +323,37 @@
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.msg-creator-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.15));
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  font-size: 10px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.msg-creator-badge {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 8px;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.3);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.msg-creator-name {
+  font-weight: 600;
+  color: #a7f3d0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 .msg-header {
   display: flex;
   align-items: center;

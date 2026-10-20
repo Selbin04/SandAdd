@@ -1592,10 +1592,17 @@ export default function App() {
     );
     if (updated && markingDone) {
       const topic = (updated.topics || topics).find((t) => t.id === topicId);
-      setTopicShare({
+      const topicText = topic?.text || current?.text || "a work item";
+      setShareSeed({
         projectId,
-        topic: topic || { ...current, done: true },
+        topicId: topicId,
+        proof: null,
+        caption: `Finished: ${topicText}`,
       });
+      setTopicShare(null);
+      setTopicPopup(null);
+      setShareOpen(true);
+      if (projectId) startWorksPour(projectId);
     }
   };
 

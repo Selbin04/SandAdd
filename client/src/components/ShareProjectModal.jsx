@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   SHARE_THREADS,
   PROOF_ACCEPT,
@@ -10,11 +11,64 @@ import {
   getShareGroups,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
+import { getAuthUser } from "../lib/auth.js";
+import { getLiveWork } from "../lib/liveWorks.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
-import { joinFollowedWorkGroup } from "../lib/followingStore.js";
+import { joinFollowedWorkGroup, getFollowedWorkGroup } from "../lib/followingStore.js";
 import TaskSelector from "./TaskSelector.jsx";
 import "./ShareProjectModal.css";
+
+function resolveExactCreator(project, author) {
+  const authUser = getAuthUser();
+  const isFollowed = Boolean(project?.originId || project?.sharedTemplateId);
+
+  if (isFollowed) {
+    const originKey = project.originId || project.sharedTemplateId;
+    let live = null;
+    try {
+      live = getLiveWork(originKey);
+    } catch {
+      /* ignore */
+    }
+    const group = getFollowedWorkGroup(originKey);
+
+    const name =
+      (project?.creatorName && project.creatorName !== "Work Creator" && project.creatorName !== "Creator" && project.creatorName !== "Me"
+        ? project.creatorName
+        : null) ||
+      live?.author?.name ||
+      group?.creatorName ||
+      project?.creatorName ||
+      author?.name ||
+      "Creator";
+
+    const handle =
+      project?.creatorHandle ||
+      live?.author?.handle ||
+      group?.creatorHandle ||
+      "";
+
+    return { name, handle };
+  }
+
+  // User's own project
+  const name =
+    (project?.creatorName && project.creatorName !== "Me" && project.creatorName !== "Work Creator"
+      ? project.creatorName
+      : null) ||
+    author?.name ||
+    authUser?.name ||
+    "User";
+
+  const handle =
+    project?.creatorHandle ||
+    author?.handle ||
+    authUser?.handle ||
+    "";
+
+  return { name, handle };
+}
 
 const TARGETS = [
   { id: "post", label: "Post", hint: "Share to Social → View", ready: true },
@@ -146,6 +200,7 @@ export default function ShareProjectModal({
     setError("");
     try {
       const author = readAuthorProfile();
+      const creator = resolveExactCreator(project, author);
       const body = caption.trim() || `Finished ${project?.name || "a work"}`;
       let { works, sharedProject } = await buildSharePayloadFromProject(project);
 
@@ -167,8 +222,8 @@ export default function ShareProjectModal({
           originId: project._id,
           templateId: project._id,
           name: project.name,
-          creatorName: author?.name || "Work Creator",
-          creatorHandle: author?.handle || "",
+          creatorName: creator.name || author?.name || "Work Creator",
+          creatorHandle: creator.handle || author?.handle || "",
           currentUser: author,
           isCreator: true,
         });
@@ -182,6 +237,8 @@ export default function ShareProjectModal({
         projectId: project?._id || null,
         projectName: project?.name || "",
         topicId: topicId || null,
+        creatorName: creator.name,
+        creatorHandle: creator.handle,
         works,
         sharedProject,
         proof: proof || null,
@@ -196,6 +253,8 @@ export default function ShareProjectModal({
           meta: `finished · ${project?.name || "work"} · ${selectedGroup?.name || "group"}`,
           groupId,
           groupName: selectedGroup?.name || "",
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
         };
         addGroupPost(groupId, post);
         onPosted?.(post, { target, groupId });
@@ -206,6 +265,8 @@ export default function ShareProjectModal({
           text: body,
           authorName: author.name,
           authorHandle: author.handle,
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
           proof,
           projectName: project?.name || "",
           topicId: topicId || null,
@@ -222,6 +283,8 @@ export default function ShareProjectModal({
           meta: `finished · ${project?.name || "work"}`,
           groupId: null,
           groupName: "",
+          creatorName: creator.name,
+          creatorHandle: creator.handle,
         };
         addUserPost(post);
         onPosted?.(post, { target });
@@ -256,7 +319,7 @@ export default function ShareProjectModal({
         ? `Write a caption (proof optional), then send to ${selectedThread?.name || "the chat"}.`
         : "Write a caption to share this work. Proof is optional.";
 
-  return (
+  const modalContent = (
     <div className="share-backdrop" onMouseDown={onClose} role="presentation">
       <div
         className="share-card"
@@ -434,9 +497,13 @@ export default function ShareProjectModal({
 
         {error ? <p className="share-error">{error}</p> : null}
         <button type="button" className="share-cancel" onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
+           Cancel
+         </button>
+       </div>
+     </div>
+   );
+
+   return typeof document !== "undefined"
+     ? createPortal(modalContent, document.body)
+     : modalContent;
 }

@@ -135,6 +135,17 @@ export default function FolderPanel({
               <li
                 key={p._id}
                 className={`${active ? "active" : ""} ${p.completed ? "done" : ""}`}
+                role="button"
+                tabIndex={0}
+                title={`Open ${p.name}`}
+                onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (onOpenWork) onOpenWork(p);
+                    else onSelect(p);
+                  }
+                }}
               >
                 {locked || p.originId || p.sharedTemplateId ? (
                   <span
@@ -142,10 +153,8 @@ export default function FolderPanel({
                     title="New update added in this progress path"
                   />
                 ) : null}
-                <button
-                  type="button"
+                <div
                   className="project-select"
-                  onClick={() => onSelect(p)}
                   onDoubleClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -177,64 +186,47 @@ export default function FolderPanel({
                       <span>{fillLabel(p.elapsedMs, duration)}</span>
                     ) : null}
                   </span>
-                </button>
-                <button
-                  type="button"
-                  className="open-work-btn"
-                  aria-label={`Open ${p.name}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenWork?.(p);
-                  }}
+                </div>
+                <div
+                  className="project-row-actions"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  Open
-                </button>
-                {locked || p.originId || p.sharedTemplateId ? (
+                  <WorkMenu
+                    workName={p.name}
+                    onShareFollow={
+                      locked ? undefined : () => onShareFollow?.(p)
+                    }
+                    onShareAssign={
+                      locked ? undefined : () => onShareAssign?.(p)
+                    }
+                    folders={folders}
+                    currentFolderId={p.folderId || null}
+                    onMoveToFolder={
+                      onMoveToFolder
+                        ? (folderId) => onMoveToFolder(p, folderId)
+                        : undefined
+                    }
+                    onToggleImportant={
+                      onToggleImportant
+                        ? () => onToggleImportant(p, !p.important)
+                        : undefined
+                    }
+                    isImportant={Boolean(p.important)}
+                    onDelete={() => onDelete(p._id)}
+                  />
                   <button
                     type="button"
-                    className="open-work-btn group-work-btn"
-                    aria-label={`Open group for ${p.name}`}
-                    title="Open group chat & updates"
+                    className="mark-important"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenWork?.(p);
+                      onToggleImportant(p, true);
                     }}
+                    aria-label={`Add ${p.name} to important`}
+                    title={`Add ${p.name} to important`}
                   >
-                    💬 Group
+                    ★
                   </button>
-                ) : null}
-                <WorkMenu
-                  workName={p.name}
-                  onShareFollow={
-                    locked ? undefined : () => onShareFollow?.(p)
-                  }
-                  onShareAssign={
-                    locked ? undefined : () => onShareAssign?.(p)
-                  }
-                  folders={folders}
-                  currentFolderId={p.folderId || null}
-                  onMoveToFolder={
-                    onMoveToFolder
-                      ? (folderId) => onMoveToFolder(p, folderId)
-                      : undefined
-                  }
-                  onToggleImportant={
-                    onToggleImportant
-                      ? () => onToggleImportant(p, !p.important)
-                      : undefined
-                  }
-                  isImportant={Boolean(p.important)}
-                  onDelete={() => onDelete(p._id)}
-                />
-                <button
-                  type="button"
-                  className="mark-important"
-                  onClick={() => onToggleImportant(p, true)}
-                  aria-label={`Add ${p.name} to important`}
-                  title={`Add ${p.name} to important`}
-                >
-                  ★
-                </button>
+                </div>
               </li>
             );
           })}

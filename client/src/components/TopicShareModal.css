@@ -1,7 +1,7 @@
 .topic-share-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 120000;
   background: var(--overlay);
   display: grid;
   place-items: center;

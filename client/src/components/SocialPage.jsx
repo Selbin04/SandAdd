@@ -362,8 +362,34 @@ function FeedCard({
     });
   };
 
+  const creatorAccountName = (() => {
+    if (item.creatorHandle) return `@${String(item.creatorHandle).replace(/^@/, "")}`;
+    if (item.creatorName && item.creatorName !== "Work Creator" && item.creatorName !== "Creator" && item.creatorName !== "Me") {
+      return item.creatorName.startsWith("@") ? item.creatorName : `@${item.creatorName}`;
+    }
+    if (shared?.creatorHandle) return `@${String(shared.creatorHandle).replace(/^@/, "")}`;
+    if (shared?.creatorName && shared.creatorName !== "Work Creator" && shared.creatorName !== "Creator" && shared.creatorName !== "Me") {
+      return shared.creatorName.startsWith("@") ? shared.creatorName : `@${shared.creatorName}`;
+    }
+    if (shared?.author?.handle) return `@${String(shared.author.handle).replace(/^@/, "")}`;
+    if (shared?.author?.name && shared.author.name !== "Work Creator" && shared.author.name !== "Creator" && shared.author.name !== "Me") {
+      return shared.author.name.startsWith("@") ? shared.author.name : `@${shared.author.name}`;
+    }
+    if (item.isUser || item.kind === "finished" || item.topicId || item.projectId) {
+      if (item.handle) return `@${String(item.handle).replace(/^@/, "")}`;
+      if (item.name && item.name !== "Me") return `@${item.name}`;
+    }
+    return null;
+  })();
+
   return (
     <article className="social-card">
+      {creatorAccountName ? (
+        <div className="social-card-creator-tag" title={`Exact Creator: ${creatorAccountName}`}>
+          <span className="creator-tag-badge">Creator</span>
+          <span className="creator-tag-name">{creatorAccountName}</span>
+        </div>
+      ) : null}
       <div className="social-card-top">
         <button
           type="button"

@@ -794,6 +794,26 @@
   background: var(--surface);
   border: 1px solid transparent;
   border-left: 3px solid var(--line);
+  cursor: pointer;
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.project-list li:hover {
+  background: var(--surface-strong);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.project-list li:active {
+  transform: scale(0.996);
+}
+
+.project-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .open-work-btn {
@@ -1026,22 +1046,41 @@
    ========================================================================== */
 .selected-boxes-scroll-wrapper {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 2px 8px;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.15);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+}
+
+.selected-boxes-scroll-wrapper.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .selected-boxes-scroll-wrapper::-webkit-scrollbar {
-  height: 5px;
+  height: 6px;
+}
+
+.selected-boxes-scroll-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
 }
 
 .selected-boxes-scroll-wrapper::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.22);
   border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.selected-boxes-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--brass);
 }
 
 .selected-boxes-row {
@@ -1190,6 +1229,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .folder-arrange-label-wrap {
@@ -1197,6 +1239,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+}
+
+.folder-arrange-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .folder-arrange-title {
@@ -1216,24 +1266,87 @@
   opacity: 0.8;
 }
 
+.folder-scroll-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.folder-scroll-arrow {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--paper);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: none;
+}
+
+.folder-scroll-arrow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--brass);
+  color: var(--brass);
+  transform: scale(1.08);
+}
+
+.folder-scroll-arrow:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.folder-scroll-arrow:disabled,
+.folder-scroll-arrow.is-disabled {
+  opacity: 0.22;
+  cursor: default;
+  pointer-events: none;
+}
+
 .folder-boxes-scroll-wrapper {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 2px 2px 6px;
+  padding: 2px 2px 8px;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.15);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+}
+
+.folder-boxes-scroll-wrapper.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .folder-boxes-scroll-wrapper::-webkit-scrollbar {
-  height: 5px;
+  height: 6px;
+}
+
+.folder-boxes-scroll-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
 }
 
 .folder-boxes-scroll-wrapper::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.22);
   border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.folder-boxes-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--brass);
 }
 
 .folder-boxes-row {
@@ -1250,13 +1363,13 @@
 .folder-rect-box {
   flex: 0 0 152px;
   width: 152px;
-  height: 80px;
-  min-height: 80px;
+  height: 40px;
+  min-height: 40px;
   box-sizing: border-box;
   background: linear-gradient(145deg, rgba(38, 43, 49, 0.95), rgba(28, 32, 37, 0.95));
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 4px 9px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1268,7 +1381,7 @@
 }
 
 .folder-rect-box:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--brass);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
@@ -1279,27 +1392,59 @@
   box-shadow: 0 0 14px rgba(0, 176, 255, 0.28);
 }
 
-.folder-rect-top {
+.folder-rect-top,
+.folder-rect-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
   width: 100%;
-}
-
-.folder-rect-icon {
-  font-size: 15px;
+  min-width: 0;
   line-height: 1;
 }
 
+.folder-rect-icon {
+  display: none !important;
+}
+
+.folder-rect-name,
+.folder-rect-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.folder-rect-box.is-active .folder-rect-name,
+.folder-rect-box.is-active .folder-rect-title {
+  color: var(--brass);
+}
+
+.folder-rect-sub {
+  font-size: 9.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .folder-rect-badge {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 0 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--muted);
-  line-height: 1.2;
+  line-height: 1.3;
+  flex-shrink: 0;
 }
 
 .folder-rect-box.is-active .folder-rect-badge {
@@ -1310,18 +1455,19 @@
 .folder-rect-actions {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .folder-rect-action-btn {
   background: transparent;
   border: none;
   color: var(--muted);
-  padding: 2px 4px;
-  font-size: 12px;
+  padding: 1px 3px;
+  font-size: 11px;
   line-height: 1;
-  border-radius: 4px;
+  border-radius: 3px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1339,28 +1485,6 @@
   background: rgba(224, 107, 90, 0.15);
 }
 
-.folder-rect-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--paper);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.25;
-}
-
-.folder-rect-box.is-active .folder-rect-title {
-  color: var(--brass);
-}
-
-.folder-rect-sub {
-  font-size: 10.5px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* "+ New Folder" Rectangle Box */
 .folder-rect-box.is-new-folder-box {
   border: 1px dashed var(--brass);
@@ -1374,20 +1498,23 @@
 }
 
 .folder-new-plus-icon {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--brass);
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .folder-new-tag {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  padding: 1px 5px;
+  padding: 0 4px;
   border-radius: 999px;
   background: rgba(0, 176, 255, 0.18);
   color: var(--brass);
+  line-height: 1.3;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -1419,22 +1546,41 @@
 
 .important-boxes-scroll-wrapper {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 2px 8px;
   box-sizing: border-box;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(0, 0, 0, 0.15);
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+}
+
+.important-boxes-scroll-wrapper.is-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .important-boxes-scroll-wrapper::-webkit-scrollbar {
-  height: 5px;
+  height: 6px;
+}
+
+.important-boxes-scroll-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 999px;
 }
 
 .important-boxes-scroll-wrapper::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: rgba(255, 255, 255, 0.22);
   border-radius: 999px;
+  transition: background 0.15s ease;
+}
+
+.important-boxes-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--brass);
 }
 
 .important-boxes-row {
@@ -2484,9 +2630,9 @@
   .folder-rect-box {
     flex: 0 0 138px;
     width: 138px;
-    height: 76px;
-    min-height: 76px;
-    padding: 7px 8px;
+    height: 38px;
+    min-height: 38px;
+    padding: 3px 8px;
   }
 
   .important-rect-box {
@@ -2582,9 +2728,9 @@
   .folder-rect-box {
     flex: 0 0 126px;
     width: 126px;
-    height: 72px;
-    min-height: 72px;
-    padding: 6px 7px;
+    height: 36px;
+    min-height: 36px;
+    padding: 3px 6px;
   }
 
   .important-rect-box {

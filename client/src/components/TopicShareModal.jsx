@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { PROOF_ACCEPT, fileToProof } from "../lib/socialFeed.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
@@ -35,7 +36,7 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
     onShare?.(proof || null);
   };
 
-  return (
+  const modalContent = (
     <div className="topic-share-backdrop" role="presentation" onMouseDown={onClose}>
       <div
         className="topic-share-card"
@@ -110,4 +111,8 @@ export default function TopicShareModal({ topic, onClose, onShare }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

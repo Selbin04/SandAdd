@@ -510,6 +510,48 @@
   border-radius: 12px;
 }
 
+.social-card-creator-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  background: rgba(0, 176, 255, 0.1);
+  border: 1px solid rgba(0, 176, 255, 0.28);
+  font-size: 11px;
+  line-height: 1.2;
+  width: fit-content;
+  user-select: none;
+}
+
+.social-card-creator-tag .creator-tag-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.social-card-creator-tag .creator-tag-name {
+  color: var(--paper);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="light"] .social-card-creator-tag {
+  background: rgba(8, 127, 199, 0.08);
+  border-color: rgba(8, 127, 199, 0.25);
+}
+
+[data-theme="light"] .social-card-creator-tag .creator-tag-name {
+  color: #111827;
+}
+
 .social-card-top {
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
+import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 
 export default function SelectedStack({
   projects,
@@ -6,18 +7,47 @@ export default function SelectedStack({
   onSelect,
   onOpenTopics,
 }) {
+  const selectedScroll = useHorizontalScroll();
+
   return (
     <aside className="panel selected-panel">
       <header className="panel-head">
         <h2>SELECTED ( TODAY )</h2>
-        <span className="storage-pill">{projects.length}</span>
+        <div className="panel-head-actions">
+          <div className="folder-scroll-controls">
+            <button
+              type="button"
+              className={`folder-scroll-arrow ${!selectedScroll.canScrollLeft ? "is-disabled" : ""}`}
+              onClick={() => selectedScroll.scrollByAmount(-220)}
+              disabled={!selectedScroll.canScrollLeft}
+              title="Scroll left"
+              aria-label="Scroll left"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className={`folder-scroll-arrow ${!selectedScroll.canScrollRight ? "is-disabled" : ""}`}
+              onClick={() => selectedScroll.scrollByAmount(220)}
+              disabled={!selectedScroll.canScrollRight}
+              title="Scroll right"
+              aria-label="Scroll right"
+            >
+              ›
+            </button>
+          </div>
+          <span className="storage-pill">{projects.length}</span>
+        </div>
       </header>
       {projects.length === 0 ? (
         <p className="empty">
           Projects and today&apos;s tasks from the morning review appear here. Click a project to see today&apos;s tasks.
         </p>
       ) : (
-        <div className="selected-boxes-scroll-wrapper">
+        <div
+          ref={selectedScroll.elRef}
+          className="selected-boxes-scroll-wrapper"
+        >
           <div
             className="selected-boxes-row"
             role="list"
