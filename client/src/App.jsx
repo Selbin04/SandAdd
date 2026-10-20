@@ -181,6 +181,20 @@ function patchProject(list, project) {
   return list.map((p) => (p._id === project._id ? project : p));
 }
 
+function getPageFromUrl() {
+  if (typeof window === "undefined") return "progress";
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+  if (path === "social") return "social";
+  if (path === "portfolio") return "portfolio";
+  if (path === "messages") return "messages";
+  if (path === "profile") return "profile";
+  const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+  if (hash === "social" || hash === "portfolio" || hash === "messages" || hash === "profile") {
+    return hash;
+  }
+  return "progress";
+}
+
 export default function App() {
   const [authUser, setAuthUser] = useState(() =>
     getAuthToken() ? getAuthUser() : null
@@ -206,7 +220,7 @@ export default function App() {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [selectedIds, setSelectedIds] = useState(() => loadDailySelectedIds());
   const [worksPickerId, setWorksPickerId] = useState(null);
-  const [page, setPage] = useState("progress");
+  const [page, setPage] = useState(getPageFromUrl);
   const drawerOpen = page === "progress" && Boolean(openWorkId);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSeed, setShareSeed] = useState(null);
@@ -767,8 +781,7 @@ export default function App() {
     setAuthUser(null);
     setProjects([]);
     setActiveId(null);
-    setActiveName("");
-    setPage("progress");
+    handleNavigate("progress");
     reviewStartedRef.current = false;
   };
   useEffect(() => {
@@ -1001,6 +1014,31 @@ export default function App() {
       workDrawerCloseTimerRef.current = null;
     }, 320);
   };
+
+  const handleNavigate = useCallback(
+    (next) => {
+      if (next !== "progress" && openWorkId) handleCloseWork();
+      if (next !== "social") setSocialGroupId(null);
+      if (next !== "messages") setMessagesThreadId(null);
+      setPage(next);
+      if (typeof window !== "undefined") {
+        const targetPath = next === "progress" ? "/" : `/${next}`;
+        if (window.location.pathname !== targetPath) {
+          window.history.pushState(null, "", targetPath);
+        }
+      }
+    },
+    [openWorkId]
+  );
+
+  useEffect(() => {
+    const onPopState = () => {
+      const target = getPageFromUrl();
+      setPage(target);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   const handleConfirmDailyWorks = (topicIds) => {
     if (!worksPickerId) return;
@@ -1758,7 +1796,7 @@ export default function App() {
       });
     }
     applyProject(merged);
-    setPage("progress");
+    handleNavigate("progress");
   };
 
   return (
@@ -1769,12 +1807,7 @@ export default function App() {
         page={page}
         userName={authUser.name}
         onLogout={handleLogout}
-        onNavigate={(next) => {
-          if (next !== "progress" && openWorkId) handleCloseWork();
-          if (next !== "social") setSocialGroupId(null);
-          if (next !== "messages") setMessagesThreadId(null);
-          setPage(next);
-        }}
+        onNavigate={handleNavigate}
       />
 
       {page === "social" ? (
@@ -1800,7 +1833,7 @@ export default function App() {
           activeId={activeId}
           onOpenProject={(project) => {
             handleSelect(project);
-            setPage("progress");
+            handleNavigate("progress");
           }}
         />
       ) : (

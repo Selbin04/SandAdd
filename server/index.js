@@ -34,6 +34,9 @@ if (isEntrypoint) {
 export default async function handler(req, res) {
   try {
     const app = await getApp();
+    if (!String(req.url || "").startsWith("/api")) {
+      req.url = `/api${req.url?.startsWith("/") ? req.url : `/${req.url || ""}`}`;
+    }
     return app(req, res);
   } catch (error) {
     console.error("Vercel Express handler error:", error);

@@ -94,6 +94,15 @@ export async function createApp({ allowMemory = false } = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "5mb" }));
+
+  // Ensure /api prefix is present even if reverse proxy or serverless rewrite stripped it
+  app.use((req, _res, next) => {
+    if (!req.url.startsWith("/api")) {
+      req.url = `/api${req.url.startsWith("/") ? req.url : `/${req.url}`}`;
+    }
+    next();
+  });
+
   app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
