@@ -161,9 +161,41 @@ export default function createSocialRouter(useMemory) {
     "/posts",
     asyncRoute(async (req, res) => {
       await ensureSeeded();
+      const topicId = req.query.topicId ? String(req.query.topicId).trim() : null;
+      const currentUserId = req.user?.id || null;
+
+      if (topicId) {
+        if (useMemory) {
+          const matched = memPosts.filter(
+            (p) =>
+              String(p.topicId || "") === topicId ||
+              (Array.isArray(p.works) &&
+                p.works.some((w) => String(w?.id || w?._id || "") === topicId)) ||
+              (p.sharedProject &&
+                Array.isArray(p.sharedProject.works) &&
+                p.sharedProject.works.some((w) => String(w?.id || w?._id || "") === topicId))
+          );
+          matched.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          return res.json(matched.map((p) => formatPost(p, currentUserId)));
+        }
+
+        const docs = await SocialPost.find({
+          $or: [
+            { topicId },
+            { "works.id": topicId },
+            { "works._id": topicId },
+            { "sharedProject.works.id": topicId },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .limit(100)
+          .lean();
+
+        return res.json(docs.map((d) => formatPost(d, currentUserId)));
+      }
+
       const scope = req.query.scope === "group" ? "group" : "view";
       const groupId = req.query.groupId ? String(req.query.groupId) : null;
-      const currentUserId = req.user?.id || null;
 
       if (useMemory) {
         let filtered = memPosts.filter((p) => p.scope === scope);

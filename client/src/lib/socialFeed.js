@@ -777,6 +777,9 @@ export function saveUserPosts(posts) {
   const light = posts.map(lightPost);
   writeJson(FEED_KEY, light);
   persistFeedAsync("userPosts", posts, light);
+  try {
+    window.dispatchEvent(new CustomEvent("sandadd:feed-changed"));
+  } catch {}
 }
 
 export function addUserPost(post) {
@@ -982,6 +985,56 @@ export function deleteSharesForTopic(topicId) {
   return removed;
 }
 
+/** Get all posts created by finishing or sharing a particular topic/task. */
+export function getLocalPostsForTopic(topicId) {
+  if (!topicId) return [];
+  const tid = String(topicId);
+  const map = new Map();
+
+  const checkAndAdd = (p) => {
+    if (!p || !p.id) return;
+    const isTopicMatch =
+      String(p.topicId || "") === tid ||
+      (Array.isArray(p.works) && p.works.some((w) => String(w?.id || w?._id || "") === tid)) ||
+      (p.sharedProject &&
+        Array.isArray(p.sharedProject.works) &&
+        p.sharedProject.works.some((w) => String(w?.id || w?._id || "") === tid));
+    if (isTopicMatch) {
+      map.set(String(p.id), p);
+    }
+  };
+
+  const userPosts = loadUserPosts();
+  for (const p of userPosts) checkAndAdd(p);
+
+  const groupMap = loadAllGroupPosts();
+  for (const list of Object.values(groupMap)) {
+    if (Array.isArray(list)) {
+      for (const p of list) checkAndAdd(p);
+    }
+  }
+
+  const list = Array.from(map.values());
+  list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return list;
+}
+
+export async function fetchTopicPosts(topicId) {
+  if (!topicId) return [];
+  const local = getLocalPostsForTopic(topicId);
+  try {
+    const remote = await fetchSocialPosts({ topicId });
+    if (Array.isArray(remote) && remote.length > 0) {
+      const merged = mergeByIdPreferMedia(remote, local);
+      merged.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      return merged;
+    }
+  } catch {
+    /* fallback to local */
+  }
+  return local;
+}
+
 function loadAllGroupPosts() {
   if (groupPostsCache) return groupPostsCache;
   const data = readJson(GROUP_FEED_KEY, {});
@@ -998,6 +1051,9 @@ function saveAllGroupPosts(map) {
   }
   writeJson(GROUP_FEED_KEY, light);
   persistFeedAsync("groupPosts", map, light);
+  try {
+    window.dispatchEvent(new CustomEvent("sandadd:feed-changed"));
+  } catch {}
 }
 
 export function loadGroupPosts(groupId) {

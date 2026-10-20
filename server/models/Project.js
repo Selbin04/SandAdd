@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const sourceItemSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
-    type: { type: String, enum: ["link", "text", "file"], default: "text" },
+    type: { type: String, enum: ["link", "text", "file", "post"], default: "text" },
     title: { type: String, default: "", trim: true, maxlength: 120 },
     content: { type: String, default: "", trim: true, maxlength: 1000 },
     proof: { type: mongoose.Schema.Types.Mixed, default: null },

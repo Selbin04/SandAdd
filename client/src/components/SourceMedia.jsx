@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
 import {
   isImageProof,
   isPdfProof,
   isVideoProof,
   restoreTopicSourceProof,
+  getLocalPostsForTopic,
 } from "../lib/socialFeed.js";
 import AiSourceSummary from "./AiSourceSummary.jsx";
+import TaskSourcePosts from "./TaskSourcePosts.jsx";
 import "./SourceMedia.css";
 
 export function normalizeSourceUrl(raw) {
@@ -34,7 +35,9 @@ export function workHasSource(work) {
     String(work?.source || "").trim() ||
       work?.sourceProof?.mediaId ||
       work?.sourceProof?.dataUrl ||
-      work?.sourceProof?.name
+      work?.sourceProof?.name ||
+      (Array.isArray(work?.sources) && work.sources.length > 0) ||
+      (work?.id && getLocalPostsForTopic(work.id).length > 0)
   );
 }
 
@@ -205,11 +208,25 @@ export function SourceFileViewer({ proof }) {
   );
 }
 
-/** Source control for View/Group posts — panel with Open / Text / Link / File. */
 export function WorkSourceControl({ work }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("open");
-  const has = workHasSource(work);
+  const [topicPostsCount, setTopicPostsCount] = useState(() =>
+    work?.id ? getLocalPostsForTopic(work.id).length : 0
+  );
+
+  useEffect(() => {
+    if (!work?.id) return;
+    const update = () => {
+      setTopicPostsCount(getLocalPostsForTopic(work.id).length);
+    };
+    update();
+    window.addEventListener("sandadd:feed-changed", update);
+    return () => window.removeEventListener("sandadd:feed-changed", update);
+  }, [work?.id]);
+
+  const hasPosts = topicPostsCount > 0;
+  const has = workHasSource(work) || hasPosts;
   const hasFile = workHasFileSource(work);
   const isUrl = isUrlSource(work?.source);
   const hasText = Boolean(work?.source && !isUrl);
@@ -244,6 +261,15 @@ export function WorkSourceControl({ work }) {
               onClick={() => setTab("open")}
             >
               Open
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "post"}
+              className={tab === "post" ? "is-active" : ""}
+              onClick={() => setTab("post")}
+            >
+              Post {topicPostsCount > 0 ? `(${topicPostsCount})` : ""}
             </button>
             <button
               type="button"
@@ -330,6 +356,35 @@ export function WorkSourceControl({ work }) {
               ) : (
                 <p className="source-media-meta">No source available.</p>
               )}
+
+              {topicPostsCount > 0 && (
+                <div className="done-source-finished-posts-preview">
+                  <div className="done-source-finished-posts-preview-head">
+                    <span className="done-source-finished-posts-preview-title">
+                      ✓ Finished Posts ({topicPostsCount})
+                    </span>
+                    <button
+                      type="button"
+                      className="done-source-finished-posts-view-all"
+                      onClick={() => setTab("post")}
+                    >
+                      View posts →
+                    </button>
+                  </div>
+                  <p className="done-source-finished-posts-preview-sub">
+                    Users posted completion updates for this task.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {tab === "post" ? (
+            <div className="work-source-pane">
+              <TaskSourcePosts
+                topic={work}
+                onPostsLoaded={(loaded) => setTopicPostsCount(loaded.length)}
+              />
             </div>
           ) : null}
 

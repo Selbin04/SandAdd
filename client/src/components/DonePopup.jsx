@@ -7,6 +7,7 @@ import {
   isPdfProof,
   isVideoProof,
   restoreTopicSourceProof,
+  getLocalPostsForTopic,
 } from "../lib/socialFeed.js";
 import { getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
 import { getFollowedWorkGroup } from "../lib/followingStore.js";
@@ -14,6 +15,7 @@ import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.
 import FileUploadHint from "./FileUploadHint.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import AiSourceSummary from "./AiSourceSummary.jsx";
+import TaskSourcePosts from "./TaskSourcePosts.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -425,6 +427,7 @@ export default function DonePopup({
   onRemove,
   onToggle,
   onSetSource,
+  onShareTopic = null,
   mode = "all",
   topicIds = null,
   readOnlyTasks = false,
@@ -559,6 +562,26 @@ export default function DonePopup({
     : allTopics;
   const panelTopic = topics.find((t) => t.id === sourcePanelId) || null;
 
+  const [topicPostsCounts, setTopicPostsCounts] = useState({});
+
+  useEffect(() => {
+    const updateCounts = () => {
+      const counts = {};
+      for (const t of topics) {
+        if (t?.id) {
+          counts[t.id] = getLocalPostsForTopic(t.id).length;
+        }
+      }
+      setTopicPostsCounts(counts);
+    };
+
+    updateCounts();
+    window.addEventListener("sandadd:feed-changed", updateCounts);
+    return () => {
+      window.removeEventListener("sandadd:feed-changed", updateCounts);
+    };
+  }, [topics]);
+
   useEffect(() => {
     if (doneListRef.current) {
       doneListRef.current.scrollTop = doneListRef.current.scrollHeight;
@@ -607,7 +630,9 @@ export default function DonePopup({
     setSourceTitleDraft("");
     setEditingTitleId(null);
     setEditingContentId(null);
-    setSourceTab("open");
+    const pCount = topicPostsCounts[topic.id] || getLocalPostsForTopic(topic.id).length;
+    const hasSrc = topicHasSource(topic);
+    setSourceTab(hasSrc ? "open" : pCount > 0 ? "post" : "open");
     setIsSourceEditMode(false);
   };
 
@@ -1132,6 +1157,9 @@ export default function DonePopup({
               const sourceCount = sourceList.length;
               const hasSource = sourceCount > 0;
               const isOpen = sourcePanelId === topic.id;
+              const topicPostsCount =
+                topicPostsCounts[topic.id] ?? getLocalPostsForTopic(topic.id).length;
+              const hasTopicPosts = topicPostsCount > 0;
 
               const showCheck = topic.hasCheckbox !== false;
               return (
@@ -1176,20 +1204,20 @@ export default function DonePopup({
                     ) : null}
                     <button
                       type="button"
-                      className={`done-source ${hasSource ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
+                      className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isOpen) closePanel();
                         else openPanel(topic);
                       }}
-                      disabled={busyFile || (readOnlyTasks && !hasSource)}
+                      disabled={busyFile || (readOnlyTasks && !hasSource && !hasTopicPosts)}
                       title={
                         readOnlyTasks
-                          ? hasSource
-                            ? `${sourceCount} source(s)`
+                          ? hasSource || hasTopicPosts
+                            ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
                             : "No source"
-                          : hasSource
-                            ? `${sourceCount} source(s)`
+                          : hasSource || hasTopicPosts
+                            ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
                             : "Add source"
                       }
                       aria-expanded={isOpen}
@@ -1223,6 +1251,15 @@ export default function DonePopup({
                           onClick={() => setSourceTab("open")}
                         >
                           Open ({sourceCount})
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={sourceTab === "post"}
+                          className={sourceTab === "post" ? "is-active" : ""}
+                          onClick={() => setSourceTab("post")}
+                        >
+                          Post {topicPostsCounts[topic.id] > 0 ? `(${topicPostsCounts[topic.id]})` : ""}
                         </button>
                         {isSourceEditMode && !readOnlyTasks ? (
                           <>
@@ -1512,6 +1549,25 @@ export default function DonePopup({
                               </div>
                             );
                           })()}
+                          {(topicPostsCounts[topic.id] || 0) > 0 ? (
+                            <div className="done-source-finished-posts-preview">
+                              <div className="done-source-finished-posts-preview-head">
+                                <span className="done-source-finished-posts-preview-title">
+                                  ✓ Finished Posts ({topicPostsCounts[topic.id]})
+                                </span>
+                                <button
+                                  type="button"
+                                  className="done-source-finished-posts-view-all"
+                                  onClick={() => setSourceTab("post")}
+                                >
+                                  View posts →
+                                </button>
+                              </div>
+                              <p className="done-source-finished-posts-preview-sub">
+                                Users posted completion updates for this task. Click to view.
+                              </p>
+                            </div>
+                          ) : null}
                           {hasSource && isSourceEditMode && !readOnlyTasks ? (
                             <button
                               type="button"
@@ -1524,6 +1580,22 @@ export default function DonePopup({
                               Clear all sources
                             </button>
                           ) : null}
+                        </div>
+                      ) : null}
+
+                      {sourceTab === "post" ? (
+                        <div className="done-source-pane">
+                          <TaskSourcePosts
+                            topic={topic}
+                            project={project}
+                            onShareFinish={onShareTopic}
+                            onPostsLoaded={(loaded) => {
+                              setTopicPostsCounts((prev) => ({
+                                ...prev,
+                                [topic.id]: loaded.length,
+                              }));
+                            }}
+                          />
                         </div>
                       ) : null}
 

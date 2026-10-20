@@ -36,6 +36,7 @@ const socialPostSchema = new mongoose.Schema(
 
 socialPostSchema.index({ scope: 1, groupId: 1, createdAt: -1 });
 socialPostSchema.index({ authorId: 1, createdAt: -1 });
+socialPostSchema.index({ topicId: 1, createdAt: -1 });
 socialPostSchema.index({ clientId: 1 }, { unique: true });
 
 socialPostSchema.pre("validate", function validateGroupScope(next) {

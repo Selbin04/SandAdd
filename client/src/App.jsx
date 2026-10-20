@@ -1098,7 +1098,7 @@ export default function App() {
     (p) => !p.important && !p.folderId
   );
   const displayedRegularProjects = activeFolderId
-    ? projects.filter((p) => !p.important && p.folderId === activeFolderId)
+    ? projects.filter((p) => !p.important && String(p.folderId || "") === String(activeFolderId))
     : regularProjects;
   const importantProjects = projects
     .filter((p) => p.important)
@@ -1614,7 +1614,7 @@ export default function App() {
   };
 
   const popupProject = topicPopup
-    ? projects.find((p) => p._id === topicPopup.projectId)
+    ? projects.find((p) => String(p._id) === String(topicPopup.projectId))
     : null;
   const topicShareProject = topicShare
     ? projects.find((p) => p._id === topicShare.projectId)
@@ -1887,7 +1887,7 @@ export default function App() {
           }}
         >
           {(() => {
-            const openProj = projects.find((p) => p._id === openWorkId);
+            const openProj = projects.find((p) => String(p._id) === String(openWorkId));
             if (!openProj) return null;
             const originId = openProj?.originId || openProj?.sharedTemplateId || openProj?._id;
             const hasGroup = Boolean(
@@ -1915,6 +1915,17 @@ export default function App() {
                   onRemove={handleRemoveTopic}
                   onToggle={handleToggleTopic}
                   onSetSource={handleSetTopicSource}
+                  onShareTopic={(topic, proj) => {
+                    const topicText = topic?.text || "a work item";
+                    const p = proj || openProj;
+                    setShareSeed({
+                      projectId: p?._id || null,
+                      topicId: topic?.id || null,
+                      proof: null,
+                      caption: `Finished: ${topicText}`,
+                    });
+                    setShareOpen(true);
+                  }}
                   readOnlyTasks={isTasksLocked(openProj)}
                   isCollaborative={Boolean(
                     hasGroup ||
@@ -1990,6 +2001,17 @@ export default function App() {
           onRemove={handleRemoveTopic}
           onToggle={handleToggleTopic}
           onSetSource={handleSetTopicSource}
+          onShareTopic={(topic, proj) => {
+            const topicText = topic?.text || "a work item";
+            const p = proj || popupProject;
+            setShareSeed({
+              projectId: p?._id || null,
+              topicId: topic?.id || null,
+              proof: null,
+              caption: `Finished: ${topicText}`,
+            });
+            setShareOpen(true);
+          }}
         />
       )}
       {workShare?.project && (

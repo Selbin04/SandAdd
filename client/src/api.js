@@ -211,10 +211,14 @@ export async function summarizeSourceApi({ type, content, proof, title }) {
   return readJson(res, "Could not summarize source");
 }
 
-export async function fetchSocialPosts({ scope = "view", groupId = null } = {}) {
+export async function fetchSocialPosts({ scope = "view", groupId = null, topicId = null } = {}) {
   const params = new URLSearchParams();
-  if (scope) params.set("scope", scope);
-  if (groupId) params.set("groupId", groupId);
+  if (topicId) {
+    params.set("topicId", topicId);
+  } else {
+    if (scope) params.set("scope", scope);
+    if (groupId) params.set("groupId", groupId);
+  }
   const res = await fetch(`${API}/social/posts?${params}`, {
     headers: authHeaders(),
   });

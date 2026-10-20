@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { elapsedFromWorks, projectDuration } from "../lib/time.js";
 import { getProjectCreatorTagline } from "../lib/liveWorks.js";
+import { getLocalPostsForTopic } from "../lib/socialFeed.js";
 import "./MiddleTasksPanel.css";
 
 export default function MiddleTasksPanel({
@@ -180,6 +181,28 @@ export default function MiddleTasksPanel({
                       </div>
                     </div>
                   ) : null}
+
+                  {(() => {
+                    const postsCount = t?.id ? getLocalPostsForTopic(t.id).length : 0;
+                    if (postsCount === 0) return null;
+                    return (
+                      <div className="task-sources-list" style={{ marginTop: "4px" }}>
+                        <div className="task-source-chip">
+                          <span
+                            className="task-source-text"
+                            style={{
+                              color: "var(--brass)",
+                              fontWeight: 700,
+                              borderColor: "rgba(0, 176, 255, 0.35)",
+                              background: "rgba(0, 176, 255, 0.08)",
+                            }}
+                          >
+                            💬 {postsCount} {postsCount === 1 ? "finish post" : "finish posts"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </li>
               );
             })}

@@ -181,7 +181,7 @@ export default function ProjectPanel({
                 {/* Box 2..N: Folders used to arrange progress folders */}
                 {folders.map((folder) => {
                   const count = (allProjects.length > 0 ? allProjects : projects).filter(
-                    (p) => p.folderId === folder.id
+                    (p) => String(p.folderId || "") === String(folder.id)
                   ).length;
                   const isSelected = activeFolderId === folder.id;
                   return (
@@ -189,6 +189,10 @@ export default function ProjectPanel({
                       key={folder.id}
                       className={`folder-rect-box ${isSelected ? "is-active" : ""}`}
                       onClick={() => onSelectFolder?.(folder.id)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setHourglassFolder(folder);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
@@ -198,7 +202,7 @@ export default function ProjectPanel({
                       role="tab"
                       aria-selected={isSelected}
                       tabIndex={0}
-                      title={`Folder: ${folder.name}`}
+                      title={`Folder: ${folder.name} (Click to filter, double click or tap hourglass to open)`}
                     >
                       <div className="folder-rect-top">
                         <div className="folder-rect-name" title={folder.name}>
@@ -607,7 +611,7 @@ export default function ProjectPanel({
         <FolderHourglassModal
           folder={hourglassFolder}
           projects={(allProjects.length > 0 ? allProjects : projects).filter(
-            (p) => p.folderId === hourglassFolder.id
+            (p) => String(p.folderId || "") === String(hourglassFolder.id)
           )}
           onClose={() => setHourglassFolder(null)}
           onOpenWork={onOpenWork}

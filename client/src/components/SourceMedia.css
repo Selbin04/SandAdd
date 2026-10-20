@@ -212,16 +212,17 @@
 }
 
 .work-source-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  align-items: center;
   gap: 4px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .work-source-tabs button {
   border: 0;
   border-radius: 6px;
-  padding: 6px 2px;
+  padding: 6px 8px;
   background: transparent;
   color: var(--muted);
   font: inherit;
