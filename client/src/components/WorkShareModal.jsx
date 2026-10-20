@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   SHARE_THREADS,
+  PROOF_ACCEPT,
   addGroupPost,
   addSharedMessage,
   addUserPost,
+  fileToProof,
   getShareGroups,
   readAuthorProfile,
 } from "../lib/socialFeed.js";
@@ -12,6 +14,9 @@ import { buildLiveShareTemplate, getLiveWork } from "../lib/liveWorks.js";
 import { joinFollowedWorkGroup, getFollowedWorkGroup } from "../lib/followingStore.js";
 import { getAuthUser } from "../lib/auth.js";
 import TaskSelector from "./TaskSelector.jsx";
+import ProofMedia from "./ProofMedia.jsx";
+import FileUploadHint from "./FileUploadHint.jsx";
+import { normalizeSourceUrl } from "./SourceMedia.jsx";
 import "./WorkShareModal.css";
 
 function resolveExactCreator(project, author) {
@@ -79,6 +84,34 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [proof, setProof] = useState(null);
+  const [proofName, setProofName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const fileRef = useRef(null);
+
+  const onFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setBusy(true);
+    try {
+      const next = await fileToProof(file);
+      setProof(next);
+      setProofName(next?.name || "");
+    } catch (err) {
+      setProof(null);
+      setProofName("");
+      setError(err.message || "Could not attach media");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeProof = () => {
+    setProof(null);
+    setProofName("");
+  };
 
   const [taskMode, setTaskMode] = useState("all");
   const projectTopics = project?.topics || [];
@@ -161,6 +194,18 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       }
 
       const body = caption.trim() || defaultBody();
+      const trimmedLink = linkUrl.trim();
+      const normalizedLink = trimmedLink ? normalizeSourceUrl(trimmedLink) : "";
+
+      let mediaProof = proof || null;
+      if (!mediaProof && normalizedLink) {
+        mediaProof = {
+          type: "link",
+          url: normalizedLink,
+          name: normalizedLink,
+        };
+      }
+
       const base = {
         id: `live-${Date.now()}`,
         name: author.name,
@@ -172,8 +217,13 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
         creatorName: creator.name,
         creatorHandle: creator.handle,
         works: finalWorks,
-        sharedProject,
-        proof: null,
+        sharedProject: {
+          ...sharedProject,
+          link: normalizedLink || null,
+          proof: proof || null,
+        },
+        proof: mediaProof,
+        link: normalizedLink || null,
         createdAt: new Date().toISOString(),
         isUser: true,
         shareMode: mode,
@@ -188,6 +238,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           groupName: selectedGroup?.name || "",
           creatorName: creator.name,
           creatorHandle: creator.handle,
+          proof: mediaProof,
+          link: normalizedLink || null,
         });
       } else if (target === "messages") {
         addSharedMessage(threadId, {
@@ -198,10 +250,15 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           authorHandle: author.handle,
           creatorName: creator.name,
           creatorHandle: creator.handle,
-          proof: null,
+          proof: mediaProof,
+          link: normalizedLink || null,
           projectName: project.name,
           works: sharedProject.works,
-          sharedProject,
+          sharedProject: {
+            ...sharedProject,
+            link: normalizedLink || null,
+            proof: proof || null,
+          },
           createdAt: new Date().toISOString(),
           shareMode: mode,
         });
@@ -213,6 +270,8 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
           groupName: "",
           creatorName: creator.name,
           creatorHandle: creator.handle,
+          proof: mediaProof,
+          link: normalizedLink || null,
         });
       }
 
@@ -371,7 +430,7 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
               .
             </p>
             <label className="work-share-caption">
-              Write something
+              Caption
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
@@ -382,6 +441,104 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 autoFocus
               />
             </label>
+
+            <div className="work-share-attachments">
+              <div className="work-share-attach-header">
+                <span className="work-share-attach-title">Attachments</span>
+                <span className="work-share-attach-sub">Image, video, or link</span>
+              </div>
+
+              <div className="work-share-attach-row">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={PROOF_ACCEPT}
+                  hidden
+                  onChange={onFileChange}
+                />
+                <button
+                  type="button"
+                  className="work-share-attach-btn"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  <span aria-hidden="true" className="work-share-attach-icon">
+                    {proof?.type?.startsWith("video/") ? "🎥" : "🖼️"}
+                  </span>
+                  <span>{proofName ? "Change image / video" : "Attach image or video"}</span>
+                </button>
+
+                {proofName ? (
+                  <button
+                    type="button"
+                    className="work-share-remove-btn"
+                    title="Remove media file"
+                    onClick={removeProof}
+                  >
+                    ✕ Remove
+                  </button>
+                ) : null}
+              </div>
+
+              {proof ? (
+                <div className="work-share-preview-card">
+                  <ProofMedia proof={proof} className="work-share-proof-preview" />
+                  <div className="work-share-preview-info">
+                    <span className="work-share-file-name" title={proof.name}>
+                      {proof.name}
+                    </span>
+                    {proof.size ? (
+                      <span className="work-share-file-size">
+                        {(proof.size / (1024 * 1024)).toFixed(1)} MB
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <FileUploadHint />
+              )}
+
+              <div className="work-share-link-row">
+                <label className="work-share-link-label" htmlFor="work-share-link-input">
+                  <span aria-hidden="true">🔗</span> Attach link
+                </label>
+                <div className="work-share-link-input-wrap">
+                  <input
+                    id="work-share-link-input"
+                    type="url"
+                    className="work-share-link-input"
+                    placeholder="https://example.com or source link"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                  />
+                  {linkUrl ? (
+                    <button
+                      type="button"
+                      className="work-share-clear-link"
+                      onClick={() => setLinkUrl("")}
+                      title="Clear link"
+                      aria-label="Clear link"
+                    >
+                      ✕
+                    </button>
+                  ) : null}
+                </div>
+                {linkUrl.trim() ? (
+                  <div className="work-share-link-preview">
+                    <span className="work-share-link-badge">Attached</span>
+                    <a
+                      href={normalizeSourceUrl(linkUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="work-share-link-test"
+                    >
+                      Test link ↗
+                    </a>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
             <TaskSelector
               topics={projectTopics}
               mode={taskMode}

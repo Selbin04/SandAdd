@@ -691,6 +691,42 @@
   white-space: nowrap;
 }
 
+.social-proof-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  color: var(--brass, #c4a574);
+  text-decoration: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 100%;
+  cursor: pointer;
+  word-break: break-all;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.social-proof-link:hover {
+  border-color: var(--brass, #c4a574);
+  background: rgba(196, 165, 116, 0.08);
+}
+
+.social-proof-link-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.social-proof-link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .social-actions {
   display: flex;
   align-items: center;

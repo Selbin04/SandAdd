@@ -225,6 +225,48 @@
   background: var(--ink-2);
 }
 
+.messages-proof.is-video {
+  width: 100%;
+  min-height: 140px;
+  max-height: 240px;
+  background: #000;
+}
+
+.messages-proof-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  color: var(--brass, #c4a574);
+  text-decoration: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+  word-break: break-all;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.messages-proof-link:hover {
+  border-color: var(--brass, #c4a574);
+  background: rgba(196, 165, 116, 0.08);
+}
+
+.messages-proof-link-icon {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.messages-proof-link-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .messages-works {
   max-width: 100%;
   padding: 10px 12px;

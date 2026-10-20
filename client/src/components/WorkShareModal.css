@@ -173,6 +173,224 @@
   opacity: 0.85;
 }
 
+.work-share-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.work-share-attach-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.work-share-attach-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.work-share-attach-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.work-share-attach-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-share-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed var(--line);
+  background: var(--surface);
+  color: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.work-share-attach-btn:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--brass);
+  background: rgba(196, 165, 116, 0.08);
+}
+
+.work-share-attach-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.work-share-attach-icon {
+  font-size: 14px;
+}
+
+.work-share-remove-btn {
+  border: 0;
+  background: transparent;
+  color: var(--danger, #e5484d);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.work-share-remove-btn:hover {
+  background: rgba(229, 72, 77, 0.12);
+}
+
+.work-share-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--ink-2, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--line);
+}
+
+.work-share-proof-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}
+
+.work-share-proof-preview.is-video {
+  width: 100%;
+  max-height: 220px;
+  background: #000;
+}
+
+.work-share-preview-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px 4px 0;
+}
+
+.work-share-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 75%;
+}
+
+.work-share-file-size {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.work-share-link-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.work-share-link-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.work-share-link-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.work-share-link-input {
+  width: 100%;
+  padding: 8px 30px 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--input-bg);
+  color: var(--paper);
+  font: inherit;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.work-share-link-input:focus {
+  outline: none;
+  border-color: var(--brass);
+}
+
+.work-share-clear-link {
+  position: absolute;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
+}
+
+.work-share-clear-link:hover {
+  color: var(--paper);
+}
+
+.work-share-link-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.work-share-link-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brass);
+  background: rgba(196, 165, 116, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.work-share-link-test {
+  font-size: 11px;
+  color: var(--brass);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.work-share-link-test:hover {
+  text-decoration: underline;
+}
+
 .work-share-submit {
   width: 100%;
   margin-top: 4px;

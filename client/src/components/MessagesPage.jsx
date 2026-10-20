@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
-import { WorkSourceControl } from "./SourceMedia.jsx";
+import { WorkSourceControl, normalizeSourceUrl } from "./SourceMedia.jsx";
 import "./MessagesPage.css";
 
 const SANDADD_ID = "sandadd";
@@ -170,6 +170,20 @@ function MessageBubble({ msg, onFollowProject }) {
         </div>
       ) : null}
       <ProofMedia proof={msg.proof} className="messages-proof" />
+      {msg.link && (!msg.proof || msg.proof.type !== "link") ? (
+        <a
+          href={normalizeSourceUrl(msg.link)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="messages-proof-link"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="messages-proof-link-icon" aria-hidden="true">
+            🔗
+          </span>
+          <span className="messages-proof-link-label">{msg.link}</span>
+        </a>
+      ) : null}
     </div>
   );
 }

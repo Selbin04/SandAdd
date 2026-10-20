@@ -487,6 +487,20 @@ function FeedCard({
         </div>
       ) : null}
       <ProofMedia proof={item.proof} />
+      {item.link && (!item.proof || item.proof.type !== "link") ? (
+        <a
+          href={normalizeSourceUrl(item.link)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="social-proof-link"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="social-proof-link-icon" aria-hidden="true">
+            🔗
+          </span>
+          <span className="social-proof-link-label">{item.link}</span>
+        </a>
+      ) : null}
       <PostActions
         postId={item.id}
         liked={Boolean(liked || item.liked)}
