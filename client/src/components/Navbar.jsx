@@ -123,6 +123,7 @@ export default function Navbar({
         <ul className="navbar-links">
           <li>
             <button
+              id="nav-btn-progress"
               type="button"
               className={page === "progress" ? "is-active" : ""}
               aria-current={page === "progress" ? "page" : undefined}
@@ -133,6 +134,7 @@ export default function Navbar({
           </li>
           <li>
             <button
+              id="nav-btn-social"
               type="button"
               className={page === "social" ? "is-active" : ""}
               aria-current={page === "social" ? "page" : undefined}
@@ -149,6 +151,7 @@ export default function Navbar({
           </li>
           <li>
             <button
+              id="nav-btn-portfolio"
               type="button"
               className={page === "portfolio" ? "is-active" : ""}
               aria-current={page === "portfolio" ? "page" : undefined}
@@ -159,6 +162,7 @@ export default function Navbar({
           </li>
           <li>
             <button
+              id="nav-btn-messages"
               type="button"
               className={page === "messages" ? "is-active" : ""}
               aria-current={page === "messages" ? "page" : undefined}
@@ -188,6 +192,7 @@ export default function Navbar({
             {theme === "light" ? "Dark" : "White"}
           </button>
           <button
+            id="nav-btn-profile"
             type="button"
             className={`profile-btn ${page === "profile" ? "is-active" : ""}`}
             aria-label="Open profile"

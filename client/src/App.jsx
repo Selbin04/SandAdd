@@ -183,14 +183,22 @@ function patchProject(list, project) {
 
 function getPageFromUrl() {
   if (typeof window === "undefined") return "progress";
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-  if (path === "social") return "social";
-  if (path === "portfolio") return "portfolio";
-  if (path === "messages") return "messages";
-  if (path === "profile") return "profile";
-  const hash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
-  if (hash === "social" || hash === "portfolio" || hash === "messages" || hash === "profile") {
-    return hash;
+  const rawPath = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+  const pathSegment = rawPath.split("/")[0] || "";
+  if (pathSegment === "social") return "social";
+  if (pathSegment === "portfolio") return "portfolio";
+  if (pathSegment === "messages") return "messages";
+  if (pathSegment === "profile") return "profile";
+
+  const rawHash = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+  const hashSegment = rawHash.split("/")[0] || "";
+  if (
+    hashSegment === "social" ||
+    hashSegment === "portfolio" ||
+    hashSegment === "messages" ||
+    hashSegment === "profile"
+  ) {
+    return hashSegment;
   }
   return "progress";
 }
@@ -1023,7 +1031,7 @@ export default function App() {
       setPage(next);
       if (typeof window !== "undefined") {
         const targetPath = next === "progress" ? "/" : `/${next}`;
-        if (window.location.pathname !== targetPath) {
+        if (window.location.pathname !== targetPath || window.location.hash) {
           window.history.pushState(null, "", targetPath);
         }
       }
@@ -1032,12 +1040,16 @@ export default function App() {
   );
 
   useEffect(() => {
-    const onPopState = () => {
+    const handleUrlChange = () => {
       const target = getPageFromUrl();
       setPage(target);
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener("popstate", handleUrlChange);
+    window.addEventListener("hashchange", handleUrlChange);
+    return () => {
+      window.removeEventListener("popstate", handleUrlChange);
+      window.removeEventListener("hashchange", handleUrlChange);
+    };
   }, []);
 
   const handleConfirmDailyWorks = (topicIds) => {
