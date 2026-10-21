@@ -160,21 +160,6 @@ export default function Navbar({
               Portfolio
             </button>
           </li>
-          <li>
-            <button
-              id="nav-btn-messages"
-              type="button"
-              className={page === "messages" ? "is-active" : ""}
-              aria-current={page === "messages" ? "page" : undefined}
-              aria-label="Messages, 3 unread"
-              onClick={() => onNavigate("messages")}
-            >
-              <span className="navbar-count-label">
-                Messages
-                <span className="navbar-count-badge" aria-hidden="true">3</span>
-              </span>
-            </button>
-          </li>
         </ul>
 
         <div className="navbar-meta">

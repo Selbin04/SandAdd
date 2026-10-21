@@ -1247,36 +1247,44 @@ export default function DonePopup({
                           type="button"
                           role="tab"
                           aria-selected={sourceTab === "open"}
-                          className={sourceTab === "open" ? "is-active" : ""}
+                          className={`done-source-tab-btn ${sourceTab === "open" ? "is-active" : ""}`}
                           onClick={() => setSourceTab("open")}
                         >
-                          Open ({sourceCount})
+                          <span>Open</span>
+                          {sourceCount > 0 ? (
+                            <span className="done-source-tab-count">{sourceCount}</span>
+                          ) : null}
                         </button>
                         <button
                           type="button"
                           role="tab"
                           aria-selected={sourceTab === "post"}
-                          className={sourceTab === "post" ? "is-active" : ""}
+                          className={`done-source-tab-btn ${sourceTab === "post" ? "is-active" : ""}`}
                           onClick={() => setSourceTab("post")}
                         >
-                          Post {topicPostsCounts[topic.id] > 0 ? `(${topicPostsCounts[topic.id]})` : ""}
+                          <span>Post</span>
+                          {(topicPostsCounts[topic.id] || 0) > 0 ? (
+                            <span className="done-source-tab-count">
+                              {topicPostsCounts[topic.id]}
+                            </span>
+                          ) : null}
                         </button>
                         {isSourceEditMode && !readOnlyTasks ? (
                           <>
                             <button
                               type="button"
                               role="tab"
-                              aria-selected={sourceTab === "text"}
-                              className={sourceTab === "text" ? "is-active" : ""}
-                              onClick={() => setSourceTab("text")}
+                              aria-selected={sourceTab === "file"}
+                              className={`done-source-tab-btn ${sourceTab === "file" ? "is-active" : ""}`}
+                              onClick={() => setSourceTab("file")}
                             >
-                              + Text
+                              + File
                             </button>
                             <button
                               type="button"
                               role="tab"
                               aria-selected={sourceTab === "link"}
-                              className={sourceTab === "link" ? "is-active" : ""}
+                              className={`done-source-tab-btn ${sourceTab === "link" ? "is-active" : ""}`}
                               onClick={() => setSourceTab("link")}
                             >
                               + Link
@@ -1284,11 +1292,11 @@ export default function DonePopup({
                             <button
                               type="button"
                               role="tab"
-                              aria-selected={sourceTab === "file"}
-                              className={sourceTab === "file" ? "is-active" : ""}
-                              onClick={() => setSourceTab("file")}
+                              aria-selected={sourceTab === "text"}
+                              className={`done-source-tab-btn ${sourceTab === "text" ? "is-active" : ""}`}
+                              onClick={() => setSourceTab("text")}
                             >
-                              + File
+                              + Text
                             </button>
                           </>
                         ) : null}

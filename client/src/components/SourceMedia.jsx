@@ -226,11 +226,33 @@ export function WorkSourceControl({ work }) {
     return () => window.removeEventListener("sandadd:feed-changed", update);
   }, [work?.id]);
 
+  const sourcesList = Array.isArray(work?.sources) ? work.sources : [];
+  const fileSources = [
+    ...(workHasFileSource(work)
+      ? [{ proof: work.sourceProof, title: work.sourceProof?.name || "File", type: "file" }]
+      : []),
+    ...sourcesList.filter((s) => s.type === "file" || Boolean(s.proof)),
+  ];
+  const linkSources = [
+    ...(isUrlSource(work?.source)
+      ? [{ content: work.source, title: "Link", type: "link" }]
+      : []),
+    ...sourcesList.filter((s) => s.type === "link" || (s.content && isUrlSource(s.content))),
+  ];
+  const textSources = [
+    ...(work?.source && !isUrlSource(work.source)
+      ? [{ content: work.source, title: "Note", type: "text" }]
+      : []),
+    ...sourcesList.filter(
+      (s) => s.type === "text" || (s.content && !isUrlSource(s.content) && !s.proof)
+    ),
+  ];
+
   const hasPosts = topicPostsCount > 0;
-  const has = workHasSource(work) || hasPosts;
-  const hasFile = workHasFileSource(work);
-  const isUrl = isUrlSource(work?.source);
-  const hasText = Boolean(work?.source && !isUrl);
+  const hasFile = fileSources.length > 0;
+  const hasLink = linkSources.length > 0;
+  const hasText = textSources.length > 0;
+  const has = workHasSource(work) || hasPosts || hasFile || hasLink || hasText;
 
   if (!has) return null;
 
@@ -258,75 +280,93 @@ export function WorkSourceControl({ work }) {
               type="button"
               role="tab"
               aria-selected={tab === "open"}
-              className={tab === "open" ? "is-active" : ""}
+              className={`work-source-tab-btn ${tab === "open" ? "is-active" : ""}`}
               onClick={() => setTab("open")}
             >
-              Open
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "post"}
-              className={tab === "post" ? "is-active" : ""}
-              onClick={() => setTab("post")}
-            >
-              Post {topicPostsCount > 0 ? `(${topicPostsCount})` : ""}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "text"}
-              className={tab === "text" ? "is-active" : ""}
-              onClick={() => setTab("text")}
-              disabled={!hasText}
-            >
-              Text
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "link"}
-              className={tab === "link" ? "is-active" : ""}
-              onClick={() => setTab("link")}
-              disabled={!isUrl}
-            >
-              Link
+              <span className="work-source-tab-label">Open</span>
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={tab === "file"}
-              className={tab === "file" ? "is-active" : ""}
+              className={`work-source-tab-btn ${tab === "file" ? "is-active" : ""}`}
               onClick={() => setTab("file")}
               disabled={!hasFile}
+              title={hasFile ? "View attached files" : "No attached files"}
             >
-              File
+              <span className="work-source-tab-label">File</span>
+              {fileSources.length > 0 ? (
+                <span className="work-source-tab-count">{fileSources.length}</span>
+              ) : null}
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "link"}
+              className={`work-source-tab-btn ${tab === "link" ? "is-active" : ""}`}
+              onClick={() => setTab("link")}
+              disabled={!hasLink}
+              title={hasLink ? "View source links" : "No source links"}
+            >
+              <span className="work-source-tab-label">Link</span>
+              {linkSources.length > 0 ? (
+                <span className="work-source-tab-count">{linkSources.length}</span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "post"}
+              className={`work-source-tab-btn ${tab === "post" ? "is-active" : ""}`}
+              onClick={() => setTab("post")}
+              title="View finish posts"
+            >
+              <span className="work-source-tab-label">Post</span>
+              {topicPostsCount > 0 ? (
+                <span className="work-source-tab-count">{topicPostsCount}</span>
+              ) : null}
+            </button>
+            {hasText ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "text"}
+                className={`work-source-tab-btn ${tab === "text" ? "is-active" : ""}`}
+                onClick={() => setTab("text")}
+                title="View notes"
+              >
+                <span className="work-source-tab-label">Text</span>
+              </button>
+            ) : null}
           </div>
 
           {tab === "open" ? (
             <div className="work-source-pane">
               {hasFile ? (
-                <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                  <AiSourceSummary
-                    source={{
-                      type: "file",
-                      content: work?.source,
-                      proof: work?.sourceProof,
-                      title: work?.title || work?.name || "Source",
-                      aiSummary: work?.aiSummary,
-                    }}
-                  />
-                  <SourceFileViewer proof={work.sourceProof} />
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                    <AiSourceSummary
+                      source={{
+                        type: "file",
+                        content: work?.source,
+                        proof: fileSources[0]?.proof || work?.sourceProof,
+                        title: work?.title || work?.name || "Source",
+                        aiSummary: work?.aiSummary,
+                      }}
+                    />
+                  </div>
+                  {fileSources.map((f, i) => (
+                    <SourceFileViewer key={f.proof?.mediaId || f.proof?.name || i} proof={f.proof} />
+                  ))}
                 </div>
-              ) : isUrl ? (
+              ) : hasLink ? (
                 <>
-                  <p className="source-media-meta">{work.source}</p>
+                  <p className="source-media-meta">{linkSources[0]?.content || work.source}</p>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                     <AiSourceSummary
                       source={{
                         type: "link",
-                        content: work?.source,
+                        content: linkSources[0]?.content || work?.source,
                         title: work?.title || work?.name || "Source",
                         aiSummary: work?.aiSummary,
                       }}
@@ -334,21 +374,24 @@ export function WorkSourceControl({ work }) {
                     <button
                       type="button"
                       className="work-source-primary"
-                      onClick={() => openSourceUrl(work.source)}
+                      onClick={() => openSourceUrl(linkSources[0]?.content || work.source)}
                     >
-                      Open link
+                      Open link ↗
                     </button>
                   </div>
                 </>
-              ) : work.source ? (
+              ) : hasText ? (
                 <div className="source-media-text-card">
-                  <p className="source-media-text-content">{work.source}</p>
+                  {textSources[0]?.title ? (
+                    <strong className="source-media-text-title">{textSources[0].title}</strong>
+                  ) : null}
+                  <p className="source-media-text-content">{textSources[0]?.content || work.source}</p>
                   <div style={{ marginTop: "8px" }}>
                     <AiSourceSummary
                       source={{
                         type: "text",
-                        content: work?.source,
-                        title: work?.title || "Note",
+                        content: textSources[0]?.content || work?.source,
+                        title: textSources[0]?.title || work?.title || "Note",
                         aiSummary: work?.aiSummary,
                       }}
                     />
@@ -380,6 +423,36 @@ export function WorkSourceControl({ work }) {
             </div>
           ) : null}
 
+          {tab === "file" && hasFile ? (
+            <div className="work-source-pane">
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {fileSources.map((f, i) => (
+                  <SourceFileViewer key={f.proof?.mediaId || f.proof?.name || i} proof={f.proof} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {tab === "link" && hasLink ? (
+            <div className="work-source-pane">
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {linkSources.map((l, i) => (
+                  <div key={i} className="work-source-link-card">
+                    {l.title ? <strong className="source-media-link-title">{l.title}</strong> : null}
+                    <p className="source-media-meta">{l.content}</p>
+                    <button
+                      type="button"
+                      className="work-source-primary"
+                      onClick={() => openSourceUrl(l.content)}
+                    >
+                      Open link ↗
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {tab === "post" ? (
             <div className="work-source-pane">
               <TaskSourcePosts
@@ -391,28 +464,14 @@ export function WorkSourceControl({ work }) {
 
           {tab === "text" && hasText ? (
             <div className="work-source-pane">
-              <div className="source-media-text-card">
-                <p className="source-media-text-content">{work.source}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {textSources.map((t, i) => (
+                  <div key={i} className="source-media-text-card">
+                    {t.title ? <strong className="source-media-text-title">{t.title}</strong> : null}
+                    <p className="source-media-text-content">{t.content}</p>
+                  </div>
+                ))}
               </div>
-            </div>
-          ) : null}
-
-          {tab === "link" && isUrl ? (
-            <div className="work-source-pane">
-              <p className="source-media-meta">{work.source}</p>
-              <button
-                type="button"
-                className="work-source-primary"
-                onClick={() => openSourceUrl(work.source)}
-              >
-                Open link
-              </button>
-            </div>
-          ) : null}
-
-          {tab === "file" && hasFile ? (
-            <div className="work-source-pane">
-              <SourceFileViewer proof={work.sourceProof} />
             </div>
           ) : null}
         </div>

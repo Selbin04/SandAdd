@@ -271,28 +271,37 @@
   padding: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 8px;
 }
 
 .navbar-links button {
   background: transparent;
   border: 0;
   color: var(--muted);
-  padding: 8px 12px;
+  padding: 8px 16px;
+  min-width: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   border-radius: 8px;
+  box-sizing: border-box;
+  text-align: center;
+  transition: color 0.15s ease;
 }
 
 .navbar-links button:hover {
   color: var(--paper);
+  background: transparent;
 }
 
 .navbar-links button.is-active {
   color: var(--brass);
-  background: var(--active-surface);
-  font-weight: 600;
+  background: transparent;
+  font-weight: 700;
 }
 
 .navbar-count-label {
@@ -526,15 +535,17 @@
 
 [data-theme="light"] .navbar-links button {
   color: #000000;
+  background: transparent;
 }
 
 [data-theme="light"] .navbar-links button:hover {
   color: var(--paper);
+  background: transparent;
 }
 
 [data-theme="light"] .navbar-links button.is-active {
   color: var(--brass);
-  background: var(--active-surface);
+  background: transparent;
 }
 
 [data-theme="light"] .navbar-active {
@@ -2194,10 +2205,10 @@
     padding: 3px;
     list-style: none;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 3px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+    border: none;
     border-radius: 10px;
     box-sizing: border-box;
     overflow: visible;
@@ -2236,8 +2247,8 @@
 
   .navbar-links button.is-active {
     color: var(--brass);
-    background: var(--active-surface);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    background: transparent;
+    box-shadow: none;
     font-weight: 700;
   }
 
@@ -2747,22 +2758,24 @@
 }
 
 [data-theme="light"] .navbar-links {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border-color: transparent;
 }
 
 [data-theme="light"] .navbar-links button {
   color: #374151;
+  background: transparent;
 }
 
 [data-theme="light"] .navbar-links button:hover {
   color: #111827;
+  background: transparent;
 }
 
 [data-theme="light"] .navbar-links button.is-active {
   color: var(--brass-deep);
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  box-shadow: none;
   font-weight: 700;
 }
 

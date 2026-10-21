@@ -906,45 +906,99 @@
 
 .done-source-panel {
   width: 100%;
-  padding: 8px;
-  border-radius: 8px;
+  padding: 10px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--ink-2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
 }
 
 .done-source-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.done-source-tabs button {
-  border: 0;
-  border-radius: 6px;
-  padding: 6px 8px;
+.done-source-tabs button,
+.done-source-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
+  transition: all 0.16s ease-in-out;
+  box-sizing: border-box;
+  user-select: none;
 }
 
-.done-source-tabs button.is-active {
-  background: var(--active-surface);
+.done-source-tabs button:hover:not(:disabled),
+.done-source-tab-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
+  background: transparent;
+  color: var(--paper);
+  transform: translateY(-1px);
+}
+
+.done-source-tabs button.is-active,
+.done-source-tab-btn.is-active {
+  border-color: var(--brass);
+  background: transparent;
+  color: var(--brass);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.done-source-tabs button:disabled,
+.done-source-tab-btn:disabled {
+  opacity: 0.35;
+  border-color: rgba(255, 255, 255, 0.04);
+  background: transparent;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.done-source-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--paper);
+  line-height: 1;
+}
+
+.done-source-tabs button.is-active .done-source-tab-count,
+.done-source-tab-btn.is-active .done-source-tab-count {
+  background: color-mix(in srgb, var(--brass) 30%, transparent);
   color: var(--brass);
 }
 
 .done-source-edit-toggle {
   margin-left: auto;
   border: 1px solid var(--line) !important;
-  border-radius: 6px;
-  padding: 4px 8px !important;
+  border-radius: 7px;
+  padding: 4px 10px !important;
   background: var(--surface) !important;
   color: var(--brass) !important;
   font: inherit;
@@ -954,19 +1008,21 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.15s ease;
+  transition: all 0.16s ease-in-out;
   text-transform: none !important;
 }
 
 .done-source-edit-toggle:hover {
-  background: var(--active-surface) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   border-color: var(--brass) !important;
+  transform: translateY(-1px);
 }
 
 .done-source-edit-toggle.is-active {
   background: var(--brass) !important;
   color: #ffffff !important;
   border-color: var(--brass) !important;
+  box-shadow: 0 0 10px rgba(0, 176, 255, 0.2);
 }
 
 .done-source-pane {
