@@ -63,27 +63,27 @@
 
 [data-theme="light"] {
   color-scheme: light;
-  --ink: #f1f2f3;
-  --ink-2: #e7e8e9;
+  --ink: #ffffff;
+  --ink-2: #f8f9fa;
   --panel: #ffffff;
-  --panel-top: #fafafa;
+  --panel-top: #ffffff;
   --surface: #f4f5f6;
-  --surface-strong: #e5e7e9;
+  --surface-strong: #eaebed;
   --input-bg: #ffffff;
-  --navbar-bg: rgba(255, 255, 255, 0.96);
+  --navbar-bg: #ffffff;
   --overlay: rgba(24, 27, 30, 0.48);
-  --card-shadow: none;
-  --line: #d4d7db;
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --line: #e2e4e8;
   --brass: #087fc7;
   --brass-deep: #06649e;
   --sand: #168ee0;
-  --blue-soft: #f1f2f3;
-  --blue-soft-2: #e8eaec;
+  --blue-soft: #ffffff;
+  --blue-soft-2: #f0f2f4;
   --blue-soft-3: #cdd1d5;
   --active-surface: #e7f3fc;
-  --paper: #23272b;
+  --paper: #111827;
   --muted: #626970;
-  --brand-sand: #23272b;
+  --brand-sand: #111827;
   --chip-on-fg: #ffffff;
 }
 
