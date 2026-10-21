@@ -276,6 +276,7 @@
 }
 
 .navbar-links button {
+  position: relative;
   background: transparent;
   border: 0;
   color: var(--muted);
@@ -302,6 +303,26 @@
   color: var(--brass);
   background: transparent;
   font-weight: 700;
+}
+
+.navbar-links button::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 26px;
+  height: 2.5px;
+  background: var(--brass);
+  border-radius: 999px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.navbar-links button.is-active::after {
+  transform: translateX(-50%) scaleX(1);
+  opacity: 1;
 }
 
 .navbar-count-label {
@@ -2777,6 +2798,10 @@
   background: transparent;
   box-shadow: none;
   font-weight: 700;
+}
+
+[data-theme="light"] .navbar-links button.is-active::after {
+  background: var(--brass-deep);
 }
 
 .work-drawer-backdrop {
