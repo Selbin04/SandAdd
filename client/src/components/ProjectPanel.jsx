@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
-import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
+import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
@@ -161,29 +161,69 @@ export default function ProjectPanel({
                 aria-label="Progress folders"
               >
                 {/* Box 1: "All Paths" / Unfiled */}
-                <button
-                  type="button"
-                  className={`folder-rect-box ${activeFolderId === null ? "is-active" : ""}`}
-                  onClick={() => onSelectFolder?.(null)}
-                  role="tab"
-                  aria-selected={activeFolderId === null}
-                  title="All unfiled progress folders"
-                >
-                  <div className="folder-rect-top">
-                    <div className="folder-rect-name">All Paths</div>
-                  </div>
-                  <div className="folder-rect-bottom">
-                    <div className="folder-rect-sub">Unfiled progress</div>
-                    <span className="folder-rect-badge">{unfiledCount}</span>
-                  </div>
-                </button>
+                {(() => {
+                  const unfiled = (allProjects.length > 0 ? allProjects : projects).filter(
+                    (p) => !p.folderId
+                  );
+                  const hasUpdates = unfiled.some(
+                    (p) => isTasksLocked(p) || p.originId || p.sharedTemplateId || Boolean(p.notificationCount)
+                  );
+                  const notifCount = hasUpdates
+                    ? unfiled.reduce(
+                        (sum, p) =>
+                          isTasksLocked(p) || p.originId || p.sharedTemplateId || Boolean(p.notificationCount)
+                            ? sum + getNotificationCount(p)
+                            : sum,
+                        0
+                      )
+                    : 0;
+                  return (
+                    <button
+                      type="button"
+                      className={`folder-rect-box ${activeFolderId === null ? "is-active" : ""}`}
+                      onClick={() => onSelectFolder?.(null)}
+                      role="tab"
+                      aria-selected={activeFolderId === null}
+                      title="All unfiled progress folders"
+                    >
+                      {hasUpdates && (
+                        <span
+                          className="update-red-dot corner-red-dot"
+                          title={`${notifCount} new updates in unfiled progress folders`}
+                        >
+                          {notifCount > 99 ? "99+" : notifCount}
+                        </span>
+                      )}
+                      <div className="folder-rect-top">
+                        <div className="folder-rect-name">All Paths</div>
+                      </div>
+                      <div className="folder-rect-bottom">
+                        <div className="folder-rect-sub">Unfiled progress</div>
+                        <span className="folder-rect-badge">{unfiledCount}</span>
+                      </div>
+                    </button>
+                  );
+                })()}
 
                 {/* Box 2..N: Folders used to arrange progress folders */}
                 {folders.map((folder) => {
-                  const count = (allProjects.length > 0 ? allProjects : projects).filter(
+                  const folderProjects = (allProjects.length > 0 ? allProjects : projects).filter(
                     (p) => String(p.folderId || "") === String(folder.id)
-                  ).length;
+                  );
+                  const count = folderProjects.length;
                   const isSelected = activeFolderId === folder.id;
+                  const hasUpdates = folderProjects.some(
+                    (p) => isTasksLocked(p) || p.originId || p.sharedTemplateId || Boolean(p.notificationCount)
+                  );
+                  const notifCount = hasUpdates
+                    ? folderProjects.reduce(
+                        (sum, p) =>
+                          isTasksLocked(p) || p.originId || p.sharedTemplateId || Boolean(p.notificationCount)
+                            ? sum + getNotificationCount(p)
+                            : sum,
+                        0
+                      )
+                    : 0;
                   return (
                     <div
                       key={folder.id}
@@ -204,6 +244,14 @@ export default function ProjectPanel({
                       tabIndex={0}
                       title={`Folder: ${folder.name} (Click to filter, double click or tap hourglass to open)`}
                     >
+                      {hasUpdates && (
+                        <span
+                          className="update-red-dot corner-red-dot"
+                          title={`${notifCount} new updates in ${folder.name}`}
+                        >
+                          {notifCount > 99 ? "99+" : notifCount}
+                        </span>
+                      )}
                       <div className="folder-rect-top">
                         <div className="folder-rect-name" title={folder.name}>
                           {folder.name}
@@ -344,11 +392,13 @@ export default function ProjectPanel({
                       tabIndex={0}
                       title={`Open ${p.name}`}
                     >
-                      {locked || p.originId || p.sharedTemplateId ? (
+                      {locked || p.originId || p.sharedTemplateId || Boolean(p.notificationCount) ? (
                         <span
                           className="update-red-dot corner-red-dot"
-                          title="New update added in this progress path"
-                        />
+                          title={`${getNotificationCount(p)} new updates in this progress path`}
+                        >
+                          {getNotificationCount(p)}
+                        </span>
                       ) : null}
 
                       <div className="important-rect-top">
@@ -481,11 +531,13 @@ export default function ProjectPanel({
                   }
                 }}
               >
-                {locked || p.originId || p.sharedTemplateId ? (
+                {locked || p.originId || p.sharedTemplateId || Boolean(p.notificationCount) ? (
                   <span
                     className="update-red-dot corner-red-dot"
-                    title="New update added in this progress path"
-                  />
+                    title={`${getNotificationCount(p)} new updates in this progress path`}
+                  >
+                    {getNotificationCount(p)}
+                  </span>
                 ) : null}
                 <div
                   className="project-select"

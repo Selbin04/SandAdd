@@ -3221,38 +3221,80 @@
 }
 
 .update-red-dot {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: -0.2px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5), 0 0 8px rgba(239, 68, 68, 0.4);
+  animation: red-dot-pulse 1.8s infinite ease-in-out;
+}
+
+.update-red-dot:empty {
+  min-width: 7px;
   width: 7px;
   height: 7px;
+  padding: 0;
   border-radius: 50%;
-  background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
-  animation: red-dot-pulse 1.8s infinite ease-in-out;
 }
 
 .update-red-dot.corner-red-dot {
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -5px;
+  right: -5px;
   z-index: 10;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  text-align: center;
+  border: 1.5px solid var(--panel, #181d19);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.6), 0 0 10px rgba(239, 68, 68, 0.45);
+  pointer-events: none;
+}
+
+.update-red-dot.corner-red-dot:empty {
+  min-width: 9px;
   width: 9px;
   height: 9px;
+  padding: 0;
   border-radius: 50%;
-  background: #ef4444;
-  border: 1.5px solid var(--panel, #181d19);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.95);
-  pointer-events: none;
+  top: -2px;
+  right: -2px;
 }
 
 @keyframes red-dot-pulse {
   0%, 100% {
     transform: scale(1);
-    opacity: 1;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5), 0 0 8px rgba(239, 68, 68, 0.35);
   }
   50% {
-    transform: scale(1.35);
-    opacity: 0.7;
+    transform: scale(1.08);
+    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.85), 0 0 14px rgba(239, 68, 68, 0.6);
   }
+}
+
+[data-theme="light"] .update-red-dot.corner-red-dot {
+  border-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45), 0 0 8px rgba(239, 68, 68, 0.3);
 }
 
 /* Creator Tagline at Top of Progress Path */

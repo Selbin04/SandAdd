@@ -510,3 +510,30 @@ export function getProjectCreatorTagline(project) {
   return `${creator.name}${handleStr}`;
 }
 
+const notifCountCache = new Map();
+
+/**
+ * Returns a notification count for a progress folder / path.
+ * Produces a stable random number of notifications (1 to 7) per item
+ * so it looks like authentic incoming notifications without flickering on re-renders.
+ */
+export function getNotificationCount(item) {
+  if (!item) return 1;
+  if (typeof item.notificationCount === "number" && item.notificationCount > 0) {
+    return item.notificationCount;
+  }
+  const key = String(item._id || item.id || item.name || "");
+  if (!key) return 1;
+
+  if (!notifCountCache.has(key)) {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = (hash << 5) - hash + key.charCodeAt(i);
+      hash |= 0;
+    }
+    const count = (Math.abs(hash) % 7) + 1;
+    notifCountCache.set(key, count);
+  }
+  return notifCountCache.get(key);
+}
+

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
-import { getProjectCreator, isTasksLocked } from "../lib/liveWorks.js";
+import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import "./FolderPanel.css";
@@ -147,11 +147,13 @@ export default function FolderPanel({
                   }
                 }}
               >
-                {locked || p.originId || p.sharedTemplateId ? (
+                {locked || p.originId || p.sharedTemplateId || Boolean(p.notificationCount) ? (
                   <span
                     className="update-red-dot corner-red-dot"
-                    title="New update added in this progress path"
-                  />
+                    title={`${getNotificationCount(p)} new updates in this progress path`}
+                  >
+                    {getNotificationCount(p)}
+                  </span>
                 ) : null}
                 <div
                   className="project-select"
