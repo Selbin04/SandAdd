@@ -313,7 +313,7 @@
   gap: 8px;
   padding: 6px 6px 6px 8px;
   border-radius: 8px;
-  background: var(--surface-strong);
+  background: transparent;
 }
 
 .done-list li.is-done .done-text {
@@ -1531,7 +1531,7 @@
 }
 
 [data-theme="light"] .done-list li {
-  background: var(--blue-soft-2);
+  background: transparent;
 }
 
 @media (max-width: 640px) {
