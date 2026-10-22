@@ -1057,11 +1057,7 @@ export default function DonePopup({
               </div>
             ) : (
               <p className="done-hint">
-                {todayMode
-                  ? "Tasks for today"
-                  : readOnlyTasks
-                    ? "Tasks sync from the creator — you can tick them, but not edit or add"
-                    : "Tasks"}
+                {todayMode ? "Tasks for today" : "Progress Files"}
               </p>
             )}
           </div>
@@ -1134,7 +1130,7 @@ export default function DonePopup({
 
           {inline && aboutSlot ? (
             <div className="done-tasks-section-header">
-              <span className="done-tasks-section-title">Tasks</span>
+              <span className="done-tasks-section-title">Progress Files</span>
               <span className="done-tasks-section-count">
                 {topics.filter((t) => t.done).length}/{topics.length} done
               </span>
