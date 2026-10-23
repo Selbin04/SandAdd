@@ -1531,17 +1531,18 @@ export default function App() {
         proof: null,
       });
     }
+    const newTopic = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      text: itemText,
+      done: false,
+      source: source.slice(0, 500),
+      sourceProof,
+      sources,
+      hasCheckbox: hasCheckbox !== false,
+    };
     const topics = [
+      newTopic,
       ...(project.topics || []),
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        text: itemText,
-        done: false,
-        source: source.slice(0, 500),
-        sourceProof,
-        sources,
-        hasCheckbox: hasCheckbox !== false,
-      },
     ];
     await applyWorksProgress(projectId, topics);
   };

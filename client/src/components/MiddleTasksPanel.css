@@ -1,12 +1,101 @@
+.middle-tasks-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.middle-tasks-add-quick-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
+  color: var(--brass);
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.middle-tasks-add-quick-btn:hover {
+  background: var(--brass);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
 .middle-tasks-add-wrapper {
-  margin-top: 10px;
+  margin-bottom: 12px;
 }
 
 .middle-tasks-toggle-bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 4px 0;
+  justify-content: stretch;
+  padding: 0;
+}
+
+.middle-tasks-stack-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 90%, var(--panel));
+  border: 1px dashed color-mix(in srgb, var(--brass) 40%, var(--line));
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  text-align: left;
+}
+
+.middle-tasks-stack-trigger:hover {
+  border-color: var(--brass);
+  color: var(--paper);
+  transform: translateY(-1px);
+}
+
+.middle-tasks-stack-trigger-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  color: var(--brass);
+  font-weight: 700;
+}
+
+.middle-tasks-stack-pill {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--brass) 14%, transparent);
+  color: var(--brass);
+}
+
+.middle-task-item.is-top-item {
+  border-left: 3px solid var(--brass);
+  background: color-mix(in srgb, var(--surface) 95%, var(--ink-2));
+}
+
+.middle-top-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+  color: var(--brass);
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .middle-round-add-btn {

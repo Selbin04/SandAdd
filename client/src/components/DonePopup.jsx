@@ -584,7 +584,7 @@ export default function DonePopup({
 
   useEffect(() => {
     if (doneListRef.current) {
-      doneListRef.current.scrollTop = doneListRef.current.scrollHeight;
+      doneListRef.current.scrollTop = 0;
     }
   }, [topics.length]);
 
@@ -1128,58 +1128,200 @@ export default function DonePopup({
             </div>
           ) : null}
 
-          {inline && aboutSlot ? (
-            <div className="done-tasks-section-header">
-              <span className="done-tasks-section-title">Progress Files</span>
+          <div className="done-tasks-section-header">
+            <div className="done-tasks-title-stack-group">
+              <svg
+                className="done-stack-icon"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              <span className="done-tasks-section-title">
+                {todayMode ? "Tasks for Today" : "Progress Files"}
+              </span>
               <span className="done-tasks-section-count">
                 {topics.filter((t) => t.done).length}/{topics.length} done
               </span>
             </div>
-          ) : null}
+            {!todayMode && !readOnlyTasks && (
+              <button
+                type="button"
+                className={`done-stack-add-quick-btn ${showAddForm ? "is-open" : ""}`}
+                onClick={() => setShowAddForm((v) => !v)}
+                aria-label={showAddForm ? "Close add file form" : "Push new progress file to top of stack"}
+                title={showAddForm ? "Close form" : "Push new progress file to top of stack"}
+              >
+                <span className="done-stack-add-icon">{showAddForm ? "×" : "+"}</span>
+                <span className="done-stack-add-label">{showAddForm ? "Close" : "New File"}</span>
+              </button>
+            )}
+          </div>
 
-        {topics.length === 0 ? (
-          <p className="done-empty">
-            {todayMode
-              ? "No tasks picked for today."
-              : readOnlyTasks
-                ? "No tasks yet. Wait for the creator to add some."
-                : "No tasks yet. Add one below."}
-          </p>
-        ) : (
-          <ul ref={doneListRef} className="done-list">
-            {topics.map((topic) => {
-              const finished = topic.done === true;
-              const sourceList = getTopicSources(topic);
-              const sourceCount = sourceList.length;
-              const hasSource = sourceCount > 0;
-              const isOpen = sourcePanelId === topic.id;
-              const topicPostsCount =
-                topicPostsCounts[topic.id] ?? getLocalPostsForTopic(topic.id).length;
-              const hasTopicPosts = topicPostsCount > 0;
-
-              const showCheck = topic.hasCheckbox !== false;
-              return (
-                <li
-                  key={topic.id}
-                  className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""}`}
+          {!todayMode && !readOnlyTasks && (
+            <div className={`done-add-container is-top-stack ${showAddForm ? "is-open" : ""}`}>
+              {!showAddForm ? (
+                <div className="done-add-toggle-bar">
+                  <button
+                    type="button"
+                    className="done-add-stack-trigger"
+                    onClick={() => setShowAddForm(true)}
+                    aria-expanded={false}
+                    aria-label="Add new progress file to top of stack"
+                    title="Add new progress file to top of stack"
+                  >
+                    <span className="done-add-stack-trigger-icon">+</span>
+                    <span className="done-add-stack-trigger-text">Add progress file to top of stack…</span>
+                    <span className="done-add-stack-pill">TOP</span>
+                  </button>
+                </div>
+              ) : (
+                <form
+                  ref={formRef}
+                  className="done-add"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const next = text.trim();
+                    if (!next) return;
+                    const sourceValue = isUrlSource(source)
+                      ? normalizeSourceUrl(source)
+                      : source.trim();
+                    onAdd(project._id, next, {
+                      source: sourceValue,
+                      sourceTitle: sourceTitle.trim(),
+                      sourceProof,
+                      hasCheckbox,
+                    });
+                    setText("");
+                    setSource("");
+                    setSourceTitle("");
+                    setSourceProof(null);
+                    setSourceError("");
+                    setHasCheckbox(true);
+                  }}
                 >
-                  <div className="done-row">
-                    {showCheck ? (
-                      <button
-                        type="button"
-                        className={`done-check ${finished ? "is-checked" : ""}`}
-                        onClick={() => onToggle?.(project._id, topic.id)}
-                        aria-pressed={finished}
-                        aria-label={
-                          finished
-                            ? `Mark ${topic.text} as not done`
-                            : `Mark ${topic.text} as done`
-                        }
-                      >
-                        {finished ? "✓" : ""}
-                      </button>
-                    ) : null}
-                    <span className="done-text">{topic.text}</span>
+                  <input
+                    type="text"
+                    maxLength={80}
+                    placeholder="New progress file title… (e.g. Fix login)"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    autoFocus
+                  />
+                  <input
+                    type="text"
+                    className="done-add-source"
+                    maxLength={500}
+                    placeholder="Source text or URL (optional)"
+                    value={source}
+                    onChange={(e) => {
+                      setSource(e.target.value);
+                      if (e.target.value) setSourceProof(null);
+                    }}
+                  />
+                  {source.trim() || sourceProof ? (
+                    <input
+                      type="text"
+                      className="done-add-source-title"
+                      maxLength={80}
+                      placeholder="Source title / label (optional)"
+                      value={sourceTitle}
+                      onChange={(e) => setSourceTitle(e.target.value)}
+                    />
+                  ) : null}
+                  <div className="done-add-actions">
+                    <label className="done-add-checkbox-opt" title="Uncheck to create a note line without a checkbox">
+                      <input
+                        type="checkbox"
+                        checked={hasCheckbox}
+                        onChange={(e) => setHasCheckbox(e.target.checked)}
+                      />
+                      <span>Checkbox</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="done-file-btn"
+                      disabled={busyFile}
+                      onClick={() => addFileRef.current?.click()}
+                    >
+                      {sourceProof
+                        ? sourceProof.name || "File attached"
+                        : busyFile
+                          ? "Reading…"
+                          : "Attach file"}
+                    </button>
+                    <button type="submit" className="chip active" disabled={busyFile}>
+                      Add
+                    </button>
+                  </div>
+                  <FileUploadHint />
+                </form>
+              )}
+            </div>
+          )}
+
+          {sourceError ? <p className="done-source-error">{sourceError}</p> : null}
+
+          {topics.length === 0 ? (
+            <p className="done-empty">
+              {todayMode
+                ? "No tasks picked for today."
+                : readOnlyTasks
+                  ? "No tasks yet. Wait for the creator to add some."
+                  : "No progress files in this stack yet. Add one above to start your stack."}
+            </p>
+          ) : (
+            <ul ref={doneListRef} className="done-list">
+              {topics.map((topic, index) => {
+                const finished = topic.done === true;
+                const sourceList = getTopicSources(topic);
+                const sourceCount = sourceList.length;
+                const hasSource = sourceCount > 0;
+                const isOpen = sourcePanelId === topic.id;
+                const topicPostsCount =
+                  topicPostsCounts[topic.id] ?? getLocalPostsForTopic(topic.id).length;
+                const hasTopicPosts = topicPostsCount > 0;
+                const isTopFile = index === 0 && !todayMode;
+
+                const showCheck = topic.hasCheckbox !== false;
+                return (
+                  <li
+                    key={topic.id}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""}`}
+                  >
+                    <div className="done-row">
+                      {showCheck ? (
+                        <button
+                          type="button"
+                          className={`done-check ${finished ? "is-checked" : ""}`}
+                          onClick={() => onToggle?.(project._id, topic.id)}
+                          aria-pressed={finished}
+                          aria-label={
+                            finished
+                              ? `Mark ${topic.text} as not done`
+                              : `Mark ${topic.text} as done`
+                          }
+                        >
+                          {finished ? "✓" : ""}
+                        </button>
+                      ) : null}
+                      <span className="done-text">
+                        {topic.text}
+                        {isTopFile ? (
+                          <span className="done-top-badge" title="Top of progress files stack (latest)">
+                            TOP
+                          </span>
+                        ) : null}
+                      </span>
                     {Boolean(
                       isCollaborativeWork ||
                       (Array.isArray(topic.comments) && topic.comments.length > 0) ||
@@ -1691,108 +1833,6 @@ export default function DonePopup({
               );
             })}
           </ul>
-        )}
-
-        {sourceError ? <p className="done-source-error">{sourceError}</p> : null}
-
-        {!todayMode && !readOnlyTasks && (
-          <div className="done-add-container">
-            {!showAddForm ? (
-              <div className="done-add-toggle-bar">
-                <button
-                  type="button"
-                  className="done-add-round-btn"
-                  onClick={() => setShowAddForm(true)}
-                  aria-expanded={false}
-                  aria-label="Add new task or progress file"
-                  title="Add new task / progress file"
-                >
-                  <span className="done-add-round-icon">+</span>
-                </button>
-              </div>
-            ) : (
-              <form
-                ref={formRef}
-                className="done-add"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const next = text.trim();
-                  if (!next) return;
-                  const sourceValue = isUrlSource(source)
-                    ? normalizeSourceUrl(source)
-                    : source.trim();
-                  onAdd(project._id, next, {
-                    source: sourceValue,
-                    sourceTitle: sourceTitle.trim(),
-                    sourceProof,
-                    hasCheckbox,
-                  });
-                  setText("");
-                  setSource("");
-                  setSourceTitle("");
-                  setSourceProof(null);
-                  setSourceError("");
-                  setHasCheckbox(true);
-                }}
-              >
-                <input
-                  type="text"
-                  maxLength={80}
-                  placeholder="e.g. Fix login"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  className="done-add-source"
-                  maxLength={500}
-                  placeholder="Source text or URL (optional)"
-                  value={source}
-                  onChange={(e) => {
-                    setSource(e.target.value);
-                    if (e.target.value) setSourceProof(null);
-                  }}
-                />
-                {source.trim() || sourceProof ? (
-                  <input
-                    type="text"
-                    className="done-add-source-title"
-                    maxLength={80}
-                    placeholder="Source title / label (optional)"
-                    value={sourceTitle}
-                    onChange={(e) => setSourceTitle(e.target.value)}
-                  />
-                ) : null}
-                <div className="done-add-actions">
-                  <label className="done-add-checkbox-opt" title="Uncheck to create a note line without a checkbox">
-                    <input
-                      type="checkbox"
-                      checked={hasCheckbox}
-                      onChange={(e) => setHasCheckbox(e.target.checked)}
-                    />
-                    <span>Checkbox</span>
-                  </label>
-                  <button
-                    type="button"
-                    className="done-file-btn"
-                    disabled={busyFile}
-                    onClick={() => addFileRef.current?.click()}
-                  >
-                    {sourceProof
-                      ? sourceProof.name || "File attached"
-                      : busyFile
-                        ? "Reading…"
-                        : "Attach file"}
-                  </button>
-                  <button type="submit" className="chip active" disabled={busyFile}>
-                    Add
-                  </button>
-                </div>
-                <FileUploadHint />
-              </form>
-            )}
-          </div>
         )}
         </div>
       </div>

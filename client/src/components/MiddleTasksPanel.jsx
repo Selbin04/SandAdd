@@ -99,13 +99,74 @@ export default function MiddleTasksPanel({
 
       {/* Task Checklist */}
       <div className="middle-tasks-body">
-        <h3 className="middle-tasks-subtitle">Tasks Checklist</h3>
+        <div className="middle-tasks-header-row">
+          <h3 className="middle-tasks-subtitle">Tasks Checklist</h3>
+          {!isLocked && (
+            <button
+              type="button"
+              className="middle-tasks-add-quick-btn"
+              onClick={() => setShowAddForm((v) => !v)}
+              title={showAddForm ? "Close form" : "Push new task to top of stack"}
+            >
+              {showAddForm ? "✕ Cancel" : "+ Add Task"}
+            </button>
+          )}
+        </div>
+
+        {/* Add task input at top of stack */}
+        {!isLocked && (
+          <div className="middle-tasks-add-wrapper">
+            {!showAddForm ? (
+              <div className="middle-tasks-toggle-bar">
+                <button
+                  type="button"
+                  className="middle-tasks-stack-trigger"
+                  onClick={() => setShowAddForm(true)}
+                  aria-label="Add new task to top of stack"
+                  title="Add new task to top of stack"
+                >
+                  <span className="middle-tasks-stack-trigger-icon">+</span>
+                  <span>Add task to top of stack…</span>
+                  <span className="middle-tasks-stack-pill">TOP</span>
+                </button>
+              </div>
+            ) : (
+              <form ref={formRef} className="middle-tasks-add-form" onSubmit={handleAddSubmit}>
+                <input
+                  type="text"
+                  placeholder="Task title..."
+                  value={newTaskText}
+                  onChange={(e) => setNewTaskText(e.target.value)}
+                  className="middle-tasks-input"
+                  autoFocus
+                />
+                <label className="middle-tasks-checkbox-opt" title="Uncheck to create a note line without a checkbox">
+                  <input
+                    type="checkbox"
+                    checked={hasCheckbox}
+                    onChange={(e) => setHasCheckbox(e.target.checked)}
+                  />
+                  <span>Checkbox</span>
+                </label>
+                <button
+                  type="submit"
+                  disabled={!newTaskText.trim()}
+                  className="middle-tasks-add-btn"
+                >
+                  Add
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
         {topics.length > 0 ? (
           <ul className="middle-tasks-list">
             {topics.map((t, idx) => {
               const showCheck = t.hasCheckbox !== false;
+              const isTop = idx === 0;
               return (
-                <li key={t.id || idx} className={`middle-task-item ${t.done ? "is-done" : ""}`}>
+                <li key={t.id || idx} className={`middle-task-item ${t.done ? "is-done" : ""} ${isTop ? "is-top-item" : ""}`}>
                   <div className="middle-task-row">
                     {showCheck ? (
                       <button
@@ -122,6 +183,7 @@ export default function MiddleTasksPanel({
                       onClick={() => showCheck && onToggleTask(t.id || t._id)}
                     >
                       {t.text}
+                      {isTop ? <span className="middle-top-badge">TOP</span> : null}
                     </span>
                     {!isLocked && (
                       <button
@@ -209,52 +271,7 @@ export default function MiddleTasksPanel({
           </ul>
         ) : (
           <div className="middle-tasks-empty">
-            <p>No tasks added to this work yet.</p>
-          </div>
-        )}
-
-        {/* Add task input */}
-        {!isLocked && (
-          <div className="middle-tasks-add-wrapper">
-            {!showAddForm ? (
-              <div className="middle-tasks-toggle-bar">
-                <button
-                  type="button"
-                  className="middle-round-add-btn"
-                  onClick={() => setShowAddForm(true)}
-                  aria-label="Add new task"
-                  title="Add new task"
-                >
-                  <span className="middle-round-add-icon">+</span>
-                </button>
-              </div>
-            ) : (
-              <form ref={formRef} className="middle-tasks-add-form" onSubmit={handleAddSubmit}>
-                <input
-                  type="text"
-                  placeholder="Task title..."
-                  value={newTaskText}
-                  onChange={(e) => setNewTaskText(e.target.value)}
-                  className="middle-tasks-input"
-                  autoFocus
-                />
-                <label className="middle-tasks-checkbox-opt" title="Uncheck to create a note line without a checkbox">
-                  <input
-                    type="checkbox"
-                    checked={hasCheckbox}
-                    onChange={(e) => setHasCheckbox(e.target.checked)}
-                  />
-                  <span>Checkbox</span>
-                </label>
-                <button
-                  type="submit"
-                  disabled={!newTaskText.trim()}
-                  className="middle-tasks-add-btn"
-                >
-                  Add
-                </button>
-              </form>
-            )}
+            <p>No tasks added to this stack yet. Add one above.</p>
           </div>
         )}
       </div>
