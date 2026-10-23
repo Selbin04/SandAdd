@@ -1871,7 +1871,7 @@ export default function App() {
               onDelete={handleDelete}
               onToggleImportant={handleToggleImportant}
               importantAction="remove"
-              emptyText="Star a project to keep it here. Use up to 5 stars to set priority."
+              emptyText="No important projects."
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
               onSetStars={handleSetStars}
               onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
@@ -1901,8 +1901,8 @@ export default function App() {
               importantAction="add"
               emptyText={
                 activeFolderId
-                  ? "No progress paths in this folder yet. Add one above."
-                  : "Create a progress path folder and add tasks. Star a progress path to move it to Important . Open to view and manage its tasks"
+                  ? "No projects in this folder."
+                  : "No projects yet."
               }
               onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
               onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}

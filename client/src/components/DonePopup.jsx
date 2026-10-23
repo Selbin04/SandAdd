@@ -9,7 +9,7 @@ import {
   restoreTopicSourceProof,
   getLocalPostsForTopic,
 } from "../lib/socialFeed.js";
-import { getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
+import { getProjectCreator, getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
 import { getFollowedWorkGroup } from "../lib/followingStore.js";
 import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
@@ -1033,6 +1033,20 @@ export default function DonePopup({
       >
         <div className={`done-head-bar ${inline ? "done-inline-head" : ""}`}>
           <div className="done-head-copy">
+            {(() => {
+              const creator = getProjectCreator(project);
+              const tagline = getProjectCreatorTagline(project);
+              if (!tagline && !creator?.name) return null;
+              return (
+                <div className="done-creator-top-line" title={`Created by ${tagline || creator?.name}`}>
+                  <span className="done-creator-by">by</span>
+                  <span className="done-creator-name">{creator?.name || tagline}</span>
+                  {creator?.handle ? (
+                    <span className="done-creator-handle">@{creator.handle}</span>
+                  ) : null}
+                </div>
+              );
+            })()}
             <p className="done-title">{project.name}</p>
             {hasDailyTopics ? (
               <div className="done-view-mode-tabs" role="tablist" aria-label="Task view filter">
@@ -1062,13 +1076,6 @@ export default function DonePopup({
             )}
           </div>
           <div className="done-head-right">
-            {(() => {
-              const tagline = getProjectCreatorTagline(project);
-              if (!tagline) return null;
-              return (
-                <span className="creator-tagline-chip">{tagline}</span>
-              );
-            })()}
             <button
               type="button"
               className="done-head-hourglass-btn"

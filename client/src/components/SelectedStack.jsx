@@ -40,9 +40,7 @@ export default function SelectedStack({
         </div>
       </header>
       {projects.length === 0 ? (
-        <p className="empty">
-          Projects and today&apos;s tasks from the morning review appear here. Click a project to see today&apos;s tasks.
-        </p>
+        <p className="empty">No projects selected for today.</p>
       ) : (
         <div
           ref={selectedScroll.elRef}

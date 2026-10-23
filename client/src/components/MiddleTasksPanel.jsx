@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { elapsedFromWorks, projectDuration } from "../lib/time.js";
-import { getProjectCreatorTagline } from "../lib/liveWorks.js";
+import { getProjectCreator, getProjectCreatorTagline } from "../lib/liveWorks.js";
 import { getLocalPostsForTopic } from "../lib/socialFeed.js";
 import "./MiddleTasksPanel.css";
 
@@ -61,6 +61,20 @@ export default function MiddleTasksPanel({
     <div className="middle-tasks-panel">
       <header className="middle-tasks-header">
         <div className="middle-tasks-title-group">
+          {(() => {
+            const creator = getProjectCreator(project);
+            const tagline = getProjectCreatorTagline(project);
+            if (!tagline && !creator?.name) return null;
+            return (
+              <div className="middle-tasks-creator-tagline" title={`Created by ${tagline || creator?.name}`}>
+                <span className="middle-creator-by">by</span>
+                <span className="middle-creator-name">{creator?.name || tagline}</span>
+                {creator?.handle ? (
+                  <span className="middle-creator-handle">@{creator.handle}</span>
+                ) : null}
+              </div>
+            );
+          })()}
           <span
             className={`middle-tasks-badge ${
               completed ? "is-completed" : elapsedMs > 0 ? "is-active" : ""

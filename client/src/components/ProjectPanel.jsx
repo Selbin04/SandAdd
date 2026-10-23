@@ -120,12 +120,11 @@ export default function ProjectPanel({
             </button>
           </form>
 
-          {/* New folders used to arrange the progress folders, ordered horizontally in rectangle small boxes */}
+          {/* Folders used to arrange progress folders */}
           <div className="folder-arrange-bar">
             <div className="folder-arrange-label-wrap">
               <div className="folder-arrange-title-group">
                 <span className="folder-arrange-title">Folders</span>
-                <span className="folder-arrange-hint">Arrange progress paths</span>
               </div>
               <div className="folder-scroll-controls">
                 <button
@@ -133,8 +132,8 @@ export default function ProjectPanel({
                   className={`folder-scroll-arrow ${!folderScroll.canScrollLeft ? "is-disabled" : ""}`}
                   onClick={() => folderScroll.scrollByAmount(-220)}
                   disabled={!folderScroll.canScrollLeft}
-                  title="Scroll folders left"
-                  aria-label="Scroll folders left"
+                  title="Scroll left"
+                  aria-label="Scroll left"
                 >
                   ‹
                 </button>
@@ -143,8 +142,8 @@ export default function ProjectPanel({
                   className={`folder-scroll-arrow ${!folderScroll.canScrollRight ? "is-disabled" : ""}`}
                   onClick={() => folderScroll.scrollByAmount(220)}
                   disabled={!folderScroll.canScrollRight}
-                  title="Scroll folders right"
-                  aria-label="Scroll folders right"
+                  title="Scroll right"
+                  aria-label="Scroll right"
                 >
                   ›
                 </button>
@@ -156,11 +155,11 @@ export default function ProjectPanel({
               className="folder-boxes-scroll-wrapper"
             >
               <div
-                className="folder-boxes-row"
+                className="folder-boxes-row folder-titles-row"
                 role="tablist"
                 aria-label="Progress folders"
               >
-                {/* Box 1: "All Paths" / Unfiled */}
+                {/* Title: "All Paths" */}
                 {(() => {
                   const unfiled = (allProjects.length > 0 ? allProjects : projects).filter(
                     (p) => !p.folderId
@@ -177,35 +176,31 @@ export default function ProjectPanel({
                         0
                       )
                     : 0;
+                  const isSelected = activeFolderId === null;
                   return (
                     <button
                       type="button"
-                      className={`folder-rect-box ${activeFolderId === null ? "is-active" : ""}`}
+                      className={`folder-title-pill ${isSelected ? "is-active" : ""}`}
                       onClick={() => onSelectFolder?.(null)}
                       role="tab"
-                      aria-selected={activeFolderId === null}
-                      title="All unfiled progress folders"
+                      aria-selected={isSelected}
+                      title="All Paths"
                     >
                       {hasUpdates && (
                         <span
                           className="update-red-dot corner-red-dot"
-                          title={`${notifCount} new updates in unfiled progress folders`}
+                          title={`${notifCount} new updates`}
                         >
                           {notifCount > 99 ? "99+" : notifCount}
                         </span>
                       )}
-                      <div className="folder-rect-top">
-                        <div className="folder-rect-name">All Paths</div>
-                      </div>
-                      <div className="folder-rect-bottom">
-                        <div className="folder-rect-sub">Unfiled progress</div>
-                        <span className="folder-rect-badge">{unfiledCount}</span>
-                      </div>
+                      <span className="folder-title-name">All Paths</span>
+                      <span className="folder-title-count">{unfiledCount}</span>
                     </button>
                   );
                 })()}
 
-                {/* Box 2..N: Folders used to arrange progress folders */}
+                {/* Arranged Folder Titles */}
                 {folders.map((folder) => {
                   const folderProjects = (allProjects.length > 0 ? allProjects : projects).filter(
                     (p) => String(p.folderId || "") === String(folder.id)
@@ -227,7 +222,7 @@ export default function ProjectPanel({
                   return (
                     <div
                       key={folder.id}
-                      className={`folder-rect-box ${isSelected ? "is-active" : ""}`}
+                      className={`folder-title-pill ${isSelected ? "is-active" : ""}`}
                       onClick={() => onSelectFolder?.(folder.id)}
                       onDoubleClick={(e) => {
                         e.stopPropagation();
@@ -242,91 +237,76 @@ export default function ProjectPanel({
                       role="tab"
                       aria-selected={isSelected}
                       tabIndex={0}
-                      title={`Folder: ${folder.name} (Click to filter, double click or tap hourglass to open)`}
+                      title={folder.name}
                     >
                       {hasUpdates && (
                         <span
                           className="update-red-dot corner-red-dot"
-                          title={`${notifCount} new updates in ${folder.name}`}
+                          title={`${notifCount} new updates`}
                         >
                           {notifCount > 99 ? "99+" : notifCount}
                         </span>
                       )}
-                      <div className="folder-rect-top">
-                        <div className="folder-rect-name" title={folder.name}>
-                          {folder.name}
-                        </div>
-                        <div
-                          className="folder-rect-actions"
-                          onClick={(e) => e.stopPropagation()}
+                      <span className="folder-title-name">{folder.name}</span>
+                      <span className="folder-title-count">{count}</span>
+                      <div
+                        className="folder-title-actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          className="folder-title-action-btn hourglass"
+                          title="Hourglass & progress"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHourglassFolder(folder);
+                          }}
                         >
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="11"
+                            height="11"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M5 22h14" />
+                            <path d="M5 2h14" />
+                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                          </svg>
+                        </button>
+                        {onDeleteFolder ? (
                           <button
                             type="button"
-                            className="folder-rect-action-btn hourglass"
-                            title={`Hourglass & Progress for ${folder.name}`}
+                            className="folder-title-action-btn delete"
+                            title="Delete folder"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setHourglassFolder(folder);
+                              onDeleteFolder(folder);
                             }}
                           >
-                            <svg
-                              viewBox="0 0 24 24"
-                              width="12"
-                              height="12"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden="true"
-                            >
-                              <path d="M5 22h14" />
-                              <path d="M5 2h14" />
-                              <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                              <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-                            </svg>
+                            ×
                           </button>
-                          {onDeleteFolder ? (
-                            <button
-                              type="button"
-                              className="folder-rect-action-btn delete"
-                              title={`Delete folder ${folder.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteFolder(folder);
-                              }}
-                            >
-                              ×
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="folder-rect-bottom">
-                        <div className="folder-rect-sub">
-                          {count} {count === 1 ? "path" : "paths"}
-                        </div>
-                        <span className="folder-rect-badge">{count}</span>
+                        ) : null}
                       </div>
                     </div>
                   );
                 })}
 
-                {/* "+ New Folder" rectangle small box */}
+                {/* "+ New Folder" Title Button */}
                 {onCreateFolder ? (
                   <button
                     type="button"
-                    className="folder-rect-box is-new-folder-box"
+                    className="folder-title-pill is-new-folder"
                     onClick={onCreateFolder}
-                    title="Create new folder to arrange progress folders"
+                    title="New folder"
                   >
-                    <div className="folder-rect-top">
-                      <div className="folder-rect-name">New Folder</div>
-                      <span className="folder-new-plus-icon">+</span>
-                    </div>
-                    <div className="folder-rect-bottom">
-                      <div className="folder-rect-sub">Arrange progress</div>
-                      <span className="folder-new-tag">NEW</span>
-                    </div>
+                    <span className="folder-title-plus">+</span>
+                    <span className="folder-title-name">New Folder</span>
                   </button>
                 ) : null}
               </div>
@@ -338,14 +318,14 @@ export default function ProjectPanel({
       {activeFolder && (
         <div className="folder-active-filter-strip">
           <span className="folder-active-filter-text">
-            Viewing: <strong>{activeFolder.name}</strong>
+            <strong>{activeFolder.name}</strong>
           </span>
           <button
             type="button"
             className="folder-clear-filter-btn"
             onClick={() => onSelectFolder?.(null)}
           >
-            Show All Paths
+            All Paths
           </button>
         </div>
       )}
@@ -447,48 +427,15 @@ export default function ProjectPanel({
                         </div>
                         {locked || p.originId || p.sharedTemplateId ? (
                           <span
-                            className="work-lock-pill"
+                            className="work-lock-pill important-work-lock-pill"
                             title="Tasks sync from creator — new update added"
                           >
-                            {p.originMode === "assign" ? "CONTRIB" : "FOLLOW"}
+                            {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                           </span>
                         ) : null}
                       </div>
 
                       <div className="important-rect-foot">
-                        {onSetStars ? (
-                          <span
-                            className="priority-stars"
-                            onClick={(e) => e.stopPropagation()}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                          >
-                            {[1, 2, 3, 4, 5].map((n) => {
-                              const current = Number(p.stars) || 0;
-                              return (
-                                <span
-                                  key={n}
-                                  role="button"
-                                  tabIndex={0}
-                                  className={`star-btn ${n <= current ? "is-on" : ""}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSetStars(p, n === current ? 0 : n);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      onSetStars(p, n === current ? 0 : n);
-                                    }
-                                  }}
-                                  aria-label={`Set ${p.name} to ${n} star${n === 1 ? "" : "s"}`}
-                                >
-                                  ★
-                                </span>
-                              );
-                            })}
-                          </span>
-                        ) : null}
                         <div className="important-rect-track" aria-hidden="true">
                           <span
                             className="important-rect-fill"
@@ -556,7 +503,9 @@ export default function ProjectPanel({
                   </span>
                   <span className="project-copy">
                     <strong>
-                      {p.name}
+                      <span className="project-title-text" title={p.name}>
+                        {p.name}
+                      </span>
                       {locked || p.originId || p.sharedTemplateId ? (
                         <span
                           className="work-lock-pill"
@@ -572,39 +521,6 @@ export default function ProjectPanel({
                     <span className="project-progress-track" aria-hidden="true">
                       <span style={{ width: `${Math.round(progress * 100)}%` }} />
                     </span>
-                    {importantAction === "remove" && (
-                      <span
-                        className="priority-stars"
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => {
-                          const current = Number(p.stars) || 0;
-                          return (
-                            <span
-                              key={n}
-                              role="button"
-                              tabIndex={0}
-                              className={`star-btn ${n <= current ? "is-on" : ""}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSetStars(p, n === current ? 0 : n);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  onSetStars(p, n === current ? 0 : n);
-                                }
-                              }}
-                              aria-label={`Set ${p.name} to ${n} star${n === 1 ? "" : "s"}`}
-                            >
-                              ★
-                            </span>
-                          );
-                        })}
-                      </span>
-                    )}
                   </span>
                 </div>
                 <div

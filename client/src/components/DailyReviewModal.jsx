@@ -59,7 +59,7 @@ export default function DailyReviewModal({
           </button>
         </div>
         <p className="daily-review-hint">
-          Select to keep this project and choose today&apos;s tasks · click outside to skip · Previous to undo
+          Click outside to skip
         </p>
       </div>
     </div>

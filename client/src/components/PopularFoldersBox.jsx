@@ -89,9 +89,6 @@ export default function PopularFoldersBox({
           <span className="popular-folders-badge">Popular</span>
           <h2>Folders You Should Try</h2>
         </div>
-        <p className="popular-folders-hint">
-          Featured progress paths ready to add to your workspace.
-        </p>
       </header>
 
       <ul className="popular-folders-list">

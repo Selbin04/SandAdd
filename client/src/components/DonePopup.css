@@ -159,6 +159,38 @@
   transform: rotate(180deg);
 }
 
+.done-creator-top-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--brass, #fbbf24);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.done-creator-by {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: lowercase;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.done-creator-name {
+  font-weight: 700;
+  color: var(--brass, #fbbf24);
+  letter-spacing: 0.02em;
+}
+
+.done-creator-handle {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
 .done-title {
   margin: 0;
   font-size: 14px;

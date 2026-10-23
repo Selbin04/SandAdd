@@ -751,7 +751,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: var(--ink-2);
+  background: transparent;
 }
 
 .profile-post-works-name {

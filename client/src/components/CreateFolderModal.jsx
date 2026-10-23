@@ -42,9 +42,6 @@ export default function CreateFolderModal({ onClose, onCreate, works = [] }) {
         onSubmit={submit}
       >
         <h2 id="folder-modal-title">Create new folder</h2>
-        <p className="folder-modal-hint">
-          Name the box, then pick which projects belong in it.
-        </p>
         <label className="folder-modal-field">
           Folder name
           <input

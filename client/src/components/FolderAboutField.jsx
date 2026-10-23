@@ -109,7 +109,7 @@ export default function FolderAboutField({
             setDraft(e.target.value);
             setStatus("");
           }}
-          placeholder="Write about this progress folder — describe its goals, key links, summary or notes…"
+          placeholder="Notes, goals, links…"
           maxLength={2000}
           rows={6}
           disabled={isLocked}

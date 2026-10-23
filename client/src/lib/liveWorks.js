@@ -489,12 +489,17 @@ export function getProjectCreator(project) {
     }
   }
 
-  // If the project is owned by current user (no originId), display "You"
+  // If the project is owned by current user (no originId), prefer custom creator name/author name, fallback to "You"
   if (!project.originId && !project.sharedTemplateId) {
-    name = "You";
+    if (project.creatorName && project.creatorName !== "Me" && project.creatorName !== "Work Creator") {
+      name = project.creatorName;
+    } else if (currentAuthor?.name) {
+      name = currentAuthor.name;
+    } else {
+      name = "You";
+    }
     if (currentAuthor?.handle) handle = currentAuthor.handle;
   } else if (currentAuthor?.name && name && name.toLowerCase() === currentAuthor.name.toLowerCase()) {
-    name = "You";
     if (currentAuthor?.handle) handle = currentAuthor.handle;
   }
 
