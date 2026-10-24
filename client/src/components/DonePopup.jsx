@@ -16,6 +16,7 @@ import FileUploadHint from "./FileUploadHint.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import AiSourceSummary from "./AiSourceSummary.jsx";
 import TaskSourcePosts from "./TaskSourcePosts.jsx";
+import SourceTextFullScreenModal, { extractFirstSentence } from "./SourceTextFullScreenModal.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -457,6 +458,7 @@ export default function DonePopup({
   const [editingContentId, setEditingContentId] = useState(null);
   const [editingContentValue, setEditingContentValue] = useState("");
   const [openSourceIndex, setOpenSourceIndex] = useState(0);
+  const [fullScreenSource, setFullScreenSource] = useState(null);
   const addFileRef = useRef(null);
   const topicFileRef = useRef(null);
   const doneListRef = useRef(null);
@@ -1227,7 +1229,6 @@ export default function DonePopup({
                   <input
                     type="text"
                     className="done-add-source"
-                    maxLength={500}
                     placeholder="Source text or URL (optional)"
                     value={source}
                     onChange={(e) => {
@@ -1638,12 +1639,41 @@ export default function DonePopup({
                                           setEditingContentId(null);
                                         }}
                                       >
+                                        <div className="done-source-edit-toolbar">
+                                          <button
+                                            type="button"
+                                            className="done-source-fullscreen-edit-btn"
+                                            onClick={() =>
+                                              setFullScreenSource({
+                                                title: activeItem.title || topic.text || "Source Text",
+                                                subtitle: topic.text,
+                                                content: editingContentValue,
+                                                canEdit: true,
+                                                initialEditing: true,
+                                                onSave: (val) => {
+                                                  setEditingContentValue(val);
+                                                  updateSourceItemContent(topic, activeItem.id, val);
+                                                  setEditingContentId(null);
+                                                },
+                                              })
+                                            }
+                                            title="Open full screen editor"
+                                          >
+                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                              <polyline points="15 3 21 3 21 9" />
+                                              <polyline points="9 21 3 21 3 15" />
+                                              <line x1="21" y1="3" x2="14" y2="10" />
+                                              <line x1="3" y1="21" x2="10" y2="14" />
+                                            </svg>
+                                            <span>Full Screen Editor</span>
+                                          </button>
+                                        </div>
                                         <textarea
                                           className="done-source-textarea"
                                           value={editingContentValue}
                                           onChange={(e) => setEditingContentValue(e.target.value)}
-                                          rows={3}
-                                          maxLength={500}
+                                          rows={4}
+                                          placeholder="Type infinite words here freely..."
                                           autoFocus
                                         />
                                         <div className="done-source-edit-actions">
@@ -1660,23 +1690,112 @@ export default function DonePopup({
                                         </div>
                                       </form>
                                     ) : (
-                                      <div className="done-source-text-card">
-                                        <p className="done-source-text-content">{activeItem.content}</p>
-                                        {isSourceEditMode && !readOnlyTasks && (
-                                          <button
-                                            type="button"
-                                            className="done-source-title-edit-btn"
-                                            style={{ marginTop: "6px" }}
-                                            onClick={() => {
-                                              setEditingContentId(activeItem.id);
-                                              setEditingContentValue(activeItem.content || "");
-                                            }}
-                                            title="Edit text content"
-                                          >
-                                            ✎ Edit text
-                                          </button>
-                                        )}
-                                      </div>
+                                      (() => {
+                                        const fullContent = String(activeItem.content || "").trim();
+                                        const { sentence, hasMore } = extractFirstSentence(fullContent);
+                                        const handleOpenFs = () =>
+                                          setFullScreenSource({
+                                            title: activeItem.title || topic.text || "Source Text",
+                                            subtitle: topic.text,
+                                            content: fullContent,
+                                            canEdit: !readOnlyTasks,
+                                            initialEditing: false,
+                                            onSave: (val) => {
+                                              updateSourceItemContent(topic, activeItem.id, val);
+                                            },
+                                          });
+
+                                        return (
+                                          <div className="done-source-text-card">
+                                            <div className="done-source-text-card-head">
+                                              <span className="done-source-text-tag">Text Note</span>
+                                              <div className="done-source-text-actions">
+                                                <button
+                                                  type="button"
+                                                  className="done-source-fullscreen-btn"
+                                                  onClick={handleOpenFs}
+                                                  title="View text in full screen"
+                                                  aria-label="View text in full screen"
+                                                >
+                                                  <svg
+                                                    viewBox="0 0 24 24"
+                                                    width="12"
+                                                    height="12"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2.2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    aria-hidden="true"
+                                                  >
+                                                    <polyline points="15 3 21 3 21 9" />
+                                                    <polyline points="9 21 3 21 3 15" />
+                                                    <line x1="21" y1="3" x2="14" y2="10" />
+                                                    <line x1="3" y1="21" x2="10" y2="14" />
+                                                  </svg>
+                                                  <span>Full Screen</span>
+                                                </button>
+                                                {isSourceEditMode && !readOnlyTasks && (
+                                                  <button
+                                                    type="button"
+                                                    className="done-source-title-edit-btn"
+                                                    onClick={() => {
+                                                      setEditingContentId(activeItem.id);
+                                                      setEditingContentValue(activeItem.content || "");
+                                                    }}
+                                                    title="Edit text content"
+                                                  >
+                                                    ✎ Edit text
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            <div
+                                              className={`done-source-text-preview-box ${hasMore ? "has-more" : ""}`}
+                                              onClick={hasMore ? handleOpenFs : undefined}
+                                              title={hasMore ? "Click to view complete text in full screen" : undefined}
+                                            >
+                                              <p className="done-source-text-content">
+                                                {hasMore ? sentence : fullContent}
+                                              </p>
+
+                                              {hasMore && (
+                                                <div className="done-source-blur-overlay">
+                                                  <button
+                                                    type="button"
+                                                    className="done-source-show-more-btn"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleOpenFs();
+                                                    }}
+                                                    aria-label="Show more in full screen"
+                                                    title="Show more in full screen"
+                                                  >
+                                                    <span>Show more</span>
+                                                    <svg
+                                                      viewBox="0 0 24 24"
+                                                      width="11"
+                                                      height="11"
+                                                      fill="none"
+                                                      stroke="currentColor"
+                                                      strokeWidth="2.4"
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      aria-hidden="true"
+                                                    >
+                                                      <polyline points="15 3 21 3 21 9" />
+                                                      <polyline points="9 21 3 21 3 15" />
+                                                      <line x1="21" y1="3" x2="14" y2="10" />
+                                                      <line x1="3" y1="21" x2="10" y2="14" />
+                                                    </svg>
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()
                                     )}
                                   </div>
                                 </div>
@@ -1762,13 +1881,39 @@ export default function DonePopup({
                             placeholder="Source title / label (e.g. Release Notes) [optional]"
                             maxLength={80}
                           />
+                          <div className="done-source-edit-toolbar">
+                            <button
+                              type="button"
+                              className="done-source-fullscreen-edit-btn"
+                              onClick={() =>
+                                setFullScreenSource({
+                                  title: sourceTitleDraft || topic.text || "New Text Note",
+                                  subtitle: topic.text,
+                                  content: textDraft,
+                                  canEdit: true,
+                                  initialEditing: true,
+                                  onSave: (val) => {
+                                    setTextDraft(val);
+                                  },
+                                })
+                              }
+                              title="Open full screen editor"
+                            >
+                              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="15 3 21 3 21 9" />
+                                <polyline points="9 21 3 21 3 15" />
+                                <line x1="21" y1="3" x2="14" y2="10" />
+                                <line x1="3" y1="21" x2="10" y2="14" />
+                              </svg>
+                              <span>Full Screen Editor</span>
+                            </button>
+                          </div>
                           <textarea
                             className="done-source-textarea"
                             value={textDraft}
                             onChange={(e) => setTextDraft(e.target.value)}
-                            placeholder="Write text notes or source details for this task..."
-                            rows={3}
-                            maxLength={500}
+                            placeholder="Write text notes or source details for this task (infinite words supported)..."
+                            rows={4}
                             aria-label="Source text notes"
                           />
                           <button
@@ -2231,6 +2376,19 @@ export default function DonePopup({
         onClose={() => setShowHourglassModal(false)}
       />
     )}
+
+    {fullScreenSource ? (
+      <SourceTextFullScreenModal
+        isOpen={Boolean(fullScreenSource)}
+        title={fullScreenSource.title}
+        subtitle={fullScreenSource.subtitle}
+        content={fullScreenSource.content}
+        canEdit={fullScreenSource.canEdit}
+        initialEditing={fullScreenSource.initialEditing}
+        onSave={fullScreenSource.onSave}
+        onClose={() => setFullScreenSource(null)}
+      />
+    ) : null}
   </>
   );
 }

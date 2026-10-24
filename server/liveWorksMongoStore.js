@@ -30,7 +30,7 @@ function sanitizeWorks(works) {
         done: Boolean(work?.done),
         hasCheckbox,
         checkboxEnabled: hasCheckbox,
-        source: String(work?.source || "").trim().slice(0, 1000),
+        source: String(work?.source || "").trim(),
         sourceTitle: String(work?.sourceTitle || "").trim().slice(0, 120),
         sources: Array.isArray(work?.sources) ? work.sources : [],
         likeCount: Number(work?.likeCount) || 0,

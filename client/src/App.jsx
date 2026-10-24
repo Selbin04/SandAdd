@@ -1535,7 +1535,7 @@ export default function App() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       text: itemText,
       done: false,
-      source: source.slice(0, 500),
+      source,
       sourceProof,
       sources,
       hasCheckbox: hasCheckbox !== false,
@@ -1595,7 +1595,7 @@ export default function App() {
       t.id === topicId
         ? {
             ...t,
-            source: source.slice(0, 500),
+            source,
             sourceProof,
             sources,
           }

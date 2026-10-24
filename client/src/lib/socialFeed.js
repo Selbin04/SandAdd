@@ -185,7 +185,7 @@ export function snapshotProjectWorks(project) {
       text: String(t.text || "").trim().slice(0, 80),
       done: Boolean(t.done),
       hasCheckbox: t.hasCheckbox !== false,
-      source: String(t.source || "").trim().slice(0, 500),
+      source: String(t.source || "").trim(),
       sourceProof: t.sourceProof
         ? {
             mediaId: t.sourceProof.mediaId || null,
@@ -292,7 +292,7 @@ export async function prepareTopicsForSave(topics) {
     }
     prepared.push({
       ...t,
-      source: String(t.source || "").trim().slice(0, 500),
+      source: String(t.source || "").trim(),
       sourceProof: lightSourceProof(t.sourceProof),
       sources,
     });
@@ -319,7 +319,7 @@ export function buildSharedProject({
         id: String(w?.id || `w-${Date.now()}-${index}`),
         text: String(w?.text || "").trim().slice(0, 80),
         done: false,
-        source: String(w?.source || "").trim().slice(0, 500),
+        source: String(w?.source || "").trim(),
         sourceProof: w?.sourceProof || null,
       }))
       .filter((w) => w.text)
@@ -444,7 +444,7 @@ function lightWork(work) {
   if (!work) return work;
   return {
     ...work,
-    source: String(work.source || "").trim().slice(0, 500),
+    source: String(work.source || "").trim(),
     sourceProof: lightProof(work.sourceProof),
   };
 }

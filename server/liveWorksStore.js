@@ -51,7 +51,7 @@ function sanitizeWorks(works) {
         id: String(w?.id || `w-${index}`),
         text,
         done: Boolean(w?.done),
-        source: String(w?.source || "").trim().slice(0, 500),
+        source: String(w?.source || "").trim(),
         sourceProof: w?.sourceProof && typeof w.sourceProof === "object"
           ? {
               mediaId: w.sourceProof.mediaId || null,

@@ -82,7 +82,7 @@ function parseProjectInput(body, { partial = false } = {}) {
             id: String(s.id || `src-${Date.now()}-${sIdx}`),
             title: String(s.title || s.name || "").trim().slice(0, 120),
             type: sType === "file" ? "file" : sType === "link" ? "link" : sType === "post" ? "post" : "text",
-            content: String(s.content || s.text || s.source || "").slice(0, 1000),
+            content: String(s.content || s.text || s.source || ""),
             proof: cleanProof,
           };
         }).filter(Boolean);
@@ -110,7 +110,7 @@ function parseProjectInput(body, { partial = false } = {}) {
         done: Boolean(topic?.done),
         hasCheckbox,
         checkboxEnabled: hasCheckbox,
-        source: String(topic?.source ?? "").trim().slice(0, 1000),
+        source: String(topic?.source ?? "").trim(),
         sourceTitle,
         sourceProof,
         sources,

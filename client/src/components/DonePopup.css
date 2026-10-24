@@ -1191,6 +1191,35 @@
   line-height: 1.4;
 }
 
+.done-source-edit-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.done-source-fullscreen-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(212, 168, 67, 0.35);
+  background: rgba(212, 168, 67, 0.12);
+  color: #f1c75c;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.done-source-fullscreen-edit-btn:hover {
+  background: rgba(212, 168, 67, 0.24);
+  border-color: rgba(212, 168, 67, 0.6);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .done-source-text-card {
   padding: 8px 10px;
   border-radius: 8px;
@@ -1198,13 +1227,135 @@
   background: var(--input-bg);
 }
 
+.done-source-text-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.done-source-text-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--brass, #c59b27);
+}
+
+.done-source-text-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.done-source-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(212, 168, 67, 0.35);
+  background: rgba(212, 168, 67, 0.12);
+  color: #f1c75c;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.done-source-fullscreen-btn:hover {
+  background: rgba(212, 168, 67, 0.24);
+  border-color: rgba(212, 168, 67, 0.6);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 .done-source-text-content {
   margin: 0;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--paper);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* One sentence preview box with blur background fade */
+.done-source-text-preview-box {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.done-source-text-preview-box.has-more {
+  cursor: pointer;
+  padding-bottom: 28px;
+}
+
+.done-source-text-preview-box.has-more:hover .done-source-text-content {
+  color: #ffffff;
+}
+
+.done-source-blur-overlay {
+  position: absolute;
+  inset: 0 0 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 3px;
+  background: linear-gradient(
+    to bottom,
+    rgba(14, 20, 31, 0) 0%,
+    rgba(14, 20, 31, 0.45) 35%,
+    rgba(14, 20, 31, 0.9) 75%,
+    rgba(14, 20, 31, 0.98) 100%
+  );
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 0 0 6px 6px;
+}
+
+.done-source-show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 14px;
+  margin-bottom: 2px;
+  border-radius: 999px;
+  background: rgba(212, 168, 67, 0.2);
+  border: 1px solid rgba(212, 168, 67, 0.5);
+  color: #f6d274;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), 0 0 12px rgba(212, 168, 67, 0.12);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.done-source-show-more-btn svg {
+  color: #f1c75c;
+  transition: transform 0.2s ease;
+}
+
+.done-source-show-more-btn:hover {
+  background: rgba(212, 168, 67, 0.35);
+  border-color: rgba(212, 168, 67, 0.8);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 16px rgba(212, 168, 67, 0.3);
+}
+
+.done-source-show-more-btn:hover svg {
+  transform: translate(1px, -1px);
 }
 
 .done-source-list,
