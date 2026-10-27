@@ -4,6 +4,7 @@ import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/l
 import WorkMenu from "./WorkMenu.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
+import WorkFolderStats from "./WorkFolderStats.jsx";
 
 export default function ProjectPanel({
   title,
@@ -433,6 +434,11 @@ export default function ProjectPanel({
                             {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                           </span>
                         ) : null}
+                        <WorkFolderStats
+                          project={p}
+                          allProjects={allProjects.length > 0 ? allProjects : projects}
+                          layout="card"
+                        />
                       </div>
 
                       <div className="important-rect-foot">
@@ -527,6 +533,11 @@ export default function ProjectPanel({
                   className="project-row-actions"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <WorkFolderStats
+                    project={p}
+                    allProjects={allProjects.length > 0 ? allProjects : projects}
+                    layout="row"
+                  />
                   <WorkMenu
                     workName={p.name}
                     onShareFollow={

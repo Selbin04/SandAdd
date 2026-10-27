@@ -3,6 +3,7 @@ import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
+import WorkFolderStats from "./WorkFolderStats.jsx";
 import "./FolderPanel.css";
 
 export default function FolderPanel({
@@ -193,6 +194,11 @@ export default function FolderPanel({
                   className="project-row-actions"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <WorkFolderStats
+                    project={p}
+                    allProjects={allFolderProjects || projects}
+                    layout="row"
+                  />
                   <WorkMenu
                     workName={p.name}
                     onShareFollow={

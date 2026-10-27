@@ -538,7 +538,8 @@ export default function DonePopup({
   );
 
   const getLikeCountForTopic = (topicId) => {
-    const topic = topics.find((t) => t.id === topicId);
+    const allT = Array.isArray(project?.topics) ? project.topics : [];
+    const topic = allT.find((t) => t.id === topicId) || (topics || []).find((t) => t.id === topicId);
     const isLiked = Boolean(taskLikes[topicId]);
     const stored = taskLikeCounts[topicId];
     if (typeof stored === "number") return stored;
@@ -600,6 +601,73 @@ export default function DonePopup({
     ? allTopics.filter((t) => (topicIds || []).includes(String(t.id)))
     : allTopics;
   const panelTopic = topics.find((t) => t.id === sourcePanelId) || null;
+
+  const totalFolderLikes = (allTopics.length > 0 ? allTopics : topics).reduce((sum, topic) => {
+    return sum + (topic?.id ? getLikeCountForTopic(topic.id) : 0);
+  }, 0);
+
+  const [followersCount, setFollowersCount] = useState(() => {
+    if (typeof project?.followersCount === "number") return project.followersCount;
+    if (typeof project?.followerCount === "number") return project.followerCount;
+    if (Array.isArray(project?.followers)) return project.followers.length;
+    if (Array.isArray(project?.subscribers)) return project.subscribers.length;
+    const origin = project?.originId || project?.sharedTemplateId || project?._id;
+    const group = getFollowedWorkGroup(origin);
+    if (group?.members && Array.isArray(group.members) && group.members.length > 0) {
+      return group.members.length;
+    }
+    const copies = (allProjects || []).filter((p) => {
+      const pOrigin = p.originId || p.sharedTemplateId;
+      return pOrigin && (pOrigin === project?._id || pOrigin === project?.originId || pOrigin === project?.sharedTemplateId);
+    }).length;
+    if (copies > 0) return copies;
+    if (project?.originMode === "follow" || project?.shareMode === "follow" || project?.mode === "follow") {
+      return 1;
+    }
+    return 0;
+  });
+
+  useEffect(() => {
+    const updateFollowers = () => {
+      if (typeof project?.followersCount === "number") {
+        setFollowersCount(project.followersCount);
+        return;
+      }
+      if (typeof project?.followerCount === "number") {
+        setFollowersCount(project.followerCount);
+        return;
+      }
+      if (Array.isArray(project?.followers)) {
+        setFollowersCount(project.followers.length);
+        return;
+      }
+      const origin = project?.originId || project?.sharedTemplateId || project?._id;
+      const group = getFollowedWorkGroup(origin);
+      if (group?.members && Array.isArray(group.members) && group.members.length > 0) {
+        setFollowersCount(group.members.length);
+        return;
+      }
+      const copies = (allProjects || []).filter((p) => {
+        const pOrigin = p.originId || p.sharedTemplateId;
+        return pOrigin && (pOrigin === project?._id || pOrigin === project?.originId || pOrigin === project?.sharedTemplateId);
+      }).length;
+      if (copies > 0) {
+        setFollowersCount(copies);
+        return;
+      }
+      if (project?.originMode === "follow" || project?.shareMode === "follow" || project?.mode === "follow") {
+        setFollowersCount(1);
+        return;
+      }
+      setFollowersCount(0);
+    };
+
+    updateFollowers();
+    window.addEventListener("sandadd:followed-work-groups-changed", updateFollowers);
+    return () => {
+      window.removeEventListener("sandadd:followed-work-groups-changed", updateFollowers);
+    };
+  }, [project?._id, project?.originId, project?.sharedTemplateId, project?.followersCount, allProjects]);
 
   const [topicPostsCounts, setTopicPostsCounts] = useState({});
 
@@ -1115,55 +1183,103 @@ export default function DonePopup({
             )}
           </div>
           <div className="done-head-right">
-            <button
-              type="button"
-              className="done-head-hourglass-btn"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowHourglassModal(true);
-              }}
-              aria-label={`Open hourglass and progress for ${project.name}`}
-              title="Open hourglass & progress"
+            <div className="done-head-actions-row">
+              <button
+                type="button"
+                className="done-head-hourglass-btn"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowHourglassModal(true);
+                }}
+                aria-label={`Open hourglass and progress for ${project.name}`}
+                title="Open hourglass & progress"
+              >
+                <svg
+                  className="done-head-hourglass-icon"
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 22h14" />
+                  <path d="M5 2h14" />
+                  <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                  <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                </svg>
+              </button>
+              {inline ? (
+                <button
+                  type="button"
+                  className="done-inline-close"
+                  onClick={onClose}
+                  aria-label="Close work workspace"
+                >
+                  ×
+                </button>
+              ) : !inline && onClose ? (
+                <button
+                  type="button"
+                  className="done-inline-close"
+                  onClick={onClose}
+                  aria-label="Close tasks"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+
+            <div
+              className="done-head-stats-row"
+              aria-label={`Progress folder statistics: ${totalFolderLikes} likes, ${followersCount} followers`}
             >
-              <svg
-                className="done-head-hourglass-icon"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+              <div
+                className="done-head-stat-pill"
+                title={`${totalFolderLikes} total like${totalFolderLikes === 1 ? "" : "s"} across all progress files`}
               >
-                <path d="M5 22h14" />
-                <path d="M5 2h14" />
-                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-              </svg>
-            </button>
-            {inline ? (
-              <button
-                type="button"
-                className="done-inline-close"
-                onClick={onClose}
-                aria-label="Close work workspace"
+                <svg
+                  className="done-head-stat-icon is-like"
+                  viewBox="0 0 24 24"
+                  width="11"
+                  height="11"
+                  fill="currentColor"
+                  stroke="none"
+                  aria-hidden="true"
+                >
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+                <span className="done-head-stat-count">{totalFolderLikes}</span>
+              </div>
+              <div
+                className="done-head-stat-pill"
+                title={`${followersCount} follower${followersCount === 1 ? "" : "s"} of this progress folder`}
               >
-                ×
-              </button>
-            ) : !inline && onClose ? (
-              <button
-                type="button"
-                className="done-inline-close"
-                onClick={onClose}
-                aria-label="Close tasks"
-              >
-                ×
-              </button>
-            ) : null}
+                <svg
+                  className="done-head-stat-icon is-followers"
+                  viewBox="0 0 24 24"
+                  width="11"
+                  height="11"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span className="done-head-stat-count">{followersCount}</span>
+              </div>
+            </div>
           </div>
         </div>
 

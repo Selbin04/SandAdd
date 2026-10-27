@@ -1,5 +1,7 @@
 import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
+import { isTasksLocked } from "../lib/liveWorks.js";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
+import WorkFolderStats from "./WorkFolderStats.jsx";
 
 export default function SelectedStack({
   projects,
@@ -55,6 +57,7 @@ export default function SelectedStack({
               const duration = projectDuration(p);
               const progress = fillProgress(p.elapsedMs, duration);
               const active = p._id === activeId;
+              const locked = isTasksLocked(p);
               return (
                 <div
                   key={p._id}
@@ -98,6 +101,19 @@ export default function SelectedStack({
                     <strong className="selected-rect-name" title={p.name}>
                       {p.name}
                     </strong>
+                    {locked || p.originId || p.sharedTemplateId ? (
+                      <span
+                        className="work-lock-pill"
+                        title="Tasks sync from creator — new update added"
+                      >
+                        {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+                      </span>
+                    ) : null}
+                    <WorkFolderStats
+                      project={p}
+                      allProjects={projects}
+                      layout="card"
+                    />
                   </div>
 
                   <div className="selected-rect-track" aria-hidden="true">
