@@ -146,7 +146,352 @@ function SourceFileLightbox({ proof, onClose }) {
   );
 }
 
-/** Clickable file chip → opens in-app viewer (not a browser tab). */
+/** Cover image thumbnail with page/media slice overview before full view. */
+export function ImageCoverSlicePreview({ proof, onOpen }) {
+  const [hasError, setHasError] = useState(false);
+  const name = proof?.name || "Cover Image";
+
+  return (
+    <div
+      className="done-source-cover-card done-source-image-card"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen?.();
+        }
+      }}
+      title="Click to view image"
+    >
+      <div className="done-source-cover-slice-box">
+        {proof?.dataUrl && !hasError ? (
+          <img
+            src={proof.dataUrl}
+            alt={name}
+            className="done-source-cover-slice-img is-loaded"
+            onError={() => setHasError(true)}
+          />
+        ) : (
+          <div className="done-source-slice-fallback">
+            <div className="done-source-slice-fallback-glow" aria-hidden="true" />
+            <div className="done-source-slice-mockup-page">
+              <div className="done-source-mockup-header">
+                <span className="done-source-mockup-icon">🖼️</span>
+                <span className="done-source-mockup-bar is-brand">{name}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="done-source-cover-overlay">
+          <span className="done-source-cover-action-pill">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+            <span>View Image</span>
+          </span>
+        </div>
+      </div>
+      <div className="done-source-cover-info">
+        <div className="done-source-cover-meta-wrap">
+          <span className="done-source-cover-badge">Image</span>
+          <span className="done-source-cover-title" title={name}>{name}</span>
+        </div>
+        <div className="done-source-cover-actions">
+          <button
+            type="button"
+            className="done-source-cover-open-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen?.();
+            }}
+            aria-label="Open image lightbox"
+          >
+            <span>Open</span>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Cover video thumbnail with slice overview and play action. */
+export function VideoCoverSlicePreview({ proof, onOpen }) {
+  const name = proof?.name || "Video Attachment";
+
+  return (
+    <div
+      className="done-source-cover-card done-source-video-card"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen?.();
+        }
+      }}
+      title="Click to play video"
+    >
+      <div className="done-source-cover-slice-box">
+        <video
+          src={proof?.dataUrl}
+          className="done-source-cover-slice-img is-loaded"
+          preload="metadata"
+          muted
+        />
+        <div className="done-source-cover-overlay">
+          <span className="done-source-cover-action-pill is-play">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            <span>Play Video</span>
+          </span>
+        </div>
+      </div>
+      <div className="done-source-cover-info">
+        <div className="done-source-cover-meta-wrap">
+          <span className="done-source-cover-badge is-video">Video</span>
+          <span className="done-source-cover-title" title={name}>{name}</span>
+        </div>
+        <div className="done-source-cover-actions">
+          <button
+            type="button"
+            className="done-source-cover-open-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen?.();
+            }}
+            aria-label="Play video"
+          >
+            <span>Play</span>
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Mini browser cover card with page slice overview before click open. */
+export function LinkCoverSlicePreview({
+  url,
+  title,
+  onOpen,
+  onEdit,
+  isEditMode = false,
+  readOnly = false,
+}) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+  const normalized = normalizeSourceUrl(url);
+
+  let hostname = "";
+  let displayPath = "";
+  try {
+    const parsed = new URL(normalized);
+    hostname = parsed.hostname.replace(/^www\./i, "");
+    displayPath = parsed.pathname !== "/" ? parsed.pathname : "";
+  } catch {
+    hostname = String(url || "").replace(/^https?:\/\//i, "").split("/")[0] || "website";
+  }
+
+  // Cover screenshot & favicon
+  const screenshotUrl = normalized
+    ? `https://s0.wp.com/mshots/v1/${encodeURIComponent(normalized)}?w=800`
+    : "";
+  const faviconUrl = hostname
+    ? `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
+    : "";
+
+  return (
+    <div
+      className="done-source-cover-card done-source-link-card"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen?.();
+        }
+      }}
+      title={`Click to open ${hostname}`}
+    >
+      {/* Mini Browser Window Bar */}
+      <div className="done-source-browser-bar">
+        <div className="done-source-browser-dots" aria-hidden="true">
+          <span className="done-source-dot is-red" />
+          <span className="done-source-dot is-yellow" />
+          <span className="done-source-dot is-green" />
+        </div>
+        <div className="done-source-browser-address">
+          <svg
+            className="done-source-browser-lock"
+            viewBox="0 0 24 24"
+            width="10"
+            height="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          {faviconUrl ? (
+            <img
+              src={faviconUrl}
+              alt=""
+              className="done-source-browser-favicon"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          ) : null}
+          <span className="done-source-browser-url-text">
+            {hostname}
+            {displayPath ? <span className="done-source-browser-path">{displayPath}</span> : null}
+          </span>
+        </div>
+        <div className="done-source-browser-status" title="Live link">
+          <span className="done-source-live-indicator" />
+        </div>
+      </div>
+
+      {/* Page Slice Overview Box */}
+      <div className="done-source-cover-slice-box">
+        {screenshotUrl && !imgFailed ? (
+          <img
+            src={screenshotUrl}
+            alt={title || hostname}
+            className={`done-source-cover-slice-img ${imgLoaded ? "is-loaded" : "is-loading"}`}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setImgFailed(true)}
+          />
+        ) : null}
+
+        {/* Elegant wireframe fallback displayed while loading or if snapshot cannot be taken */}
+        {(!imgLoaded || imgFailed) && (
+          <div className="done-source-slice-fallback">
+            <div className="done-source-slice-fallback-glow" aria-hidden="true" />
+            <div className="done-source-slice-mockup-page">
+              <div className="done-source-mockup-header">
+                {faviconUrl ? (
+                  <img
+                    src={faviconUrl}
+                    alt=""
+                    className="done-source-mockup-fav"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span className="done-source-mockup-icon">🌐</span>
+                )}
+                <span className="done-source-mockup-bar is-brand">{hostname}</span>
+              </div>
+              <div className="done-source-mockup-lines">
+                <span className="done-source-mockup-line is-h1" />
+                <span className="done-source-mockup-line is-p" />
+                <span className="done-source-mockup-line is-p-short" />
+              </div>
+              <div className="done-source-mockup-cards">
+                <span className="done-source-mockup-card-tile" />
+                <span className="done-source-mockup-card-tile" />
+                <span className="done-source-mockup-card-tile" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hover Action Overlay */}
+        <div className="done-source-cover-overlay">
+          <span className="done-source-cover-action-pill">
+            <span>Open Website</span>
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="7" y1="17" x2="17" y2="7" />
+              <polyline points="7 7 17 7 17 17" />
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      {/* Cover Info / Meta Footer */}
+      <div className="done-source-cover-info">
+        <div className="done-source-cover-meta-wrap">
+          <span className="done-source-cover-badge is-link">Link</span>
+          <span className="done-source-cover-title" title={title || url}>
+            {title || hostname}
+          </span>
+          <span className="done-source-cover-suburl" title={url}>
+            {url}
+          </span>
+        </div>
+        <div className="done-source-cover-actions" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="done-source-cover-open-btn"
+            onClick={onOpen}
+            title="Open link in new tab"
+          >
+            <span>Visit</span>
+            <svg
+              viewBox="0 0 24 24"
+              width="11"
+              height="11"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="7" y1="17" x2="17" y2="7" />
+              <polyline points="7 7 17 7 17 17" />
+            </svg>
+          </button>
+          {isEditMode && !readOnly && onEdit ? (
+            <button
+              type="button"
+              className="done-source-title-edit-btn"
+              onClick={onEdit}
+              title="Edit link URL"
+            >
+              ✎ Edit
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Clickable file chip / cover overview → opens in-app viewer (not a browser tab). */
 export function SourceFileViewer({ proof }) {
   const [ready, setReady] = useState(proof?.dataUrl ? proof : null);
   const [loading, setLoading] = useState(
@@ -189,20 +534,41 @@ export function SourceFileViewer({ proof }) {
         ? "PDF"
         : "File";
 
+  const isImg = isImageProof(ready);
+  const isVid = isVideoProof(ready);
+
   return (
     <>
-      <button
-        type="button"
-        className="source-media-file-btn"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpened(true);
-        }}
-      >
-        <span className="source-media-file-kind">{kind}</span>
-        <span className="source-media-file-name">{label}</span>
-        <span className="source-media-file-action">Open</span>
-      </button>
+      {isImg ? (
+        <ImageCoverSlicePreview
+          proof={ready}
+          onOpen={(e) => {
+            e?.stopPropagation?.();
+            setOpened(true);
+          }}
+        />
+      ) : isVid ? (
+        <VideoCoverSlicePreview
+          proof={ready}
+          onOpen={(e) => {
+            e?.stopPropagation?.();
+            setOpened(true);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          className="source-media-file-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpened(true);
+          }}
+        >
+          <span className="source-media-file-kind">{kind}</span>
+          <span className="source-media-file-name">{label}</span>
+          <span className="source-media-file-action">Open</span>
+        </button>
+      )}
       {opened ? (
         <SourceFileLightbox proof={ready} onClose={() => setOpened(false)} />
       ) : null}
@@ -362,8 +728,7 @@ export function WorkSourceControl({ work }) {
                   ))}
                 </div>
               ) : hasLink ? (
-                <>
-                  <p className="source-media-meta">{linkSources[0]?.content || work.source}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
                     <AiSourceSummary
                       source={{
@@ -373,15 +738,13 @@ export function WorkSourceControl({ work }) {
                         aiSummary: work?.aiSummary,
                       }}
                     />
-                    <button
-                      type="button"
-                      className="work-source-primary"
-                      onClick={() => openSourceUrl(linkSources[0]?.content || work.source)}
-                    >
-                      Open link ↗
-                    </button>
                   </div>
-                </>
+                  <LinkCoverSlicePreview
+                    url={linkSources[0]?.content || work.source}
+                    title={linkSources[0]?.title || work?.title || work?.name}
+                    onOpen={() => openSourceUrl(linkSources[0]?.content || work.source)}
+                  />
+                </div>
               ) : hasText ? (
                 <div className="source-media-text-card">
                   <div className="source-media-text-card-head">
@@ -463,17 +826,12 @@ export function WorkSourceControl({ work }) {
             <div className="work-source-pane">
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {linkSources.map((l, i) => (
-                  <div key={i} className="work-source-link-card">
-                    {l.title ? <strong className="source-media-link-title">{l.title}</strong> : null}
-                    <p className="source-media-meta">{l.content}</p>
-                    <button
-                      type="button"
-                      className="work-source-primary"
-                      onClick={() => openSourceUrl(l.content)}
-                    >
-                      Open link ↗
-                    </button>
-                  </div>
+                  <LinkCoverSlicePreview
+                    key={l.id || i}
+                    url={l.content}
+                    title={l.title}
+                    onOpen={() => openSourceUrl(l.content)}
+                  />
                 ))}
               </div>
             </div>

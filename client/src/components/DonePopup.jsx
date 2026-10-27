@@ -17,6 +17,11 @@ import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import AiSourceSummary from "./AiSourceSummary.jsx";
 import TaskSourcePosts from "./TaskSourcePosts.jsx";
 import SourceTextFullScreenModal, { extractFirstSentence } from "./SourceTextFullScreenModal.jsx";
+import {
+  ImageCoverSlicePreview,
+  VideoCoverSlicePreview,
+  LinkCoverSlicePreview,
+} from "./SourceMedia.jsx";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -263,6 +268,23 @@ function IconCopy({ className = "" }) {
   );
 }
 
+function IconPaperclip({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 function dataUrlToObjectUrl(proof) {
   if (!proof?.dataUrl) return null;
   try {
@@ -324,17 +346,32 @@ function SourceFileViewer({ proof }) {
         ? "PDF"
         : "File";
 
+  const isImg = isImageProof(ready);
+  const isVid = isVideoProof(ready);
+
   return (
     <>
-      <button
-        type="button"
-        className="done-source-file-btn"
-        onClick={() => setOpened(true)}
-      >
-        <span className="done-source-file-kind">{kind}</span>
-        <span className="done-source-file-name">{label}</span>
-        <span className="done-source-file-action">Open</span>
-      </button>
+      {isImg ? (
+        <ImageCoverSlicePreview
+          proof={ready}
+          onOpen={() => setOpened(true)}
+        />
+      ) : isVid ? (
+        <VideoCoverSlicePreview
+          proof={ready}
+          onOpen={() => setOpened(true)}
+        />
+      ) : (
+        <button
+          type="button"
+          className="done-source-file-btn"
+          onClick={() => setOpened(true)}
+        >
+          <span className="done-source-file-kind">{kind}</span>
+          <span className="done-source-file-name">{label}</span>
+          <span className="done-source-file-action">Open</span>
+        </button>
+      )}
       {opened ? (
         <SourceFileLightbox proof={ready} onClose={() => setOpened(false)} />
       ) : null}
@@ -1298,20 +1335,64 @@ export default function DonePopup({
                 const topicPostsCount =
                   topicPostsCounts[topic.id] ?? getLocalPostsForTopic(topic.id).length;
                 const hasTopicPosts = topicPostsCount > 0;
+                const totalSourceCount = sourceCount + topicPostsCount;
                 const isTopFile = index === 0 && !todayMode;
+                const canOpenSource = !busyFile && (!readOnlyTasks || hasSource || hasTopicPosts);
 
                 const showCheck = topic.hasCheckbox !== false;
                 return (
                   <li
                     key={topic.id}
-                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""}`}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} is-clickable`}
+                    role="button"
+                    tabIndex={canOpenSource ? 0 : undefined}
+                    aria-expanded={canOpenSource ? isOpen : undefined}
+                    title={
+                      isOpen
+                        ? "Click to close progress file sources"
+                        : totalSourceCount > 0
+                          ? `Click to view sources & details (${totalSourceCount})`
+                          : readOnlyTasks
+                            ? topic.text
+                            : "Click to open progress file sources & details"
+                    }
+                    onClick={(e) => {
+                      if (!canOpenSource) return;
+                      if (
+                        e.target.closest(
+                          ".done-source-panel, .done-check, .done-return-btn, .done-more-btn"
+                        )
+                      ) {
+                        return;
+                      }
+                      if (isOpen) closePanel();
+                      else openPanel(topic);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        if (
+                          e.target.closest(
+                            ".done-check, .done-return-btn, .done-more-btn, .done-source-panel, input, textarea"
+                          )
+                        ) {
+                          return;
+                        }
+                        e.preventDefault();
+                        if (!canOpenSource) return;
+                        if (isOpen) closePanel();
+                        else openPanel(topic);
+                      }
+                    }}
                   >
                     <div className="done-row">
                       {showCheck ? (
                         <button
                           type="button"
                           className={`done-check ${finished ? "is-checked" : ""}`}
-                          onClick={() => onToggle?.(project._id, topic.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggle?.(project._id, topic.id);
+                          }}
                           aria-pressed={finished}
                           aria-label={
                             finished
@@ -1356,7 +1437,7 @@ export default function DonePopup({
                         if (isOpen) closePanel();
                         else openPanel(topic);
                       }}
-                      disabled={busyFile || (readOnlyTasks && !hasSource && !hasTopicPosts)}
+                      disabled={!canOpenSource}
                       title={
                         readOnlyTasks
                           ? hasSource || hasTopicPosts
@@ -1369,7 +1450,14 @@ export default function DonePopup({
                       aria-expanded={isOpen}
                       aria-label={`Source for ${topic.text}`}
                     >
-                      Source
+                      <IconPaperclip className="done-source-icon" />
+                      <span className="done-source-label">Source</span>
+                      {totalSourceCount > 0 ? (
+                        <span className="done-source-count-chip">
+                          <span className="done-source-sep" aria-hidden="true">•</span>
+                          <span className="done-source-count">{totalSourceCount}</span>
+                        </span>
+                      ) : null}
                     </button>
                     {!todayMode && !readOnlyTasks && (
                       <button
@@ -1604,31 +1692,17 @@ export default function DonePopup({
                                           </div>
                                         </form>
                                       ) : (
-                                        <>
-                                          <p className="done-source-meta">{activeItem.content}</p>
-                                          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                                            <button
-                                              type="button"
-                                              className="done-source-primary"
-                                              onClick={() => openSourceUrl(activeItem.content)}
-                                            >
-                                              Open link
-                                            </button>
-                                            {isSourceEditMode && !readOnlyTasks && (
-                                              <button
-                                                type="button"
-                                                className="done-source-title-edit-btn"
-                                                onClick={() => {
-                                                  setEditingContentId(activeItem.id);
-                                                  setEditingContentValue(activeItem.content || "");
-                                                }}
-                                                title="Edit link URL"
-                                              >
-                                                ✎ Edit link
-                                              </button>
-                                            )}
-                                          </div>
-                                        </>
+                                        <LinkCoverSlicePreview
+                                          url={activeItem.content}
+                                          title={activeItem.title}
+                                          onOpen={() => openSourceUrl(activeItem.content)}
+                                          onEdit={() => {
+                                            setEditingContentId(activeItem.id);
+                                            setEditingContentValue(activeItem.content || "");
+                                          }}
+                                          isEditMode={isSourceEditMode}
+                                          readOnly={readOnlyTasks}
+                                        />
                                       )
                                     ) : editingContentId === activeItem.id && isSourceEditMode ? (
                                       <form
@@ -1801,21 +1875,41 @@ export default function DonePopup({
                                 </div>
 
                                 {sourceCount > 1 && (
-                                  <div className="done-source-pills">
-                                    {sourceList.map((item, idx) => (
-                                      <button
-                                        key={item.id || idx}
-                                        type="button"
-                                        className={`done-source-pill ${idx === safeIdx ? "is-active" : ""}`}
-                                        onClick={() => setOpenSourceIndex(idx)}
-                                        title={item.title ? `${idx + 1}. ${item.title}` : `Source ${idx + 1}`}
-                                      >
-                                        <span className="done-source-pill-num">{idx + 1}.</span>
-                                        <span className="done-source-pill-text">
-                                          {item.title || (item.type ? item.type.toUpperCase() : `Source ${idx + 1}`)}
-                                        </span>
-                                      </button>
-                                    ))}
+                                  <div className="done-source-pills" role="tablist" aria-label="Source pagination">
+                                    <span className="done-source-pills-label">Sources</span>
+                                    <div className="done-source-pills-track">
+                                      {sourceList.map((item, idx) => {
+                                        const isSelected = idx === safeIdx;
+                                        const typeName =
+                                          item.type === "file"
+                                            ? "File"
+                                            : item.type === "link" || isUrlSource(item.content)
+                                              ? "Link"
+                                              : "Note";
+                                        const name =
+                                          item.title ||
+                                          item.proof?.name ||
+                                          (item.content ? String(item.content).slice(0, 30) : "") ||
+                                          typeName;
+                                        return (
+                                          <button
+                                            key={item.id || idx}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={isSelected}
+                                            className={`done-source-pill ${isSelected ? "is-active" : ""}`}
+                                            onClick={() => setOpenSourceIndex(idx)}
+                                            title={`Source ${idx + 1}: ${name} (${typeName})`}
+                                            aria-label={`Source ${idx + 1}: ${name}`}
+                                          >
+                                            <span className="done-source-pill-num">{idx + 1}</span>
+                                            {isSelected ? (
+                                              <span className="done-source-pill-glow" aria-hidden="true" />
+                                            ) : null}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 )}
                               </div>
