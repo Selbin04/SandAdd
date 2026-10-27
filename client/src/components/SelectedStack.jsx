@@ -109,17 +109,19 @@ export default function SelectedStack({
                         {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                       </span>
                     ) : null}
+                  </div>
+
+                  <div className="selected-rect-foot">
+                    <div className="selected-rect-track" aria-hidden="true">
+                      <span
+                        className="selected-rect-fill"
+                        style={{ width: `${Math.round(progress * 100)}%` }}
+                      />
+                    </div>
                     <WorkFolderStats
                       project={p}
                       allProjects={projects}
                       layout="card"
-                    />
-                  </div>
-
-                  <div className="selected-rect-track" aria-hidden="true">
-                    <span
-                      className="selected-rect-fill"
-                      style={{ width: `${Math.round(progress * 100)}%` }}
                     />
                   </div>
                 </div>

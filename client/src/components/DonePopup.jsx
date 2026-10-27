@@ -1235,51 +1235,53 @@ export default function DonePopup({
               ) : null}
             </div>
 
-            <div
-              className="done-head-stats-row"
-              aria-label={`Progress folder statistics: ${totalFolderLikes} likes, ${followersCount} followers`}
-            >
+            {isCollaborativeWork ? (
               <div
-                className="done-head-stat-pill"
-                title={`${totalFolderLikes} total like${totalFolderLikes === 1 ? "" : "s"} across all progress files`}
+                className="done-head-stats-row"
+                aria-label={`Progress folder statistics: ${totalFolderLikes} likes, ${followersCount} followers`}
               >
-                <svg
-                  className="done-head-stat-icon is-like"
-                  viewBox="0 0 24 24"
-                  width="11"
-                  height="11"
-                  fill="currentColor"
-                  stroke="none"
-                  aria-hidden="true"
+                <div
+                  className="done-head-stat-pill"
+                  title={`${totalFolderLikes} total like${totalFolderLikes === 1 ? "" : "s"} across all progress files`}
                 >
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                </svg>
-                <span className="done-head-stat-count">{totalFolderLikes}</span>
-              </div>
-              <div
-                className="done-head-stat-pill"
-                title={`${followersCount} follower${followersCount === 1 ? "" : "s"} of this progress folder`}
-              >
-                <svg
-                  className="done-head-stat-icon is-followers"
-                  viewBox="0 0 24 24"
-                  width="11"
-                  height="11"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
+                  <svg
+                    className="done-head-stat-icon is-like"
+                    viewBox="0 0 24 24"
+                    width="11"
+                    height="11"
+                    fill="currentColor"
+                    stroke="none"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                  <span className="done-head-stat-count">{totalFolderLikes}</span>
+                </div>
+                <div
+                  className="done-head-stat-pill"
+                  title={`${followersCount} follower${followersCount === 1 ? "" : "s"} of this progress folder`}
                 >
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                <span className="done-head-stat-count">{followersCount}</span>
+                  <svg
+                    className="done-head-stat-icon is-followers"
+                    viewBox="0 0 24 24"
+                    width="11"
+                    height="11"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span className="done-head-stat-count">{followersCount}</span>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
 

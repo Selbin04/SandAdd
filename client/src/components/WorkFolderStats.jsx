@@ -1,6 +1,65 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { getFollowedWorkGroup } from "../lib/followingStore.js";
+import { getLiveWork } from "../lib/liveWorks.js";
 import "./WorkFolderStats.css";
+
+export function isFolderFollowOrShared(project, allProjects = []) {
+  if (!project) return false;
+
+  // 1. Where someone is following or contributing (is followed/contributed by user, or tasks locked)
+  if (
+    project.originId ||
+    project.sharedTemplateId ||
+    project.tasksLocked ||
+    project.originMode === "assign" ||
+    project.originMode === "follow" ||
+    project.shareMode === "assign" ||
+    project.shareMode === "follow" ||
+    project.mode === "assign" ||
+    project.mode === "follow" ||
+    project.isShared
+  ) {
+    return true;
+  }
+
+  const id = project._id || project.id;
+  const origin = project.originId || project.sharedTemplateId || id;
+
+  // 2. Shared publicly for someone to follow or contribute
+  if (origin) {
+    try {
+      if (getLiveWork(origin) || (id && getLiveWork(id))) return true;
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (getFollowedWorkGroup(origin) || (id && getFollowedWorkGroup(id))) return true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // 3. Copies exist in allProjects (meaning others followed or copied)
+  if (id && Array.isArray(allProjects) && allProjects.length > 0) {
+    const hasCopies = allProjects.some((p) => {
+      const pOrigin = p?.originId || p?.sharedTemplateId;
+      return pOrigin && (pOrigin === id || pOrigin === origin);
+    });
+    if (hasCopies) return true;
+  }
+
+  // 4. Followers/subscribers recorded
+  if (
+    (typeof project.followersCount === "number" && project.followersCount > 0) ||
+    (typeof project.followerCount === "number" && project.followerCount > 0) ||
+    (Array.isArray(project.followers) && project.followers.length > 0) ||
+    (Array.isArray(project.subscribers) && project.subscribers.length > 0)
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 export function calculateProjectLikes(project) {
   if (!project) return 0;
@@ -72,12 +131,14 @@ export function calculateProjectFollowers(project, allProjects = []) {
 }
 
 export default function WorkFolderStats({ project, allProjects = [], layout = "row" }) {
+  const [eligible, setEligible] = useState(() => isFolderFollowOrShared(project, allProjects));
   const [likes, setLikes] = useState(() => calculateProjectLikes(project));
   const [followers, setFollowers] = useState(() =>
     calculateProjectFollowers(project, allProjects)
   );
 
   const refreshStats = useCallback(() => {
+    setEligible(isFolderFollowOrShared(project, allProjects));
     setLikes(calculateProjectLikes(project));
     setFollowers(calculateProjectFollowers(project, allProjects));
   }, [project, allProjects]);
@@ -88,15 +149,21 @@ export default function WorkFolderStats({ project, allProjects = [], layout = "r
 
   useEffect(() => {
     window.addEventListener("sandadd:followed-work-groups-changed", refreshStats);
+    window.addEventListener("sandadd:live-works", refreshStats);
     window.addEventListener("sandadd:feed-changed", refreshStats);
     window.addEventListener("storage", refreshStats);
 
     return () => {
       window.removeEventListener("sandadd:followed-work-groups-changed", refreshStats);
+      window.removeEventListener("sandadd:live-works", refreshStats);
       window.removeEventListener("sandadd:feed-changed", refreshStats);
       window.removeEventListener("storage", refreshStats);
     };
   }, [refreshStats]);
+
+  if (!eligible) {
+    return null;
+  }
 
   return (
     <div

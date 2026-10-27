@@ -434,11 +434,6 @@ export default function ProjectPanel({
                             {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
                           </span>
                         ) : null}
-                        <WorkFolderStats
-                          project={p}
-                          allProjects={allProjects.length > 0 ? allProjects : projects}
-                          layout="card"
-                        />
                       </div>
 
                       <div className="important-rect-foot">
@@ -448,6 +443,11 @@ export default function ProjectPanel({
                             style={{ width: `${Math.round(progress * 100)}%` }}
                           />
                         </div>
+                        <WorkFolderStats
+                          project={p}
+                          allProjects={allProjects.length > 0 ? allProjects : projects}
+                          layout="card"
+                        />
                       </div>
                     </div>
                   );
