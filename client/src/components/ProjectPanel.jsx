@@ -390,6 +390,11 @@ export default function ProjectPanel({
                               style={{ height: `${progress * 100}%` }}
                             />
                           </span>
+                          <WorkFolderStats
+                            project={p}
+                            allProjects={allProjects.length > 0 ? allProjects : projects}
+                            layout="card"
+                          />
                           {fillLabel(p.elapsedMs, duration) ? (
                             <span className="important-rect-time">
                               {fillLabel(p.elapsedMs, duration)}
@@ -443,11 +448,6 @@ export default function ProjectPanel({
                             style={{ width: `${Math.round(progress * 100)}%` }}
                           />
                         </div>
-                        <WorkFolderStats
-                          project={p}
-                          allProjects={allProjects.length > 0 ? allProjects : projects}
-                          layout="card"
-                        />
                       </div>
                     </div>
                   );

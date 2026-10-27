@@ -84,12 +84,19 @@ export default function SelectedStack({
                   title={`Click to view tasks for ${p.name}`}
                 >
                   <div className="selected-rect-top">
-                    <span className="mini-glass" aria-hidden="true">
-                      <span
-                        className="mini-sand"
-                        style={{ height: `${progress * 100}%` }}
+                    <div className="selected-rect-top-left">
+                      <span className="mini-glass" aria-hidden="true">
+                        <span
+                          className="mini-sand"
+                          style={{ height: `${progress * 100}%` }}
+                        />
+                      </span>
+                      <WorkFolderStats
+                        project={p}
+                        allProjects={projects}
+                        layout="card"
                       />
-                    </span>
+                    </div>
                     {fillLabel(p.elapsedMs, duration) ? (
                       <span className="selected-rect-time">
                         {fillLabel(p.elapsedMs, duration)}
@@ -111,17 +118,10 @@ export default function SelectedStack({
                     ) : null}
                   </div>
 
-                  <div className="selected-rect-foot">
-                    <div className="selected-rect-track" aria-hidden="true">
-                      <span
-                        className="selected-rect-fill"
-                        style={{ width: `${Math.round(progress * 100)}%` }}
-                      />
-                    </div>
-                    <WorkFolderStats
-                      project={p}
-                      allProjects={projects}
-                      layout="card"
+                  <div className="selected-rect-track" aria-hidden="true">
+                    <span
+                      className="selected-rect-fill"
+                      style={{ width: `${Math.round(progress * 100)}%` }}
                     />
                   </div>
                 </div>

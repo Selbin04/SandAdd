@@ -1251,24 +1251,20 @@
   color: var(--brass);
 }
 
-.selected-rect-foot {
+.selected-rect-top-left {
   display: flex;
   align-items: center;
-  gap: 7px;
-  width: 100%;
-  margin-top: 2px;
+  gap: 5px;
+  min-width: 0;
 }
 
-.selected-rect-foot .selected-rect-track,
 .selected-rect-track {
-  flex: 1;
-  min-width: 0;
-  width: auto;
+  width: 100%;
   height: 3px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 0;
+  margin-top: 2px;
 }
 
 .selected-rect-fill {
@@ -1946,8 +1942,8 @@
 
 .important-rect-foot {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
 }
 
@@ -1972,11 +1968,8 @@
   color: #fbbf24;
 }
 
-.important-rect-foot .important-rect-track,
 .important-rect-track {
-  flex: 1;
-  min-width: 0;
-  width: auto;
+  width: 100%;
   height: 2.5px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;

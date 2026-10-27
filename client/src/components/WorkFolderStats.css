@@ -41,8 +41,8 @@
 
 .work-folder-stats.is-card .work-stat-pill {
   padding: 0 1px;
-  font-size: 11px;
-  gap: 3.5px;
+  font-size: 10.5px;
+  gap: 2.5px;
 }
 
 .work-stat-pill:hover {
