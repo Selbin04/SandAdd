@@ -544,41 +544,21 @@
   background: color-mix(in srgb, var(--surface) 90%, var(--panel));
   border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
   box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.28);
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, border-color 0.16s ease;
+  cursor: default;
+  user-select: text;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.done-list li:hover {
-  transform: translateY(-1.5px);
-  border-color: color-mix(in srgb, var(--brass) 50%, var(--line));
-  box-shadow: 0 5px 14px -2px rgba(0, 0, 0, 0.42);
+.done-list li:hover,
+.done-list li:active,
+.done-list li:focus {
+  transform: none;
+  box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.28);
 }
 
-.done-list li.is-clickable {
-  cursor: pointer;
-  user-select: none;
-}
-
-.done-list li.is-clickable:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.done-list li.is-clickable:hover {
-  transform: translateY(-1.5px);
-  border-color: color-mix(in srgb, var(--brass) 55%, var(--line));
-  box-shadow: 0 5px 16px -2px rgba(0, 0, 0, 0.44);
-}
-
-.done-list li.is-clickable.is-source-open {
-  border-color: color-mix(in srgb, var(--brass) 65%, var(--line));
-  box-shadow: 0 5px 18px -2px rgba(0, 0, 0, 0.48);
-  background: color-mix(in srgb, var(--surface) 95%, var(--panel));
-}
-
-.done-list li.is-done.is-clickable:hover {
-  border-color: color-mix(in srgb, var(--brass) 40%, var(--line));
-  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.32);
-  transform: translateY(-1px);
+.done-list li.is-source-open {
+  border-color: color-mix(in srgb, var(--brass) 45%, var(--line));
 }
 
 .done-list li.is-top-file {
@@ -715,10 +695,6 @@
   transition: color 0.15s ease;
 }
 
-.done-list li.is-clickable:hover .done-text {
-  color: var(--paper, #fff);
-}
-
 .done-source {
   flex-shrink: 0;
   display: inline-flex;
@@ -810,11 +786,6 @@
 .done-source.has-source .done-source-icon {
   opacity: 1;
   color: var(--brass);
-}
-
-.done-list li.is-clickable:hover .done-source:not(:hover):not(.is-active) {
-  border-color: color-mix(in srgb, var(--brass) 35%, var(--line));
-  color: color-mix(in srgb, var(--paper) 80%, var(--muted));
 }
 
 .done-return-btn {
@@ -2680,8 +2651,7 @@
   .done-source-file-btn:active {
     transform: none !important;
   }
-  .done-list li:hover,
-  .done-list li.is-clickable:hover {
+  .done-list li:hover {
     transform: none !important;
   }
 }

@@ -1467,46 +1467,7 @@ export default function DonePopup({
                 return (
                   <li
                     key={topic.id}
-                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} is-clickable`}
-                    role="button"
-                    tabIndex={canOpenSource ? 0 : undefined}
-                    aria-expanded={canOpenSource ? isOpen : undefined}
-                    title={
-                      isOpen
-                        ? "Click to close progress file sources"
-                        : totalSourceCount > 0
-                          ? `Click to view sources & details (${totalSourceCount})`
-                          : readOnlyTasks
-                            ? topic.text
-                            : "Click to open progress file sources & details"
-                    }
-                    onClick={(e) => {
-                      if (!canOpenSource) return;
-                      if (
-                        e.target.closest(
-                          ".done-source-panel, .done-check, .done-return-btn, .done-more-btn"
-                        )
-                      ) {
-                        return;
-                      }
-                      if (isOpen) closePanel();
-                      else openPanel(topic);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        if (
-                          e.target.closest(
-                            ".done-check, .done-return-btn, .done-more-btn, .done-source-panel, input, textarea"
-                          )
-                        ) {
-                          return;
-                        }
-                        e.preventDefault();
-                        if (!canOpenSource) return;
-                        if (isOpen) closePanel();
-                        else openPanel(topic);
-                      }
-                    }}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""}`}
                   >
                     <div className="done-row">
                       {showCheck ? (
