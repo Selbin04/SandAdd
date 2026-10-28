@@ -356,7 +356,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 26px;
   max-height: calc(94vh - 120px);
   flex: 1 1 auto;
   min-height: 0;
@@ -614,6 +614,40 @@
 .done-list li.is-done:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Center-aligned curved grey path stems between progress files (matching user reference images) */
+.done-list li + li::before {
+  content: "";
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 26px;
+  background-color: #3e4652;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 0 C9 4.5 5.5 14 3 26'/%3E%3Cpath d='M16.5 0 C18.2 3 15.2 7 12 14 C9.8 20 9.8 26 9.8 26'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9.5 0 C9 4.5 5.5 14 3 26'/%3E%3Cpath d='M16.5 0 C18.2 3 15.2 7 12 14 C9.8 20 9.8 26 9.8 26'/%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Reference Image 2: Organic mostly vertical stem with gentle hand-drawn bow */
+.done-list li:nth-child(4n + 3)::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 0 C6.8 8 7.2 17.5 8.8 26'/%3E%3Cpath d='M14.5 0 C13.5 8 14.5 17.5 15.2 26'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 0 C6.8 8 7.2 17.5 8.8 26'/%3E%3Cpath d='M14.5 0 C13.5 8 14.5 17.5 15.2 26'/%3E%3C/svg%3E");
+}
+
+/* Variation 3: Mirrored Image 1 (slanted/curved down-right) */
+.done-list li:nth-child(4n)::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 0 C3.8 3 6.8 7 10 14 C12.2 20 12.2 26 12.2 26'/%3E%3Cpath d='M12.5 0 C13 4.5 16.5 14 19 26'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 0 C3.8 3 6.8 7 10 14 C12.2 20 12.2 26 12.2 26'/%3E%3Cpath d='M12.5 0 C13 4.5 16.5 14 19 26'/%3E%3C/svg%3E");
+}
+
+/* Variation 4: Mirrored Image 2 (organic gentle reverse sway) */
+.done-list li:nth-child(4n + 1)::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.5 0 C8.5 8 7.5 17.5 6.8 26'/%3E%3Cpath d='M14 0 C15.2 8 14.8 17.5 13.2 26'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 26' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.5 0 C8.5 8 7.5 17.5 6.8 26'/%3E%3Cpath d='M14 0 C15.2 8 14.8 17.5 13.2 26'/%3E%3C/svg%3E");
 }
 
 @keyframes stackFileEnter {
@@ -2120,6 +2154,10 @@
   background: rgba(0, 0, 0, 0.02);
   border-color: rgba(0, 0, 0, 0.05);
   box-shadow: none;
+}
+
+[data-theme="light"] .done-list li + li::before {
+  background-color: #cbd5e1;
 }
 
 [data-theme="light"] .done-add-stack-trigger {

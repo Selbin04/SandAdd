@@ -1529,68 +1529,63 @@ export default function DonePopup({
                           </span>
                         ) : null}
                       </span>
-                    {Boolean(
-                      isCollaborativeWork ||
-                      (Array.isArray(topic.comments) && topic.comments.length > 0) ||
-                      (typeof topic.likeCount === "number" && topic.likeCount > 0) ||
-                      Boolean(taskLikes[topic.id])
-                    ) ? (
                       <button
                         type="button"
-                        className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
-                        onClick={(e) => handleToggleTaskMenu(topic, e)}
-                        title="Actions (Ask, Like, Comment, Report)"
-                        aria-label={`Actions for ${topic.text}`}
-                        aria-haspopup="true"
-                        aria-expanded={taskMenuTopic?.id === topic.id}
+                        className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isOpen) closePanel();
+                          else openPanel(topic);
+                        }}
+                        disabled={!canOpenSource}
+                        title={
+                          readOnlyTasks
+                            ? hasSource || hasTopicPosts
+                              ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                              : "No source"
+                            : hasSource || hasTopicPosts
+                              ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                              : "Add source"
+                        }
+                        aria-expanded={isOpen}
+                        aria-label={`Source for ${topic.text}`}
                       >
-                        <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                        <IconPaperclip className="done-source-icon" />
+                        <span className="done-source-label">Source</span>
+                        {totalSourceCount > 0 ? (
+                          <span className="done-source-count-chip">
+                            <span className="done-source-sep" aria-hidden="true">•</span>
+                            <span className="done-source-count">{totalSourceCount}</span>
+                          </span>
+                        ) : null}
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isOpen) closePanel();
-                        else openPanel(topic);
-                      }}
-                      disabled={!canOpenSource}
-                      title={
-                        readOnlyTasks
-                          ? hasSource || hasTopicPosts
-                            ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                            : "No source"
-                          : hasSource || hasTopicPosts
-                            ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                            : "Add source"
-                      }
-                      aria-expanded={isOpen}
-                      aria-label={`Source for ${topic.text}`}
-                    >
-                      <IconPaperclip className="done-source-icon" />
-                      <span className="done-source-label">Source</span>
-                      {totalSourceCount > 0 ? (
-                        <span className="done-source-count-chip">
-                          <span className="done-source-sep" aria-hidden="true">•</span>
-                          <span className="done-source-count">{totalSourceCount}</span>
-                        </span>
+                      {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                        <button
+                          type="button"
+                          className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                          onClick={(e) => handleToggleTaskMenu(topic, e)}
+                          title="Actions (Ask, Like, Comment, Report)"
+                          aria-label={`Actions for ${topic.text}`}
+                          aria-haspopup="true"
+                          aria-expanded={taskMenuTopic?.id === topic.id}
+                        >
+                          <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                        </button>
                       ) : null}
-                    </button>
-                    {!todayMode && !readOnlyTasks && (
-                      <button
-                        type="button"
-                        className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
-                        onClick={(e) => handleToggleMoreMenu(topic, e)}
-                        aria-label={`Options for ${topic.text}`}
-                        title="More options"
-                        aria-haspopup="true"
-                        aria-expanded={moreMenuTopic?.id === topic.id}
-                      >
-                        <IconMoreVertical />
-                      </button>
-                    )}
-                  </div>
+                      {!todayMode && !readOnlyTasks && (
+                        <button
+                          type="button"
+                          className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                          onClick={(e) => handleToggleMoreMenu(topic, e)}
+                          aria-label={`Options for ${topic.text}`}
+                          title="More options"
+                          aria-haspopup="true"
+                          aria-expanded={moreMenuTopic?.id === topic.id}
+                        >
+                          <IconMoreVertical />
+                        </button>
+                      )}
+                    </div>
 
                   {isOpen ? (
                     <div className="done-source-panel" role="tablist">
