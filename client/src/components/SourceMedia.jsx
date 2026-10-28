@@ -185,16 +185,6 @@ export function ImageCoverSlicePreview({ proof, onOpen }) {
             </div>
           </div>
         )}
-        <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill" aria-label="View Image">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          </span>
-        </div>
       </div>
       {hasCustomName ? (
         <div className="done-source-cover-info">
@@ -252,13 +242,6 @@ export function VideoCoverSlicePreview({ proof, onOpen }) {
           preload="metadata"
           muted
         />
-        <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill is-play" aria-label="Play video">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          </span>
-        </div>
       </div>
       {hasCustomName ? (
         <div className="done-source-cover-info">
@@ -421,25 +404,6 @@ export function LinkCoverSlicePreview({
           </div>
         )}
 
-        {/* Hover Action Overlay */}
-        <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill" aria-label="Open link">
-            <svg
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="7" y1="17" x2="17" y2="7" />
-              <polyline points="7 7 17 7 17 17" />
-            </svg>
-          </span>
-        </div>
       </div>
 
       {/* Cover Info / Meta Footer */}
