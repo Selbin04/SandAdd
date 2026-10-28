@@ -215,21 +215,38 @@
   max-width: 100%;
 }
 
+.messages-proof-frame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
 .messages-proof {
   display: block;
+  width: auto;
   max-width: 100%;
-  max-height: 180px;
+  height: auto;
+  max-height: 380px;
   object-fit: contain;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--ink-2);
+  background: transparent;
+  margin: 0 auto;
 }
 
 .messages-proof.is-video {
-  width: 100%;
-  min-height: 140px;
-  max-height: 240px;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 380px;
   background: #000;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  margin: 0 auto;
 }
 
 .messages-proof-link {

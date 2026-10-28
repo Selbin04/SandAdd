@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { isImageProof, isPdfProof, isVideoProof } from "../lib/socialFeed.js";
 import { normalizeSourceUrl } from "./SourceMedia.jsx";
 
@@ -34,6 +35,64 @@ function openProofPdf(proof) {
   }
 }
 
+function ProofImage({ proof, className }) {
+  const [ratio, setRatio] = useState(null);
+
+  return (
+    <div className={`${className}-frame`}>
+      <img
+        ref={(el) => {
+          if (el?.complete && el?.naturalWidth && el?.naturalHeight && !ratio) {
+            setRatio(`${el.naturalWidth} / ${el.naturalHeight}`);
+          }
+        }}
+        className={className}
+        src={proof.dataUrl}
+        alt={proof.name || "Proof"}
+        loading="lazy"
+        style={ratio ? { aspectRatio: ratio } : undefined}
+        onLoad={(e) => {
+          const { naturalWidth, naturalHeight } = e.currentTarget;
+          if (naturalWidth && naturalHeight) {
+            setRatio(`${naturalWidth} / ${naturalHeight}`);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+function ProofVideo({ proof, className }) {
+  const [ratio, setRatio] = useState(null);
+
+  return (
+    <div className={`${className}-frame is-video-frame`}>
+      <video
+        ref={(el) => {
+          if (el?.videoWidth && el?.videoHeight && !ratio) {
+            setRatio(`${el.videoWidth} / ${el.videoHeight}`);
+          }
+        }}
+        className={`${className} is-video`}
+        src={proof.dataUrl}
+        controls
+        playsInline
+        preload="metadata"
+        style={ratio ? { aspectRatio: ratio } : undefined}
+        onLoadedMetadata={(e) => {
+          const { videoWidth, videoHeight } = e.currentTarget;
+          if (videoWidth && videoHeight) {
+            setRatio(`${videoWidth} / ${videoHeight}`);
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        Your browser can’t play this video.
+      </video>
+    </div>
+  );
+}
+
 /** Renders attached proof (image, video, PDF link, link URL, text note, or file name). */
 export default function ProofMedia({ proof, className = "social-proof" }) {
   if (!proof) return null;
@@ -67,20 +126,10 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
     );
   }
   if (isImageProof(proof)) {
-    return <img className={className} src={proof.dataUrl} alt="Proof" />;
+    return <ProofImage proof={proof} className={className} />;
   }
   if (isVideoProof(proof)) {
-    return (
-      <video
-        className={`${className} is-video`}
-        src={proof.dataUrl}
-        controls
-        playsInline
-        preload="metadata"
-      >
-        Your browser can’t play this video.
-      </video>
-    );
+    return <ProofVideo proof={proof} className={className} />;
   }
   if (isPdfProof(proof)) {
     const label = proof.name || "PDF";

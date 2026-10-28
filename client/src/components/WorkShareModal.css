@@ -266,18 +266,36 @@
   border: 1px solid var(--line);
 }
 
-.work-share-proof-preview {
+.work-share-proof-preview-frame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  max-height: 200px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.work-share-proof-preview {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 380px;
   object-fit: contain;
   border-radius: 8px;
-  background: #000;
+  border: 1px solid var(--line);
+  background: transparent;
+  margin: 0 auto;
 }
 
 .work-share-proof-preview.is-video {
-  width: 100%;
-  max-height: 220px;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 380px;
   background: #000;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  margin: 0 auto;
 }
 
 .work-share-preview-info {

@@ -149,7 +149,8 @@ function SourceFileLightbox({ proof, onClose }) {
 /** Cover image thumbnail with page/media slice overview before full view. */
 export function ImageCoverSlicePreview({ proof, onOpen }) {
   const [hasError, setHasError] = useState(false);
-  const name = proof?.name || "Cover Image";
+  const hasCustomName = Boolean(proof?.name && proof.name !== "Cover Image");
+  const name = hasCustomName ? proof.name : "";
 
   return (
     <div
@@ -163,13 +164,13 @@ export function ImageCoverSlicePreview({ proof, onOpen }) {
           onOpen?.();
         }
       }}
-      title="Click to view image"
+      title={name ? `Click to view ${name}` : "Click to view image"}
     >
       <div className="done-source-cover-slice-box">
         {proof?.dataUrl && !hasError ? (
           <img
             src={proof.dataUrl}
-            alt={name}
+            alt={name || "Source image"}
             className="done-source-cover-slice-img is-loaded"
             onError={() => setHasError(true)}
           />
@@ -179,55 +180,56 @@ export function ImageCoverSlicePreview({ proof, onOpen }) {
             <div className="done-source-slice-mockup-page">
               <div className="done-source-mockup-header">
                 <span className="done-source-mockup-icon">🖼️</span>
-                <span className="done-source-mockup-bar is-brand">{name}</span>
+                {name ? <span className="done-source-mockup-bar is-brand">{name}</span> : null}
               </div>
             </div>
           </div>
         )}
         <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <span className="done-source-cover-action-pill" aria-label="View Image">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <polyline points="15 3 21 3 21 9" />
               <polyline points="9 21 3 21 3 15" />
               <line x1="21" y1="3" x2="14" y2="10" />
               <line x1="3" y1="21" x2="10" y2="14" />
             </svg>
-            <span>View Image</span>
           </span>
         </div>
       </div>
-      <div className="done-source-cover-info">
-        <div className="done-source-cover-meta-wrap">
-          <span className="done-source-cover-badge">Image</span>
-          <span className="done-source-cover-title" title={name}>{name}</span>
+      {hasCustomName ? (
+        <div className="done-source-cover-info">
+          <div className="done-source-cover-meta-wrap">
+            <span className="done-source-cover-title" title={name}>{name}</span>
+          </div>
+          <div className="done-source-cover-actions">
+            <button
+              type="button"
+              className="done-source-cover-open-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.();
+              }}
+              aria-label="Open image lightbox"
+              title="Open image"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="done-source-cover-actions">
-          <button
-            type="button"
-            className="done-source-cover-open-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen?.();
-            }}
-            aria-label="Open image lightbox"
-          >
-            <span>Open</span>
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="15 3 21 3 21 9" />
-              <polyline points="9 21 3 21 3 15" />
-              <line x1="21" y1="3" x2="14" y2="10" />
-              <line x1="3" y1="21" x2="10" y2="14" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
 
 /** Cover video thumbnail with slice overview and play action. */
 export function VideoCoverSlicePreview({ proof, onOpen }) {
-  const name = proof?.name || "Video Attachment";
+  const hasCustomName = Boolean(proof?.name && proof.name !== "Video Attachment");
+  const name = hasCustomName ? proof.name : "";
 
   return (
     <div
@@ -241,7 +243,7 @@ export function VideoCoverSlicePreview({ proof, onOpen }) {
           onOpen?.();
         }
       }}
-      title="Click to play video"
+      title={name ? `Click to play ${name}` : "Click to play video"}
     >
       <div className="done-source-cover-slice-box">
         <video
@@ -251,36 +253,36 @@ export function VideoCoverSlicePreview({ proof, onOpen }) {
           muted
         />
         <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill is-play">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+          <span className="done-source-cover-action-pill is-play" aria-label="Play video">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
-            <span>Play Video</span>
           </span>
         </div>
       </div>
-      <div className="done-source-cover-info">
-        <div className="done-source-cover-meta-wrap">
-          <span className="done-source-cover-badge is-video">Video</span>
-          <span className="done-source-cover-title" title={name}>{name}</span>
+      {hasCustomName ? (
+        <div className="done-source-cover-info">
+          <div className="done-source-cover-meta-wrap">
+            <span className="done-source-cover-title" title={name}>{name}</span>
+          </div>
+          <div className="done-source-cover-actions">
+            <button
+              type="button"
+              className="done-source-cover-open-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen?.();
+              }}
+              aria-label="Play video"
+              title="Play video"
+            >
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden="true">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="done-source-cover-actions">
-          <button
-            type="button"
-            className="done-source-cover-open-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpen?.();
-            }}
-            aria-label="Play video"
-          >
-            <span>Play</span>
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" aria-hidden="true">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -421,12 +423,11 @@ export function LinkCoverSlicePreview({
 
         {/* Hover Action Overlay */}
         <div className="done-source-cover-overlay">
-          <span className="done-source-cover-action-pill">
-            <span>Open Website</span>
+          <span className="done-source-cover-action-pill" aria-label="Open link">
             <svg
               viewBox="0 0 24 24"
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
@@ -444,7 +445,6 @@ export function LinkCoverSlicePreview({
       {/* Cover Info / Meta Footer */}
       <div className="done-source-cover-info">
         <div className="done-source-cover-meta-wrap">
-          <span className="done-source-cover-badge is-link">Link</span>
           <span className="done-source-cover-title" title={title || url}>
             {title || hostname}
           </span>
@@ -457,13 +457,13 @@ export function LinkCoverSlicePreview({
             type="button"
             className="done-source-cover-open-btn"
             onClick={onOpen}
-            title="Open link in new tab"
+            title="Open link"
+            aria-label="Open link"
           >
-            <span>Visit</span>
             <svg
               viewBox="0 0 24 24"
-              width="11"
-              height="11"
+              width="12"
+              height="12"
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
@@ -563,10 +563,16 @@ export function SourceFileViewer({ proof }) {
             e.stopPropagation();
             setOpened(true);
           }}
+          title={`Open ${label}`}
         >
-          <span className="source-media-file-kind">{kind}</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
           <span className="source-media-file-name">{label}</span>
-          <span className="source-media-file-action">Open</span>
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
       )}
       {opened ? (
@@ -750,9 +756,7 @@ export function WorkSourceControl({ work }) {
                   <div className="source-media-text-card-head">
                     {textSources[0]?.title ? (
                       <strong className="source-media-text-title">{textSources[0].title}</strong>
-                    ) : (
-                      <span className="source-media-text-tag">Text Note</span>
-                    )}
+                    ) : null}
                     <button
                       type="button"
                       className="source-media-fullscreen-btn"
@@ -764,6 +768,7 @@ export function WorkSourceControl({ work }) {
                         })
                       }
                       title="View text in full screen"
+                      aria-label="View text in full screen"
                     >
                       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <polyline points="15 3 21 3 21 9" />
@@ -771,7 +776,6 @@ export function WorkSourceControl({ work }) {
                         <line x1="21" y1="3" x2="14" y2="10" />
                         <line x1="3" y1="21" x2="10" y2="14" />
                       </svg>
-                      <span>Full Screen</span>
                     </button>
                   </div>
                   <p className="source-media-text-content">{textSources[0]?.content || work.source}</p>
@@ -854,9 +858,7 @@ export function WorkSourceControl({ work }) {
                     <div className="source-media-text-card-head">
                       {t.title ? (
                         <strong className="source-media-text-title">{t.title}</strong>
-                      ) : (
-                        <span className="source-media-text-tag">Text Note</span>
-                      )}
+                      ) : null}
                       <button
                         type="button"
                         className="source-media-fullscreen-btn"
@@ -868,6 +870,7 @@ export function WorkSourceControl({ work }) {
                           })
                         }
                         title="View text in full screen"
+                        aria-label="View text in full screen"
                       >
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <polyline points="15 3 21 3 21 9" />
@@ -875,7 +878,6 @@ export function WorkSourceControl({ work }) {
                           <line x1="21" y1="3" x2="14" y2="10" />
                           <line x1="3" y1="21" x2="10" y2="14" />
                         </svg>
-                        <span>Full Screen</span>
                       </button>
                     </div>
                     <p className="source-media-text-content">{t.content}</p>

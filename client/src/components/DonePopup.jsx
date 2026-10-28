@@ -366,10 +366,16 @@ function SourceFileViewer({ proof }) {
           type="button"
           className="done-source-file-btn"
           onClick={() => setOpened(true)}
+          title={`Open ${label}`}
         >
-          <span className="done-source-file-kind">{kind}</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
           <span className="done-source-file-name">{label}</span>
-          <span className="done-source-file-action">Open</span>
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
       )}
       {opened ? (
@@ -1685,86 +1691,90 @@ export default function DonePopup({
                               <div className="done-source-one-by-one">
 
                                 <div className="done-source-item">
-                                  <header className="done-source-item-head">
-                                    <div className="done-source-item-head-left">
-                                      <AiSourceSummary
-                                        source={activeItem}
-                                        onSaveSummary={(summaryData) =>
-                                          updateSourceItemSummary(topic, activeItem.id, summaryData)
-                                        }
-                                      />
-                                      <span className="done-source-item-badge">
-                                        {activeItem.type ? activeItem.type.toUpperCase() : "SOURCE"} {sourceCount > 1 ? `(#${safeIdx + 1})` : ""}
-                                      </span>
-                                    </div>
-                                    {isSourceEditMode && !readOnlyTasks && (
-                                      <button
-                                        type="button"
-                                        className="done-source-item-del"
-                                        onClick={() => removeSourceItem(topic, activeItem.id)}
-                                        title="Remove this source"
-                                        aria-label="Remove source"
-                                      >
-                                        ×
-                                      </button>
-                                    )}
-                                  </header>
-
-                                  <div className="done-source-item-title-section">
-                                    {editingTitleId === activeItem.id && isSourceEditMode ? (
-                                      <form
-                                        className="done-source-title-edit-form"
-                                        onSubmit={(e) => {
-                                          e.preventDefault();
-                                          updateSourceItemTitle(topic, activeItem.id, editingTitleValue);
-                                          setEditingTitleId(null);
-                                        }}
-                                      >
-                                        <input
-                                          type="text"
-                                          className="done-source-title-edit-input"
-                                          value={editingTitleValue}
-                                          onChange={(e) => setEditingTitleValue(e.target.value)}
-                                          placeholder="Source title (e.g. API Specs)"
-                                          maxLength={80}
-                                          autoFocus
+                                  {sourceCount > 1 || (isSourceEditMode && !readOnlyTasks) || activeItem.aiSummary ? (
+                                    <header className="done-source-item-head">
+                                      <div className="done-source-item-head-left">
+                                        <AiSourceSummary
+                                          source={activeItem}
+                                          onSaveSummary={(summaryData) =>
+                                            updateSourceItemSummary(topic, activeItem.id, summaryData)
+                                          }
                                         />
-                                        <button type="submit" className="done-source-title-save-btn">
-                                          Save
-                                        </button>
+                                        {sourceCount > 1 ? (
+                                          <span className="done-source-item-badge">
+                                            #{safeIdx + 1}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                      {isSourceEditMode && !readOnlyTasks && (
                                         <button
                                           type="button"
-                                          className="done-source-title-cancel-btn"
-                                          onClick={() => setEditingTitleId(null)}
+                                          className="done-source-item-del"
+                                          onClick={() => removeSourceItem(topic, activeItem.id)}
+                                          title="Remove this source"
+                                          aria-label="Remove source"
                                         >
-                                          Cancel
+                                          ×
                                         </button>
-                                      </form>
-                                    ) : (
-                                      <div className="done-source-title-display">
-                                        <strong className="done-source-title-heading">
-                                          {activeItem.title ? (
-                                            activeItem.title
-                                          ) : (
-                                            <span className="done-source-untitled">Untitled source</span>
-                                          )}
-                                        </strong>
-                                        {isSourceEditMode && !readOnlyTasks && (
+                                      )}
+                                    </header>
+                                  ) : null}
+
+                                  {(editingTitleId === activeItem.id && isSourceEditMode) || Boolean(activeItem.title) || (isSourceEditMode && !readOnlyTasks) ? (
+                                    <div className="done-source-item-title-section">
+                                      {editingTitleId === activeItem.id && isSourceEditMode ? (
+                                        <form
+                                          className="done-source-title-edit-form"
+                                          onSubmit={(e) => {
+                                            e.preventDefault();
+                                            updateSourceItemTitle(topic, activeItem.id, editingTitleValue);
+                                            setEditingTitleId(null);
+                                          }}
+                                        >
+                                          <input
+                                            type="text"
+                                            className="done-source-title-edit-input"
+                                            value={editingTitleValue}
+                                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                                            placeholder="Source title (e.g. API Specs)"
+                                            maxLength={80}
+                                            autoFocus
+                                          />
+                                          <button type="submit" className="done-source-title-save-btn">
+                                            Save
+                                          </button>
                                           <button
                                             type="button"
-                                            className="done-source-title-edit-btn"
-                                            onClick={() => {
-                                              setEditingTitleId(activeItem.id);
-                                              setEditingTitleValue(activeItem.title || "");
-                                            }}
-                                            title="Add or edit title for this source"
+                                            className="done-source-title-cancel-btn"
+                                            onClick={() => setEditingTitleId(null)}
                                           >
-                                            ✎ {activeItem.title ? "Rename" : "+ Add title"}
+                                            Cancel
                                           </button>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
+                                        </form>
+                                      ) : (
+                                        <div className="done-source-title-display">
+                                          {activeItem.title ? (
+                                            <strong className="done-source-title-heading">
+                                              {activeItem.title}
+                                            </strong>
+                                          ) : null}
+                                          {isSourceEditMode && !readOnlyTasks && (
+                                            <button
+                                              type="button"
+                                              className="done-source-title-edit-btn"
+                                              onClick={() => {
+                                                setEditingTitleId(activeItem.id);
+                                                setEditingTitleValue(activeItem.title || "");
+                                              }}
+                                              title="Add or edit title for this source"
+                                            >
+                                              ✎ {activeItem.title ? "Rename" : "+ Add title"}
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : null}
 
                                   <div className="done-source-item-body">
                                     {activeItem.type === "file" && activeItem.proof ? (
@@ -1895,7 +1905,6 @@ export default function DonePopup({
                                         return (
                                           <div className="done-source-text-card">
                                             <div className="done-source-text-card-head">
-                                              <span className="done-source-text-tag">Text Note</span>
                                               <div className="done-source-text-actions">
                                                 <button
                                                   type="button"

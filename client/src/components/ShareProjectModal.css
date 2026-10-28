@@ -174,20 +174,39 @@
   color: var(--danger);
 }
 
+.share-preview-frame {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
 .share-preview {
   display: block;
-  width: 100%;
-  max-height: 180px;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 380px;
   object-fit: contain;
-  margin-top: 10px;
+  margin: 0 auto;
   border-radius: 10px;
   border: 1px solid var(--line);
-  background: var(--ink-2);
+  background: transparent;
 }
 
 .share-preview.is-video {
-  max-height: 240px;
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 380px;
+  margin: 0 auto;
   background: #000;
+  border-radius: 10px;
+  border: 1px solid var(--line);
 }
 
 .share-preview-pdf {
