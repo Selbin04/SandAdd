@@ -26,10 +26,13 @@
 
 .auth-mark {
   display: block;
-  height: 46px;
-  width: auto;
-  margin: 0;
+  height: 64px;
+  width: 64px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
   object-fit: contain;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 162, 255, 0.32);
 }
 
 .auth-wordmark {

@@ -79,8 +79,9 @@
 
 .messages-avatar-logo {
   object-fit: contain;
-  padding: 4px;
-  background: #ffffff;
+  padding: 2px;
+  background: transparent;
+  border-radius: 8px;
 }
 
 .messages-official-badge {

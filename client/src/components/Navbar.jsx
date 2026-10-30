@@ -105,19 +105,14 @@ export default function Navbar({
             e.preventDefault();
             onNavigate("progress");
           }}
-          aria-label="SandAdd"
+          aria-label="Proggtube"
+          title="Proggtube"
         >
           <img
             className="navbar-mark"
-            src="/sandadd-mark.png?v=newlogo"
-            alt=""
+            src="/proggtube-mark.png?v=proggtube"
+            alt="Proggtube"
           />
-          <div className="navbar-brand-text">
-            <span className="navbar-wordmark" aria-hidden="true">
-              <span className="sand">Sand</span>
-              <span className="add">Add</span>
-            </span>
-          </div>
         </a>
 
         <ul className="navbar-links">

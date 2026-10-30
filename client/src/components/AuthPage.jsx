@@ -51,13 +51,9 @@ export default function AuthPage({ onAuthed, busy = false, error = "", onClearEr
         <header className="auth-brand">
           <img
             className="auth-mark"
-            src="/sandadd-mark.png?v=newlogo"
-            alt=""
+            src="/proggtube-mark.png?v=proggtube"
+            alt="Proggtube"
           />
-          <h1 className="auth-wordmark">
-            <span className="sand">Sand</span>
-            <span className="add">Add</span>
-          </h1>
         </header>
 
         <form className="auth-card" onSubmit={submit}>

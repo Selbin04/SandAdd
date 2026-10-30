@@ -54,14 +54,24 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   text-decoration: none;
   flex-shrink: 0;
   line-height: 1;
-  padding: 4px 6px;
-  margin: -4px -6px;
-  border-radius: 8px;
+  padding: 4px;
+  margin: -4px 0;
+  border-radius: 10px;
   overflow: visible;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.navbar-brand:hover {
+  transform: translateY(-1px) scale(1.03);
+  opacity: 0.95;
+}
+
+.navbar-brand:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .logo-snow-layer {
@@ -118,9 +128,13 @@
 
 .navbar-mark {
   display: block;
-  height: 34px;
-  width: auto;
+  height: 38px;
+  width: 38px;
+  aspect-ratio: 1 / 1;
   object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 9px;
+  box-shadow: 0 2px 10px rgba(0, 162, 255, 0.28);
 }
 
 .navbar-brand-text {
@@ -2350,10 +2364,12 @@
   }
 
   .navbar-mark {
-    height: 30px;
-    width: auto;
+    height: 34px;
+    width: 34px;
+    aspect-ratio: 1 / 1;
     display: block;
     object-fit: contain;
+    flex-shrink: 0;
   }
 
   .navbar-wordmark {
@@ -2651,8 +2667,12 @@
   }
 
   .navbar-mark {
-    height: 28px;
-    width: auto;
+    height: 32px;
+    width: 32px;
+    aspect-ratio: 1 / 1;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
   }
 
   .navbar-wordmark {
@@ -2730,8 +2750,12 @@
   }
 
   .navbar-mark {
-    height: 26px;
-    width: auto;
+    height: 30px;
+    width: 30px;
+    aspect-ratio: 1 / 1;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
   }
 
   .navbar-wordmark {
@@ -2886,8 +2910,12 @@
   }
 
   .navbar-mark {
-    height: 23px;
-    width: auto;
+    height: 28px;
+    width: 28px;
+    aspect-ratio: 1 / 1;
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
   }
 
   .navbar-wordmark {
