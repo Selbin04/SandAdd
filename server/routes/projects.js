@@ -103,6 +103,20 @@ function parseProjectInput(body, { partial = false } = {}) {
         : [];
       const reports = Array.isArray(topic?.reports) ? topic.reports : [];
       const asks = Array.isArray(topic?.asks) ? topic.asks : [];
+      const coverProof = topic?.coverImage;
+      let coverImage = null;
+      if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl)) {
+        coverImage = {
+          mediaId: String(coverProof.mediaId || ""),
+          name: String(coverProof.name || "").slice(0, 120),
+          type: String(coverProof.type || "").slice(0, 80),
+          size: Number(coverProof.size) || 0,
+          hasMedia: Boolean(coverProof.hasMedia || coverProof.mediaId || coverProof.dataUrl),
+          ...(coverProof.dataUrl ? { dataUrl: coverProof.dataUrl } : {}),
+        };
+      }
+      const rawMode = String(topic?.coverMode || "").toLowerCase();
+      const coverMode = rawMode === "full" ? "full" : rawMode === "top" ? "top" : coverImage ? "top" : "none";
 
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
@@ -120,6 +134,8 @@ function parseProjectInput(body, { partial = false } = {}) {
         comments,
         reports,
         asks,
+        coverImage,
+        coverMode,
       };
     }).filter(Boolean);
   }
@@ -204,6 +220,8 @@ function asProject(doc) {
       comments: Array.isArray(t.comments) ? t.comments : [],
       reports: Array.isArray(t.reports) ? t.reports : [],
       asks: Array.isArray(t.asks) ? t.asks : [],
+      coverImage: t.coverImage || null,
+      coverMode: t.coverMode || (t.coverImage ? "top" : "none"),
     })),
     originId: obj.originId || null,
     originMode: obj.originMode === "assign" || obj.originMode === "follow"

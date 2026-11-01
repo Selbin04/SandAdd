@@ -237,6 +237,8 @@ export async function restoreProjectsTopicMedia(projects) {
         (t) =>
           t?.sourceProof?.mediaId ||
           t?.sourceProof?.hasMedia ||
+          t?.coverImage?.mediaId ||
+          t?.coverImage?.hasMedia ||
           (Array.isArray(t?.sources) &&
             t.sources.some((s) => s?.proof?.mediaId || s?.proof?.hasMedia))
       );
@@ -246,6 +248,10 @@ export async function restoreProjectsTopicMedia(projects) {
           let sourceProof = t?.sourceProof;
           if (sourceProof) {
             sourceProof = await restoreProofMedia(sourceProof);
+          }
+          let coverImage = t?.coverImage;
+          if (coverImage) {
+            coverImage = await restoreProofMedia(coverImage);
           }
           let sources = Array.isArray(t?.sources) ? t.sources : [];
           if (sources.length > 0) {
@@ -259,7 +265,7 @@ export async function restoreProjectsTopicMedia(projects) {
               })
             );
           }
-          return { ...t, sourceProof, sources };
+          return { ...t, sourceProof, coverImage, sources };
         })
       );
       return { ...project, topics: nextTopics };
@@ -274,6 +280,9 @@ export async function prepareTopicsForSave(topics) {
   for (const t of list) {
     if (t?.sourceProof?.dataUrl && t.sourceProof.mediaId) {
       await persistProofMedia(t.sourceProof);
+    }
+    if (t?.coverImage?.dataUrl && t.coverImage.mediaId) {
+      await persistProofMedia(t.coverImage);
     }
     let sources = Array.isArray(t?.sources) ? t.sources : [];
     if (sources.length > 0) {
@@ -294,6 +303,8 @@ export async function prepareTopicsForSave(topics) {
       ...t,
       source: String(t.source || "").trim(),
       sourceProof: lightSourceProof(t.sourceProof),
+      coverImage: t?.coverImage ? lightSourceProof(t.coverImage) : null,
+      coverMode: t?.coverMode || (t?.coverImage ? "top" : "none"),
       sources,
     });
   }

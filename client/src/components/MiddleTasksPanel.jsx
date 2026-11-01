@@ -181,6 +181,11 @@ export default function MiddleTasksPanel({
               const isTop = idx === 0;
               return (
                 <li key={t.id || idx} className={`middle-task-item ${t.done ? "is-done" : ""} ${isTop ? "is-top-item" : ""}`}>
+                  {t.coverImage && t.coverMode && t.coverMode !== "none" && (t.coverImage.dataUrl || t.coverImage.previewUrl) && (
+                    <div className="middle-task-cover-banner">
+                      <img src={t.coverImage.dataUrl || t.coverImage.previewUrl} alt="Cover" />
+                    </div>
+                  )}
                   <div className="middle-task-row">
                     {showCheck ? (
                       <button

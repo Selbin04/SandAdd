@@ -285,6 +285,114 @@ function IconPaperclip({ className = "" }) {
   );
 }
 
+function IconPhotoCover({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </svg>
+  );
+}
+
+function IconBannerMode({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M3 11h18" />
+      <path d="M7 16h6" strokeWidth="2.5" />
+    </svg>
+  );
+}
+
+function IconFullCardMode({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <rect x="6" y="6" width="12" height="6" rx="2" fill="currentColor" fillOpacity="0.35" />
+      <circle cx="16" cy="16" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconNoCover({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <line x1="7" y1="8" x2="17" y2="8" strokeWidth="2.5" />
+      <line x1="7" y1="13" x2="13" y2="13" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function DoneCoverImage({ cover, className = "" }) {
+  const [url, setUrl] = useState(
+    cover?.dataUrl || (typeof cover === "string" ? cover : "")
+  );
+
+  useEffect(() => {
+    if (cover?.dataUrl) {
+      setUrl(cover.dataUrl);
+      return;
+    }
+    if (typeof cover === "string" && cover) {
+      setUrl(cover);
+      return;
+    }
+    if (cover?.mediaId) {
+      let alive = true;
+      restoreTopicSourceProof(cover).then((full) => {
+        if (alive && full?.dataUrl) {
+          setUrl(full.dataUrl);
+        }
+      });
+      return () => {
+        alive = false;
+      };
+    }
+    setUrl("");
+  }, [cover?.dataUrl, cover?.mediaId]);
+
+  if (!url) return null;
+  return <img src={url} alt="Cover" className={className} />;
+}
+
 function dataUrlToObjectUrl(proof) {
   if (!proof?.dataUrl) return null;
   try {
@@ -471,6 +579,7 @@ export default function DonePopup({
   onRemove,
   onToggle,
   onSetSource,
+  onUpdateTopic,
   onShareTopic = null,
   mode = "all",
   topicIds = null,
@@ -488,6 +597,13 @@ export default function DonePopup({
   const [sourceTitle, setSourceTitle] = useState("");
   const [sourceProof, setSourceProof] = useState(null);
   const [hasCheckbox, setHasCheckbox] = useState(true);
+  const [addCoverImage, setAddCoverImage] = useState(null);
+  const [addCoverMode, setAddCoverMode] = useState("top");
+  const addCoverFileRef = useRef(null);
+  const [coverModalTopic, setCoverModalTopic] = useState(null);
+  const [coverModalImage, setCoverModalImage] = useState(null);
+  const [coverModalMode, setCoverModalMode] = useState("top");
+  const changeCoverFileRef = useRef(null);
   const [sourceError, setSourceError] = useState("");
   const [busyFile, setBusyFile] = useState(false);
   const [sourcePanelId, setSourcePanelId] = useState(null);
@@ -1108,6 +1224,82 @@ export default function DonePopup({
     }
   };
 
+  const onPickAddCover = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusyFile(true);
+    try {
+      const proof = await fileToProof(file);
+      setAddCoverImage(proof);
+      setAddCoverMode((prev) => (prev === "full" ? "full" : "top"));
+    } catch (err) {
+      setSourceError(err.message || "Could not attach cover image");
+    } finally {
+      setBusyFile(false);
+    }
+  };
+
+  const onPickChangeCover = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusyFile(true);
+    try {
+      const proof = await fileToProof(file);
+      setCoverModalImage(proof);
+      if (coverModalMode === "none") {
+        setCoverModalMode("top");
+      }
+    } catch (err) {
+      setSourceError(err.message || "Could not attach cover image");
+    } finally {
+      setBusyFile(false);
+    }
+  };
+
+  const handleUpdateTopicCover = (topicId, updates) => {
+    const projId = project?._id || project?.id;
+    if (onUpdateTopic) {
+      onUpdateTopic(projId, topicId, updates);
+    } else {
+      const allT = Array.isArray(project?.topics) ? project.topics : [];
+      const updated = allT.map((t) => (t.id === topicId ? { ...t, ...updates } : t));
+      onSetSource?.(projId, topicId, { ...updates, topics: updated });
+    }
+  };
+
+  const openCoverModal = (topic) => {
+    setCoverModalTopic(topic);
+    setCoverModalImage(topic.coverImage || null);
+    const mode =
+      topic.coverMode === "full"
+        ? "full"
+        : topic.coverMode === "top"
+          ? "top"
+          : topic.coverImage
+            ? "top"
+            : "none";
+    setCoverModalMode(mode);
+  };
+
+  const handleApplyCoverModal = () => {
+    if (!coverModalTopic) return;
+    const mode =
+      coverModalMode === "none" || !coverModalImage ? "none" : coverModalMode;
+    const image = mode === "none" ? null : coverModalImage;
+    handleUpdateTopicCover(coverModalTopic.id, {
+      coverImage: image,
+      coverMode: mode,
+    });
+    setCoverModalTopic(null);
+    showToast(
+      mode === "none"
+        ? `Cover removed (normal state)`
+        : `Cover saved (${mode === "full" ? "Full card" : "Top banner"})`
+    );
+  };
+
   return (
     <>
       <div
@@ -1133,6 +1325,20 @@ export default function DonePopup({
         accept={PROOF_ACCEPT}
         hidden
         onChange={onAddFile}
+      />
+      <input
+        ref={addCoverFileRef}
+        type="file"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.gif"
+        hidden
+        onChange={onPickAddCover}
+      />
+      <input
+        ref={changeCoverFileRef}
+        type="file"
+        accept="image/*,.png,.jpg,.jpeg,.webp,.gif"
+        hidden
+        onChange={onPickChangeCover}
       />
       <div
         className={`done-card ${inline ? "done-card-inline" : ""}`}
@@ -1365,16 +1571,20 @@ export default function DonePopup({
                     const sourceValue = isUrlSource(source)
                       ? normalizeSourceUrl(source)
                       : source.trim();
-                    onAdd(project._id, next, {
+                    onAdd?.(project?._id || project?.id, next, {
                       source: sourceValue,
                       sourceTitle: sourceTitle.trim(),
                       sourceProof,
                       hasCheckbox,
+                      coverImage: addCoverImage,
+                      coverMode: addCoverImage ? addCoverMode : "none",
                     });
                     setText("");
                     setSource("");
                     setSourceTitle("");
                     setSourceProof(null);
+                    setAddCoverImage(null);
+                    setAddCoverMode("top");
                     setSourceError("");
                     setHasCheckbox(true);
                   }}
@@ -1428,10 +1638,56 @@ export default function DonePopup({
                           ? "Reading…"
                           : "Attach file"}
                     </button>
+                    <button
+                      type="button"
+                      className={`done-cover-add-btn ${addCoverImage ? "has-cover" : ""}`}
+                      disabled={busyFile}
+                      onClick={() => addCoverFileRef.current?.click()}
+                      title="Attach a cover image to this progress file"
+                    >
+                      <IconPhotoCover />
+                      <span>{addCoverImage ? (addCoverMode === "full" ? "Cover: Full" : "Cover: Banner") : "Cover"}</span>
+                    </button>
                     <button type="submit" className="chip active" disabled={busyFile}>
                       Add
                     </button>
                   </div>
+                  {addCoverImage ? (
+                    <div className="done-add-cover-preview-row">
+                      <div className="done-add-cover-thumb-wrap">
+                        <img src={addCoverImage.dataUrl} alt="Cover" className="done-add-cover-thumb" />
+                        <span className="done-add-cover-name" title={addCoverImage.name}>
+                          {addCoverImage.name || "Cover image"}
+                        </span>
+                      </div>
+                      <div className="done-add-cover-modes" role="radiogroup" aria-label="Cover style">
+                        <button
+                          type="button"
+                          className={`done-add-cover-mode-chip ${addCoverMode === "top" ? "is-active" : ""}`}
+                          onClick={() => setAddCoverMode("top")}
+                          title="Top banner cover (image at top, content below)"
+                        >
+                          <IconBannerMode /> Top banner
+                        </button>
+                        <button
+                          type="button"
+                          className={`done-add-cover-mode-chip ${addCoverMode === "full" ? "is-active" : ""}`}
+                          onClick={() => setAddCoverMode("full")}
+                          title="Full card cover (image covers entire card)"
+                        >
+                          <IconFullCardMode /> Full card
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className="done-add-cover-remove-btn"
+                        onClick={() => setAddCoverImage(null)}
+                        title="Remove cover image (leave in normal state)"
+                      >
+                        ✕ Remove
+                      </button>
+                    </div>
+                  ) : null}
                   <FileUploadHint />
                 </form>
               )}
@@ -1464,95 +1720,316 @@ export default function DonePopup({
                 const canOpenSource = !busyFile && (!readOnlyTasks || hasSource || hasTopicPosts);
 
                 const showCheck = topic.hasCheckbox !== false;
+                const hasCover = Boolean(
+                  topic?.coverImage &&
+                    (topic.coverImage.dataUrl ||
+                      topic.coverImage.mediaId ||
+                      (typeof topic.coverImage === "string" && topic.coverImage.length > 0))
+                );
+                const coverMode =
+                  topic?.coverMode === "full"
+                    ? "full"
+                    : topic?.coverMode === "top"
+                      ? "top"
+                      : hasCover
+                        ? "top"
+                        : "none";
+                const isFullCover = hasCover && coverMode === "full";
+                const isTopCover = hasCover && coverMode === "top";
+
                 return (
                   <li
                     key={topic.id}
-                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""}`}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} ${isFullCover ? "has-cover cover-full" : isTopCover ? "has-cover cover-top" : ""}`}
                   >
-                    <div className="done-row">
-                      {showCheck ? (
-                        <button
-                          type="button"
-                          className={`done-check ${finished ? "is-checked" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggle?.(project._id, topic.id);
-                          }}
-                          aria-pressed={finished}
-                          aria-label={
-                            finished
-                              ? `Mark ${topic.text} as not done`
-                              : `Mark ${topic.text} as done`
-                          }
-                        >
-                          {finished ? "✓" : ""}
-                        </button>
-                      ) : null}
-                      <span className="done-text">
-                        {topic.text}
-                        {isTopFile ? (
-                          <span className="done-top-badge" title="Top of progress files stack (latest)">
-                            TOP
-                          </span>
-                        ) : null}
-                      </span>
-                      <button
-                        type="button"
-                        className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isOpen) closePanel();
-                          else openPanel(topic);
-                        }}
-                        disabled={!canOpenSource}
-                        title={
-                          readOnlyTasks
-                            ? hasSource || hasTopicPosts
-                              ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                              : "No source"
-                            : hasSource || hasTopicPosts
-                              ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                              : "Add source"
-                        }
-                        aria-expanded={isOpen}
-                        aria-label={`Source for ${topic.text}`}
-                      >
-                        <IconPaperclip className="done-source-icon" />
-                        <span className="done-source-label">Source</span>
-                        {totalSourceCount > 0 ? (
-                          <span className="done-source-count-chip">
-                            <span className="done-source-sep" aria-hidden="true">•</span>
-                            <span className="done-source-count">{totalSourceCount}</span>
-                          </span>
-                        ) : null}
-                      </button>
-                      {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
-                        <button
-                          type="button"
-                          className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
-                          onClick={(e) => handleToggleTaskMenu(topic, e)}
-                          title="Actions (Ask, Like, Comment, Report)"
-                          aria-label={`Actions for ${topic.text}`}
-                          aria-haspopup="true"
-                          aria-expanded={taskMenuTopic?.id === topic.id}
-                        >
-                          <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
-                        </button>
-                      ) : null}
-                      {!todayMode && !readOnlyTasks && (
-                        <button
-                          type="button"
-                          className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
-                          onClick={(e) => handleToggleMoreMenu(topic, e)}
-                          aria-label={`Options for ${topic.text}`}
-                          title="More options"
-                          aria-haspopup="true"
-                          aria-expanded={moreMenuTopic?.id === topic.id}
-                        >
-                          <IconMoreVertical />
-                        </button>
-                      )}
-                    </div>
+                    {isFullCover ? (
+                      <div className="done-cover-full-wrapper">
+                        <div className="done-cover-full-backdrop">
+                          <DoneCoverImage cover={topic.coverImage} className="done-cover-full-img" />
+                          <div className="done-cover-full-scrim" />
+                        </div>
+
+                        <div className="done-cover-full-content">
+                          {/* Sky-Blue Pill Box for Checkbox + Task Text (as in user screenshot) */}
+                          <div className="done-cover-pill-box">
+                            {showCheck ? (
+                              <button
+                                type="button"
+                                className={`done-cover-check ${finished ? "is-checked" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggle?.(project._id, topic.id);
+                                }}
+                                aria-pressed={finished}
+                                aria-label={
+                                  finished
+                                    ? `Mark ${topic.text} as not done`
+                                    : `Mark ${topic.text} as done`
+                                }
+                                title={finished ? "Completed (click to undo)" : "Mark as done"}
+                              >
+                                {finished ? "✓" : ""}
+                              </button>
+                            ) : null}
+                            <span className={`done-cover-pill-text ${finished ? "is-done" : ""}`}>
+                              {topic.text}
+                            </span>
+                            {isTopFile ? (
+                              <span className="done-top-badge done-top-badge-sky" title="Top of progress files stack (latest)">
+                                TOP
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* SOURCE Button underneath bubble */}
+                          <div className="done-cover-mid-row">
+                            <button
+                              type="button"
+                              className={`done-source done-source-cover ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isOpen) closePanel();
+                                else openPanel(topic);
+                              }}
+                              disabled={!canOpenSource}
+                              title={
+                                readOnlyTasks
+                                  ? hasSource || hasTopicPosts
+                                    ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                    : "No source"
+                                  : hasSource || hasTopicPosts
+                                    ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                    : "Add source"
+                              }
+                              aria-expanded={isOpen}
+                              aria-label={`Source for ${topic.text}`}
+                            >
+                              <span className="done-source-label">SOURCE ({totalSourceCount})</span>
+                            </button>
+                          </div>
+
+                          {/* Bottom Row: white circular button at bottom right (as in user screenshot) */}
+                          <div className="done-cover-bottom-row">
+                            <div className="done-cover-actions">
+                              {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                                <button
+                                  type="button"
+                                  className={`done-cover-heart-btn ${taskLikes[topic.id] ? "is-liked" : ""} ${finished ? "is-done" : ""}`}
+                                  onClick={(e) => handleToggleTaskMenu(topic, e)}
+                                  title="Actions (Ask, Like, Comment, Report)"
+                                  aria-label={`Actions for ${topic.text}`}
+                                >
+                                  <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                </button>
+                              ) : null}
+                              {!todayMode && !readOnlyTasks && (
+                                <button
+                                  type="button"
+                                  className={`done-cover-white-circle-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                                  onClick={(e) => handleToggleMoreMenu(topic, e)}
+                                  aria-label={`Options for ${topic.text}`}
+                                  title="Options & Cover settings"
+                                >
+                                  <span className="done-cover-circle-inner" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : isTopCover ? (
+                      <div className="done-cover-top-wrapper">
+                        {/* Top Banner Image (Option 2 matching user screenshot) */}
+                        <div className="done-cover-top-banner">
+                          <DoneCoverImage cover={topic.coverImage} className="done-cover-top-img" />
+                        </div>
+
+                        {/* Bottom Body (same colors and styles as previous progress file state) */}
+                        <div className="done-cover-top-body">
+                          <div className="done-row">
+                            <div className="done-row-main">
+                              <div className="done-text-line">
+                                <span className={`done-text ${finished ? "is-done" : ""}`}>
+                                  {topic.text}
+                                </span>
+                                {isTopFile ? (
+                                  <span className="done-top-badge" title="Top of progress files stack (latest)">
+                                    TOP
+                                  </span>
+                                ) : null}
+                              </div>
+                              <button
+                                type="button"
+                                className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isOpen) closePanel();
+                                  else openPanel(topic);
+                                }}
+                                disabled={!canOpenSource}
+                                title={
+                                  readOnlyTasks
+                                    ? hasSource || hasTopicPosts
+                                      ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                      : "No source"
+                                    : hasSource || hasTopicPosts
+                                      ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                      : "Add source"
+                                }
+                                aria-expanded={isOpen}
+                                aria-label={`Source for ${topic.text}`}
+                              >
+                                <IconPaperclip className="done-source-icon" />
+                                <span className="done-source-label">Source</span>
+                                {totalSourceCount > 0 ? (
+                                  <span className="done-source-count-chip">
+                                    <span className="done-source-sep" aria-hidden="true">•</span>
+                                    <span className="done-source-count">{totalSourceCount}</span>
+                                  </span>
+                                ) : null}
+                              </button>
+                            </div>
+
+                            <div className="done-row-side">
+                              <div className="done-row-actions">
+                                {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                                  <button
+                                    type="button"
+                                    className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                                    onClick={(e) => handleToggleTaskMenu(topic, e)}
+                                    title="Actions (Ask, Like, Comment, Report)"
+                                    aria-label={`Actions for ${topic.text}`}
+                                  >
+                                    <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                  </button>
+                                ) : null}
+                                {!todayMode && !readOnlyTasks && (
+                                  <button
+                                    type="button"
+                                    className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                                    onClick={(e) => handleToggleMoreMenu(topic, e)}
+                                    aria-label={`Options for ${topic.text}`}
+                                    title="More options"
+                                  >
+                                    <IconMoreVertical />
+                                  </button>
+                                )}
+                              </div>
+
+                              {showCheck ? (
+                                <button
+                                  type="button"
+                                  className={`done-check ${finished ? "is-checked" : ""}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggle?.(project?._id || project?.id, topic.id);
+                                  }}
+                                  aria-pressed={finished}
+                                  aria-label={
+                                    finished
+                                      ? `Mark ${topic.text} as not done`
+                                      : `Mark ${topic.text} as done`
+                                  }
+                                  title={finished ? "Completed (click to undo)" : "Mark as done"}
+                                >
+                                  {finished ? "✓" : ""}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Normal State without cover image */
+                      <div className="done-row">
+                        <div className="done-row-main">
+                          <div className="done-text-line">
+                            <span className="done-text">
+                              {topic.text}
+                            </span>
+                            {isTopFile ? (
+                              <span className="done-top-badge" title="Top of progress files stack (latest)">
+                                TOP
+                              </span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isOpen) closePanel();
+                              else openPanel(topic);
+                            }}
+                            disabled={!canOpenSource}
+                            title={
+                              readOnlyTasks
+                                ? hasSource || hasTopicPosts
+                                  ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                  : "No source"
+                                : hasSource || hasTopicPosts
+                                  ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                  : "Add source"
+                            }
+                            aria-expanded={isOpen}
+                            aria-label={`Source for ${topic.text}`}
+                          >
+                            <span className="done-source-label">SOURCE ({totalSourceCount})</span>
+                          </button>
+                        </div>
+
+                        <div className="done-row-side">
+                          <div className="done-row-actions">
+                            {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                              <button
+                                type="button"
+                                className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                                onClick={(e) => handleToggleTaskMenu(topic, e)}
+                                title="Actions (Ask, Like, Comment, Report)"
+                                aria-label={`Actions for ${topic.text}`}
+                                aria-haspopup="true"
+                                aria-expanded={taskMenuTopic?.id === topic.id}
+                              >
+                                <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                              </button>
+                            ) : null}
+                            {!todayMode && !readOnlyTasks && (
+                              <button
+                                type="button"
+                                className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                                onClick={(e) => handleToggleMoreMenu(topic, e)}
+                                aria-label={`Options for ${topic.text}`}
+                                title="More options"
+                                aria-haspopup="true"
+                                aria-expanded={moreMenuTopic?.id === topic.id}
+                              >
+                                <IconMoreVertical />
+                              </button>
+                            )}
+                          </div>
+
+                          {showCheck ? (
+                            <button
+                              type="button"
+                              className={`done-check ${finished ? "is-checked" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggle?.(project._id, topic.id);
+                              }}
+                              aria-pressed={finished}
+                              aria-label={
+                                finished
+                                  ? `Mark ${topic.text} as not done`
+                                  : `Mark ${topic.text} as done`
+                              }
+                              title={finished ? "Completed (click to undo)" : "Mark as done"}
+                            >
+                              {finished ? "✓" : ""}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
 
                   {isOpen ? (
                     <div className="done-source-panel" role="tablist">
@@ -2263,6 +2740,81 @@ export default function DonePopup({
               role="menuitem"
               className="task-action-item-btn"
               onClick={() => {
+                const target = moreMenuTopic;
+                setMoreMenuTopic(null);
+                openCoverModal(target);
+              }}
+            >
+              <span className="task-action-icon">
+                <IconPhotoCover />
+              </span>
+              <span className="task-action-label">
+                {moreMenuTopic.coverImage ? "Change cover image" : "Add cover image"}
+              </span>
+            </button>
+          </li>
+          {moreMenuTopic.coverImage ? (
+            <>
+              <li role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="task-action-item-btn"
+                  onClick={() => {
+                    const target = moreMenuTopic;
+                    setMoreMenuTopic(null);
+                    const currentMode =
+                      target.coverMode === "full" ? "full" : "top";
+                    const newMode = currentMode === "full" ? "top" : "full";
+                    handleUpdateTopicCover(target.id, { coverMode: newMode });
+                    showToast(
+                      `Switched cover to ${newMode === "full" ? "full card" : "top banner"}`
+                    );
+                  }}
+                >
+                  <span className="task-action-icon">
+                    {moreMenuTopic.coverMode === "full" ? (
+                      <IconBannerMode />
+                    ) : (
+                      <IconFullCardMode />
+                    )}
+                  </span>
+                  <span className="task-action-label">
+                    {moreMenuTopic.coverMode === "full"
+                      ? "Switch to Top banner"
+                      : "Switch to Full cover"}
+                  </span>
+                </button>
+              </li>
+              <li role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="task-action-item-btn"
+                  onClick={() => {
+                    const target = moreMenuTopic;
+                    setMoreMenuTopic(null);
+                    handleUpdateTopicCover(target.id, {
+                      coverImage: null,
+                      coverMode: "none",
+                    });
+                    showToast("Removed cover (normal state)");
+                  }}
+                >
+                  <span className="task-action-icon">
+                    <IconNoCover />
+                  </span>
+                  <span className="task-action-label">Remove cover (normal state)</span>
+                </button>
+              </li>
+            </>
+          ) : null}
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              className="task-action-item-btn"
+              onClick={() => {
                 const textToCopy = moreMenuTopic.text;
                 setMoreMenuTopic(null);
                 if (navigator?.clipboard?.writeText) {
@@ -2520,6 +3072,192 @@ export default function DonePopup({
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {coverModalTopic &&
+      createPortal(
+        <div
+          className="cover-modal-overlay"
+          onClick={() => setCoverModalTopic(null)}
+          role="presentation"
+        >
+          <div
+            className="cover-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cover-modal-title"
+          >
+            <header className="cover-modal-header">
+              <div className="cover-modal-title-wrap">
+                <IconPhotoCover />
+                <div>
+                  <h3 id="cover-modal-title">Progress File Cover</h3>
+                  <p className="cover-modal-sub">"{coverModalTopic.text}"</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="cover-modal-close-btn"
+                onClick={() => setCoverModalTopic(null)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </header>
+
+            <div className="cover-modal-body">
+              {/* Option Selector: 3 options (Top banner, Full card, Normal state) */}
+              <div
+                className="cover-options-grid"
+                role="radiogroup"
+                aria-label="Cover display option"
+              >
+                {/* Option 1: Top Banner */}
+                <div
+                  className={`cover-option-card ${
+                    coverModalMode === "top" && coverModalImage ? "is-selected" : ""
+                  }`}
+                  onClick={() => {
+                    setCoverModalMode("top");
+                    if (!coverModalImage) {
+                      changeCoverFileRef.current?.click();
+                    }
+                  }}
+                  role="radio"
+                  aria-checked={coverModalMode === "top" && Boolean(coverModalImage)}
+                  tabIndex={0}
+                >
+                  <div className="cover-option-visual is-top-demo">
+                    <div
+                      className="demo-top-img"
+                      style={{
+                        backgroundImage: coverModalImage?.dataUrl
+                          ? `url(${coverModalImage.dataUrl})`
+                          : undefined,
+                      }}
+                    />
+                    <div className="demo-top-body" />
+                  </div>
+                  <span className="cover-option-name">Top banner</span>
+                  <span className="cover-option-desc">Image at top, body below</span>
+                </div>
+
+                {/* Option 2: Full Card */}
+                <div
+                  className={`cover-option-card ${
+                    coverModalMode === "full" && coverModalImage ? "is-selected" : ""
+                  }`}
+                  onClick={() => {
+                    setCoverModalMode("full");
+                    if (!coverModalImage) {
+                      changeCoverFileRef.current?.click();
+                    }
+                  }}
+                  role="radio"
+                  aria-checked={coverModalMode === "full" && Boolean(coverModalImage)}
+                  tabIndex={0}
+                >
+                  <div className="cover-option-visual is-full-demo">
+                    <div
+                      className="demo-full-img"
+                      style={{
+                        backgroundImage: coverModalImage?.dataUrl
+                          ? `url(${coverModalImage.dataUrl})`
+                          : undefined,
+                      }}
+                    >
+                      <div className="demo-full-pill" />
+                    </div>
+                  </div>
+                  <span className="cover-option-name">Full card</span>
+                  <span className="cover-option-desc">Image covers entire card</span>
+                </div>
+
+                {/* Option 3: Normal State */}
+                <div
+                  className={`cover-option-card ${
+                    coverModalMode === "none" || !coverModalImage ? "is-selected" : ""
+                  }`}
+                  onClick={() => setCoverModalMode("none")}
+                  role="radio"
+                  aria-checked={coverModalMode === "none" || !coverModalImage}
+                  tabIndex={0}
+                >
+                  <div className="cover-option-visual is-none-demo">
+                    <div className="demo-none-body">
+                      <div className="demo-none-line" />
+                      <div className="demo-none-badge" />
+                    </div>
+                  </div>
+                  <span className="cover-option-name">Normal state</span>
+                  <span className="cover-option-desc">Without cover image</span>
+                </div>
+              </div>
+
+              {/* Image upload / change bar */}
+              {coverModalMode !== "none" ? (
+                <div className="cover-image-picker-bar">
+                  {coverModalImage ? (
+                    <div className="cover-chosen-info">
+                      <img
+                        src={coverModalImage.dataUrl}
+                        alt="Cover"
+                        className="cover-chosen-thumb"
+                      />
+                      <div className="cover-chosen-meta">
+                        <span className="cover-chosen-name">
+                          {coverModalImage.name || "Cover image attached"}
+                        </span>
+                        {coverModalImage.size ? (
+                          <span className="cover-chosen-size">
+                            {Math.round(coverModalImage.size / 1024)} KB
+                          </span>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        className="cover-repick-btn"
+                        onClick={() => changeCoverFileRef.current?.click()}
+                        disabled={busyFile}
+                      >
+                        {busyFile ? "Reading…" : "Change image"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cover-upload-trigger-btn"
+                      onClick={() => changeCoverFileRef.current?.click()}
+                      disabled={busyFile}
+                    >
+                      <IconPhotoCover />
+                      <span>{busyFile ? "Reading image…" : "Choose cover image…"}</span>
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <footer className="cover-modal-footer">
+              <button
+                type="button"
+                className="cover-modal-cancel-btn"
+                onClick={() => setCoverModalTopic(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="cover-modal-apply-btn"
+                onClick={handleApplyCoverModal}
+              >
+                Save Changes
+              </button>
+            </footer>
           </div>
         </div>,
         document.body

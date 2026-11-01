@@ -1406,7 +1406,9 @@ export default function App() {
 
   const applyWorksProgress = useCallback(
     async (projectId, topics, animateGlass = false) => {
-      const project = projectsRef.current.find((p) => p._id === projectId);
+      const project = projectsRef.current.find(
+        (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+      );
       if (!project) return null;
       const previousTopics = Array.isArray(project.topics) ? project.topics : [];
       const duration = projectDuration(project) || durationRef.current || 30_000;
@@ -1430,6 +1432,12 @@ export default function App() {
           };
           if (local?.sourceProof?.dataUrl) {
             item = { ...item, sourceProof: { ...item.sourceProof, ...local.sourceProof } };
+          }
+          if (local?.coverImage?.dataUrl) {
+            item = { ...item, coverImage: { ...item.coverImage, ...local.coverImage } };
+          }
+          if (local?.coverMode) {
+            item = { ...item, coverMode: local.coverMode };
           }
           const localSources = Array.isArray(local?.sources) ? local.sources : [];
           const serverSources = Array.isArray(item?.sources) && item.sources.length > 0 ? item.sources : localSources;
@@ -1495,7 +1503,9 @@ export default function App() {
     []
   );
   const handleAddTopic = async (projectId, text, sourceInfo = {}) => {
-    const project = projectsRef.current.find((p) => p._id === projectId);
+    const project = projectsRef.current.find(
+      (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+    );
     if (!project || isTasksLocked(project)) return;
     const source =
       typeof sourceInfo === "string"
@@ -1512,6 +1522,17 @@ export default function App() {
         : typeof text === "object" && text && "hasCheckbox" in text
           ? Boolean(text.hasCheckbox)
           : true;
+
+    const coverImage =
+      typeof sourceInfo === "object" && sourceInfo?.coverImage
+        ? sourceInfo.coverImage
+        : null;
+    const coverMode =
+      typeof sourceInfo === "object" && sourceInfo?.coverMode
+        ? sourceInfo.coverMode
+        : coverImage
+          ? "top"
+          : "none";
 
     let sources = [];
     if (sourceProof) {
@@ -1539,6 +1560,8 @@ export default function App() {
       sourceProof,
       sources,
       hasCheckbox: hasCheckbox !== false,
+      coverImage,
+      coverMode,
     };
     const topics = [
       newTopic,
@@ -1547,8 +1570,21 @@ export default function App() {
     await applyWorksProgress(projectId, topics);
   };
 
+  const handleUpdateTopic = async (projectId, topicId, updates = {}) => {
+    const project = projectsRef.current.find(
+      (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+    );
+    if (!project || isTasksLocked(project)) return;
+    const topics = (project.topics || []).map((t) =>
+      t.id === topicId ? { ...t, ...updates } : t
+    );
+    await applyWorksProgress(projectId, topics);
+  };
+
   const handleSetTopicSource = async (projectId, topicId, sourceInfo = {}) => {
-    const project = projectsRef.current.find((p) => p._id === projectId);
+    const project = projectsRef.current.find(
+      (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+    );
     if (!project || isTasksLocked(project)) return;
     let sources = null;
     let source = "";
@@ -1605,7 +1641,9 @@ export default function App() {
   };
 
   const handleToggleTopic = async (projectId, topicId) => {
-    const project = projectsRef.current.find((p) => p._id === projectId);
+    const project = projectsRef.current.find(
+      (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+    );
     if (!project) return;
     const current = (project.topics || []).find((t) => t.id === topicId);
     if (!current) return;
@@ -1658,7 +1696,9 @@ export default function App() {
   };
 
   const handleRemoveTopic = async (projectId, topicId) => {
-    const project = projectsRef.current.find((p) => p._id === projectId);
+    const project = projectsRef.current.find(
+      (p) => String(p._id) === String(projectId) || String(p.id) === String(projectId)
+    );
     if (!project || isTasksLocked(project)) return;
     const topics = (project.topics || []).filter((t) => t.id !== topicId);
     await applyWorksProgress(projectId, topics);
@@ -1961,6 +2001,7 @@ export default function App() {
                   onRemove={handleRemoveTopic}
                   onToggle={handleToggleTopic}
                   onSetSource={handleSetTopicSource}
+                  onUpdateTopic={handleUpdateTopic}
                   onShareTopic={(topic, proj) => {
                     const topicText = topic?.text || "a work item";
                     const p = proj || openProj;
@@ -2047,6 +2088,7 @@ export default function App() {
           onRemove={handleRemoveTopic}
           onToggle={handleToggleTopic}
           onSetSource={handleSetTopicSource}
+          onUpdateTopic={handleUpdateTopic}
           onShareTopic={(topic, proj) => {
             const topicText = topic?.text || "a work item";
             const p = proj || popupProject;
