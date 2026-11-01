@@ -10,7 +10,7 @@
   --surface: #2e3339;
   --surface-strong: #393f46;
   --input-bg: #1c2024;
-  --navbar-bg: rgba(21, 24, 28, 0.96);
+  --navbar-bg: #1EAFF2;
   --overlay: rgba(14, 17, 20, 0.78);
   --card-shadow: none;
   --line: #444a51;
@@ -70,7 +70,7 @@
   --surface: #f4f5f6;
   --surface-strong: #eaebed;
   --input-bg: #ffffff;
-  --navbar-bg: #ffffff;
+  --navbar-bg: #1EAFF2;
   --overlay: rgba(24, 27, 30, 0.48);
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   --line: #e2e4e8;
