@@ -8,7 +8,6 @@ import {
 } from "../lib/socialFeed.js";
 import AiSourceSummary from "./AiSourceSummary.jsx";
 import TaskSourcePosts from "./TaskSourcePosts.jsx";
-import SourceTextFullScreenModal from "./SourceTextFullScreenModal.jsx";
 import "./SourceMedia.css";
 
 export function normalizeSourceUrl(raw) {
@@ -549,7 +548,6 @@ export function SourceFileViewer({ proof }) {
 export function WorkSourceControl({ work }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("open");
-  const [fullScreenText, setFullScreenText] = useState(null);
   const [topicPostsCount, setTopicPostsCount] = useState(() =>
     work?.id ? getLocalPostsForTopic(work.id).length : 0
   );
@@ -717,31 +715,11 @@ export function WorkSourceControl({ work }) {
                 </div>
               ) : hasText ? (
                 <div className="source-media-text-card">
-                  <div className="source-media-text-card-head">
-                    {textSources[0]?.title ? (
+                  {textSources[0]?.title ? (
+                    <div className="source-media-text-card-head">
                       <strong className="source-media-text-title">{textSources[0].title}</strong>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="source-media-fullscreen-btn"
-                      onClick={() =>
-                        setFullScreenText({
-                          title: textSources[0]?.title || work?.title || work?.name || "Source Text",
-                          subtitle: work?.title || work?.name || "",
-                          content: textSources[0]?.content || work.source || "",
-                        })
-                      }
-                      title="View text in full screen"
-                      aria-label="View text in full screen"
-                    >
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <polyline points="15 3 21 3 21 9" />
-                        <polyline points="9 21 3 21 3 15" />
-                        <line x1="21" y1="3" x2="14" y2="10" />
-                        <line x1="3" y1="21" x2="10" y2="14" />
-                      </svg>
-                    </button>
-                  </div>
+                    </div>
+                  ) : null}
                   <p className="source-media-text-content">{textSources[0]?.content || work.source}</p>
                   <div style={{ marginTop: "8px" }}>
                     <AiSourceSummary
@@ -819,31 +797,11 @@ export function WorkSourceControl({ work }) {
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {textSources.map((t, i) => (
                   <div key={i} className="source-media-text-card">
-                    <div className="source-media-text-card-head">
-                      {t.title ? (
+                    {t.title ? (
+                      <div className="source-media-text-card-head">
                         <strong className="source-media-text-title">{t.title}</strong>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="source-media-fullscreen-btn"
-                        onClick={() =>
-                          setFullScreenText({
-                            title: t.title || work?.title || work?.name || "Source Text",
-                            subtitle: work?.title || work?.name || "",
-                            content: t.content || "",
-                          })
-                        }
-                        title="View text in full screen"
-                        aria-label="View text in full screen"
-                      >
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <polyline points="15 3 21 3 21 9" />
-                          <polyline points="9 21 3 21 3 15" />
-                          <line x1="21" y1="3" x2="14" y2="10" />
-                          <line x1="3" y1="21" x2="10" y2="14" />
-                        </svg>
-                      </button>
-                    </div>
+                      </div>
+                    ) : null}
                     <p className="source-media-text-content">{t.content}</p>
                   </div>
                 ))}
@@ -851,16 +809,6 @@ export function WorkSourceControl({ work }) {
             </div>
           ) : null}
         </div>
-      ) : null}
-      {fullScreenText ? (
-        <SourceTextFullScreenModal
-          isOpen={Boolean(fullScreenText)}
-          title={fullScreenText.title}
-          subtitle={fullScreenText.subtitle}
-          content={fullScreenText.content}
-          canEdit={false}
-          onClose={() => setFullScreenText(null)}
-        />
       ) : null}
     </div>
   );
