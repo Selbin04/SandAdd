@@ -1,8 +1,8 @@
 .folder-panel {
   margin-top: 12px;
-  border: 1.5px dashed #BEE3EF;
+  border: 1.5px dashed rgba(0, 176, 255, 0.35);
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, #BEE3EF 8%, var(--surface));
+  background: color-mix(in srgb, #243745 35%, var(--panel));
   min-height: 0 !important;
   height: auto !important;
   max-height: 480px;
@@ -19,61 +19,62 @@
 
 /* Progress files inside folder panel */
 .folder-panel .project-list li {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  color: #0f172a;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--paper);
   border-radius: 16px;
   margin-bottom: 8px;
   min-height: 80px;
   padding: 12px 14px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .folder-panel .project-list li:hover {
-  background: #f8fafc;
-  border-color: rgba(2, 132, 199, 0.25);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  background: var(--surface-strong);
+  border-color: rgba(0, 176, 255, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 
 .folder-panel .project-list li.active {
-  background: #ffffff;
-  border-color: #0284c7;
-  box-shadow: 0 0 0 2px #0284c7, 0 4px 14px rgba(2, 132, 199, 0.16);
+  background: var(--surface);
+  border-color: var(--brass);
+  box-shadow: 0 0 0 1px var(--brass), 0 4px 14px rgba(0, 176, 255, 0.22);
   outline: none;
 }
 
 .folder-panel .project-list li .project-copy strong {
-  color: #0f172a;
+  color: var(--paper);
 }
 
 .folder-panel .project-list li .project-copy span {
-  color: #334155;
+  color: var(--muted);
 }
 
 .folder-panel .project-list li .work-lock-pill {
-  background: rgba(15, 23, 42, 0.12);
-  color: #0f172a;
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .folder-panel .project-list li .mark-important {
-  color: #334155;
+  color: var(--muted);
 }
 
 .folder-panel .project-list li .mark-important:hover {
-  color: #0f172a;
+  color: #fbbf24;
 }
 
 .folder-panel .project-list li .open-work-btn {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: rgba(15, 23, 42, 0.2);
+  background: var(--surface-strong);
+  color: var(--paper);
+  border-color: var(--line);
 }
 
 .folder-panel .project-list li .open-work-btn:hover {
-  background: #0284c7;
+  background: var(--brass);
   color: #ffffff;
-  border-color: #0284c7;
+  border-color: var(--brass);
 }
 
 .folder-panel-head h2 {
@@ -245,3 +246,47 @@
   border-color: var(--line);
   background: var(--surface);
 }
+
+/* Light theme overrides */
+[data-theme="light"] .folder-panel {
+  border-color: #BEE3EF;
+  background: color-mix(in srgb, #BEE3EF 8%, var(--surface));
+}
+
+[data-theme="light"] .folder-panel .project-list li {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .folder-panel .project-list li:hover {
+  background: #f8fafc;
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+[data-theme="light"] .folder-panel .project-list li.active {
+  background: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px #0284c7, 0 4px 14px rgba(2, 132, 199, 0.16);
+}
+
+[data-theme="light"] .folder-panel .project-list li .project-copy strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .folder-panel .project-list li .project-copy span {
+  color: #334155;
+}
+
+[data-theme="light"] .folder-panel .project-list li .open-work-btn {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+[data-theme="light"] .folder-panel .project-list li .open-work-btn:hover {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
