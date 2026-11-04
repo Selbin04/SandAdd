@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
-import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 import WorkFolderStats from "./WorkFolderStats.jsx";
+import { getCardAvatar, getCardCreatorName, getCardInitial } from "../lib/projectCardAvatar.js";
 
 export default function ProjectPanel({
   title,
@@ -36,7 +35,6 @@ export default function ProjectPanel({
 }) {
   const sentinelRef = useRef(null);
   const [isFloating, setIsFloating] = useState(false);
-  const [hourglassFolder, setHourglassFolder] = useState(null);
   const folderScroll = useHorizontalScroll();
   const importantScroll = useHorizontalScroll();
 
@@ -225,10 +223,6 @@ export default function ProjectPanel({
                       key={folder.id}
                       className={`folder-title-pill ${isSelected ? "is-active" : ""}`}
                       onClick={() => onSelectFolder?.(folder.id)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setHourglassFolder(folder);
-                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
@@ -250,37 +244,11 @@ export default function ProjectPanel({
                       )}
                       <span className="folder-title-name">{folder.name}</span>
                       <span className="folder-title-count">{count}</span>
-                      <div
-                        className="folder-title-actions"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          className="folder-title-action-btn hourglass"
-                          title="Hourglass & progress"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHourglassFolder(folder);
-                          }}
+                      {onDeleteFolder ? (
+                        <div
+                          className="folder-title-actions"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="11"
-                            height="11"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                          >
-                            <path d="M5 22h14" />
-                            <path d="M5 2h14" />
-                            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-                            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-                          </svg>
-                        </button>
-                        {onDeleteFolder ? (
                           <button
                             type="button"
                             className="folder-title-action-btn delete"
@@ -292,8 +260,8 @@ export default function ProjectPanel({
                           >
                             ×
                           </button>
-                        ) : null}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -346,11 +314,11 @@ export default function ProjectPanel({
                 aria-label="Important progress folders"
               >
                 {projects.map((p) => {
-                  const duration = projectDuration(p);
-                  const progress = fillProgress(p.elapsedMs, duration);
                   const active = p._id === activeId;
                   const locked = isTasksLocked(p);
-                  const markLabel = `Remove ${p.name} from important`;
+                  const avatarSrc = getCardAvatar(p);
+                  const initial = getCardInitial(p);
+                  const creatorName = getCardCreatorName(p);
                   return (
                     <div
                       key={`mob-${p._id}`}
@@ -384,28 +352,37 @@ export default function ProjectPanel({
 
                       <div className="important-rect-top">
                         <div className="important-rect-top-left">
-                          <span className="mini-glass" aria-hidden="true">
-                            <span
-                              className="mini-sand"
-                              style={{ height: `${progress * 100}%` }}
-                            />
-                          </span>
-                          <WorkFolderStats
-                            project={p}
-                            allProjects={allProjects.length > 0 ? allProjects : projects}
-                            layout="card"
-                          />
-                          {fillLabel(p.elapsedMs, duration) ? (
-                            <span className="important-rect-time">
-                              {fillLabel(p.elapsedMs, duration)}
-                            </span>
-                          ) : null}
+                          <div className="project-card-info">
+                            <strong className="project-card-title-wrap">
+                              <span className="important-rect-name" title={p.name}>
+                                {p.name}
+                              </span>
+                              {locked || p.originId || p.sharedTemplateId ? (
+                                <span
+                                  className="work-lock-pill important-work-lock-pill"
+                                  title="Tasks sync from creator — new update added"
+                                >
+                                  {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+                                </span>
+                              ) : null}
+                            </strong>
+                            {p.about?.trim() ? (
+                              <p className="project-card-about-preview" title={p.about.trim()}>
+                                {p.about.trim()}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div
                           className="important-rect-actions"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <WorkFolderStats
+                            project={p}
+                            allProjects={allProjects.length > 0 ? allProjects : projects}
+                            layout="row"
+                          />
                           <WorkMenu
                             workName={p.name}
                             onShareFollow={
@@ -424,29 +401,31 @@ export default function ProjectPanel({
                             onRemoveImportant={() => onToggleImportant?.(p, false)}
                             onDelete={() => onDelete(p._id)}
                           />
-                        </div>
-                      </div>
-
-                      <div className="important-rect-body">
-                        <div className="important-rect-name" title={p.name}>
-                          {p.name}
-                        </div>
-                        {locked || p.originId || p.sharedTemplateId ? (
-                          <span
-                            className="work-lock-pill important-work-lock-pill"
-                            title="Tasks sync from creator — new update added"
+                          <button
+                            type="button"
+                            className="mark-important is-on"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleImportant?.(p, false);
+                            }}
+                            aria-label={`Remove ${p.name} from important`}
+                            title={`Remove ${p.name} from important`}
                           >
-                            {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
-                          </span>
-                        ) : null}
+                            ★
+                          </button>
+                        </div>
                       </div>
 
                       <div className="important-rect-foot">
-                        <div className="important-rect-track" aria-hidden="true">
-                          <span
-                            className="important-rect-fill"
-                            style={{ width: `${Math.round(progress * 100)}%` }}
-                          />
+                        <div
+                          className="project-card-avatar-wrap"
+                          title={creatorName ? `Created by ${creatorName}` : "Creator profile"}
+                        >
+                          {avatarSrc ? (
+                            <img src={avatarSrc} className="project-card-avatar" alt={creatorName} />
+                          ) : (
+                            <span className="project-card-avatar-fallback">{initial}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -460,14 +439,15 @@ export default function ProjectPanel({
             className={`project-list ${importantAction === "remove" ? "important-desktop-view" : ""}`}
           >
           {projects.map((p) => {
-            const duration = projectDuration(p);
-            const progress = fillProgress(p.elapsedMs, duration);
             const active = p._id === activeId;
             const locked = isTasksLocked(p);
             const markLabel =
               importantAction === "add"
                 ? `Add ${p.name} to important`
                 : `Remove ${p.name} from important`;
+            const avatarSrc = getCardAvatar(p);
+            const initial = getCardInitial(p);
+            const creatorName = getCardCreatorName(p);
             return (
               <li
                 key={p._id}
@@ -476,6 +456,12 @@ export default function ProjectPanel({
                 tabIndex={0}
                 title={`Open ${p.name}`}
                 onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOpenTopics(p, rect);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -492,109 +478,107 @@ export default function ProjectPanel({
                     {getNotificationCount(p)}
                   </span>
                 ) : null}
-                <div
-                  className="project-select"
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = e.currentTarget.closest("li").getBoundingClientRect();
-                    onOpenTopics(p, rect);
-                  }}
-                >
-                  <span className="mini-glass" aria-hidden="true">
-                    <span
-                      className="mini-sand"
-                      style={{ height: `${progress * 100}%` }}
-                    />
-                  </span>
-                  <span className="project-copy">
-                    <strong>
-                      <span className="project-title-text" title={p.name}>
-                        {p.name}
-                      </span>
-                      {locked || p.originId || p.sharedTemplateId ? (
-                        <span
-                          className="work-lock-pill"
-                          title="Tasks sync from creator — new update added"
-                        >
-                          {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+
+                {/* Top Row: Mini-glass + Title on left; WorkMenu + Star on right */}
+                <div className="project-card-top">
+                  <div className="project-card-top-left">
+                    <div className="project-card-info">
+                      <strong className="project-card-title-wrap">
+                        <span className="project-title-text" title={p.name}>
+                          {p.name}
                         </span>
+                        {locked || p.originId || p.sharedTemplateId ? (
+                          <span
+                            className="work-lock-pill"
+                            title="Tasks sync from creator — new update added"
+                          >
+                            {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+                          </span>
+                        ) : null}
+                      </strong>
+                      {p.about?.trim() ? (
+                        <p className="project-card-about-preview" title={p.about.trim()}>
+                          {p.about.trim()}
+                        </p>
                       ) : null}
-                    </strong>
-                    {fillLabel(p.elapsedMs, duration) ? (
-                      <span>{fillLabel(p.elapsedMs, duration)}</span>
-                    ) : null}
-                    <span className="project-progress-track" aria-hidden="true">
-                      <span style={{ width: `${Math.round(progress * 100)}%` }} />
-                    </span>
-                  </span>
-                </div>
-                <div
-                  className="project-row-actions"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <WorkFolderStats
-                    project={p}
-                    allProjects={allProjects.length > 0 ? allProjects : projects}
-                    layout="row"
-                  />
-                  <WorkMenu
-                    workName={p.name}
-                    onShareFollow={
-                      locked ? undefined : () => onShareFollow?.(p)
-                    }
-                    onShareAssign={
-                      locked ? undefined : () => onShareAssign?.(p)
-                    }
-                    folders={folders}
-                    currentFolderId={p.folderId || null}
-                    onMoveToFolder={
-                      onMoveToFolder
-                        ? (folderId) => onMoveToFolder(p, folderId)
-                        : undefined
-                    }
-                    onRemoveImportant={
-                      importantAction === "remove"
-                        ? () => onToggleImportant?.(p, false)
-                        : undefined
-                    }
-                    onToggleImportant={
-                      onToggleImportant
-                        ? () => onToggleImportant(p, !p.important)
-                        : undefined
-                    }
-                    isImportant={Boolean(p.important)}
-                    onDelete={() => onDelete(p._id)}
-                  />
-                  <button
-                    type="button"
-                    className={`mark-important ${importantAction === "remove" ? "is-on" : ""}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleImportant(p, importantAction === "add");
-                    }}
-                    aria-label={markLabel}
-                    title={markLabel}
+                    </div>
+                  </div>
+
+                  <div
+                    className="project-card-top-right"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    ★
-                  </button>
+                    <WorkFolderStats
+                      project={p}
+                      allProjects={allProjects.length > 0 ? allProjects : projects}
+                      layout="row"
+                    />
+                    <WorkMenu
+                      workName={p.name}
+                      onShareFollow={
+                        locked ? undefined : () => onShareFollow?.(p)
+                      }
+                      onShareAssign={
+                        locked ? undefined : () => onShareAssign?.(p)
+                      }
+                      folders={folders}
+                      currentFolderId={p.folderId || null}
+                      onMoveToFolder={
+                        onMoveToFolder
+                          ? (folderId) => onMoveToFolder(p, folderId)
+                          : undefined
+                      }
+                      onRemoveImportant={
+                        importantAction === "remove"
+                          ? () => onToggleImportant?.(p, false)
+                          : undefined
+                      }
+                      onToggleImportant={
+                        onToggleImportant
+                          ? () => onToggleImportant(p, !p.important)
+                          : undefined
+                      }
+                      isImportant={Boolean(p.important)}
+                      onDelete={() => onDelete(p._id)}
+                    />
+                    <button
+                      type="button"
+                      className={`mark-important ${importantAction === "remove" || p.important ? "is-on" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleImportant(p, importantAction === "add" ? true : !p.important);
+                      }}
+                      aria-label={markLabel}
+                      title={markLabel}
+                    >
+                      ★
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Circular Avatar on right */}
+                <div className="project-card-bottom">
+                  <div
+                    className="project-card-bottom-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      className="project-card-avatar-wrap"
+                      title={creatorName ? `Created by ${creatorName}` : "Creator profile"}
+                    >
+                      {avatarSrc ? (
+                        <img src={avatarSrc} className="project-card-avatar" alt={creatorName} />
+                      ) : (
+                        <span className="project-card-avatar-fallback">{initial}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </li>
             );
           })}
         </ul>
         </>
-      )}
-
-      {hourglassFolder && (
-        <FolderHourglassModal
-          folder={hourglassFolder}
-          projects={(allProjects.length > 0 ? allProjects : projects).filter(
-            (p) => String(p.folderId || "") === String(hourglassFolder.id)
-          )}
-          onClose={() => setHourglassFolder(null)}
-          onOpenWork={onOpenWork}
-        />
       )}
     </aside>
   );

@@ -141,9 +141,14 @@
 }
 
 .folder-modal-submit {
-  border: 1px solid var(--brass);
-  background: var(--brass);
-  color: #fff;
+  border: 1px solid #BEE3EF;
+  background: #BEE3EF;
+  color: #0f172a;
+}
+
+.folder-modal-submit:hover:not(:disabled) {
+  background: #a9d9e7;
+  border-color: #0284c7;
 }
 
 .folder-modal-submit:disabled {

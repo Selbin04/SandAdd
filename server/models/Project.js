@@ -66,6 +66,7 @@ const projectSchema = new mongoose.Schema(
     sharedTemplateId: { type: String, default: null },
     creatorName: { type: String, default: null },
     creatorHandle: { type: String, default: null },
+    creatorAvatar: { type: String, default: null },
     folderId: { type: String, default: null, index: true },
     about: { type: String, default: "", trim: true, maxlength: 2000 },
     lastWorkedAt: { type: Date, default: Date.now },

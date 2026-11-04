@@ -895,16 +895,25 @@ export default function App() {
   const ensureProject = useCallback(async () => {
     if (activeIdRef.current) return activeIdRef.current;
     const count = projectsRef.current.length + 1;
+    const author = readAuthorProfile();
+    const currentAvatar =
+      localStorage.getItem("sandadd.userAvatar") ||
+      author.avatar ||
+      authUser?.avatar ||
+      null;
     const created = await createProject({
       name: `Work ${count}`,
       durationMs: durationRef.current,
       elapsedMs: 0,
       completed: false,
+      creatorName: author.name || authUser?.name || "Me",
+      creatorHandle: author.handle || "",
+      creatorAvatar: currentAvatar,
     });
     setProjects((list) => upsertProject(list, created));
     applyProject(created);
     return created._id;
-  }, [applyProject]);
+  }, [applyProject, authUser]);
 
   const startPour = async () => {
     if (completedRef.current) return;
@@ -935,6 +944,11 @@ export default function App() {
       const count = projectsRef.current.length + 1;
       const name = newName.trim() || `Progress ${count}`;
       const author = readAuthorProfile();
+      const currentAvatar =
+        localStorage.getItem("sandadd.userAvatar") ||
+        author.avatar ||
+        authUser?.avatar ||
+        null;
       const created = await createProject({
         name,
         durationMs: durationRef.current,
@@ -942,6 +956,7 @@ export default function App() {
         completed: false,
         creatorName: author.name || authUser?.name || "Me",
         creatorHandle: author.handle || "",
+        creatorAvatar: currentAvatar,
         folderId: activeFolderId || null,
       });
       if (activeFolderId && authUser?.id) {
@@ -963,6 +978,11 @@ export default function App() {
       try {
         await saveCurrent(false);
         const author = readAuthorProfile();
+        const currentAvatar =
+          localStorage.getItem("sandadd.userAvatar") ||
+          author.avatar ||
+          authUser?.avatar ||
+          null;
         const created = await createProject({
           name: template.name,
           durationMs: durationRef.current || 30_000,
@@ -970,6 +990,7 @@ export default function App() {
           completed: false,
           creatorName: author.name || authUser?.name || "Me",
           creatorHandle: author.handle || "",
+          creatorAvatar: currentAvatar,
           topics: template.tasks.map((t, idx) => ({
             id: `t-${Date.now()}-${idx}`,
             text: t.text,
@@ -1790,6 +1811,12 @@ export default function App() {
       template.authorHandle ||
       template.author?.handle ||
       "";
+    const creatorAvatar =
+      creator?.avatar ||
+      template.creatorAvatar ||
+      template.authorAvatar ||
+      template.author?.avatar ||
+      null;
 
     if (liveOrigin) {
       try {
@@ -1809,6 +1836,7 @@ export default function App() {
         : null,
       creatorName,
       creatorHandle,
+      creatorAvatar,
       ...(liveOrigin
         ? {
             originId: liveOrigin,
@@ -1831,6 +1859,7 @@ export default function App() {
       }),
       creatorName: creatorName || created.creatorName,
       creatorHandle: creatorHandle || created.creatorHandle,
+      creatorAvatar: creatorAvatar || created.creatorAvatar,
       originId: liveOrigin || created.originId || null,
       originMode: shareMode || created.originMode || null,
       tasksLocked: locked,

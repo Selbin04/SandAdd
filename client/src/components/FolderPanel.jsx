@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
-import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import WorkFolderStats from "./WorkFolderStats.jsx";
+import { getCardAvatar, getCardCreatorName, getCardInitial } from "../lib/projectCardAvatar.js";
 import "./FolderPanel.css";
 
 export default function FolderPanel({
@@ -25,7 +24,6 @@ export default function FolderPanel({
 }) {
   const [showAddFile, setShowAddFile] = useState(false);
   const [newFileName, setNewFileName] = useState("");
-  const [showHourglassModal, setShowHourglassModal] = useState(false);
 
   const handleAddSubmit = (e) => {
     e.preventDefault();
@@ -54,36 +52,6 @@ export default function FolderPanel({
           )}
           <button
             type="button"
-            className="folder-hourglass-btn"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowHourglassModal(true);
-            }}
-            aria-label={`Open hourglass and progress for ${folder.name}`}
-            title="Open folder hourglass & progress"
-          >
-            <svg
-              className="folder-hourglass-icon"
-              viewBox="0 0 24 24"
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M5 22h14" />
-              <path d="M5 2h14" />
-              <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
-              <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
-            </svg>
-          </button>
-          <button
-            type="button"
             className="folder-delete-btn"
             onClick={() => onDeleteFolder?.(folder)}
             aria-label={`Delete folder ${folder.name}`}
@@ -93,19 +61,6 @@ export default function FolderPanel({
           </button>
         </div>
       </header>
-
-      {showHourglassModal && (
-        <FolderHourglassModal
-          folder={folder}
-          projects={
-            allFolderProjects && allFolderProjects.length > 0
-              ? allFolderProjects
-              : projects
-          }
-          onClose={() => setShowHourglassModal(false)}
-          onOpenWork={onOpenWork}
-        />
-      )}
 
       {showAddFile && (
         <form className="folder-add-file-form" onSubmit={handleAddSubmit}>
@@ -128,10 +83,11 @@ export default function FolderPanel({
       ) : (
         <ul className="project-list">
           {projects.map((p) => {
-            const duration = projectDuration(p);
-            const progress = fillProgress(p.elapsedMs, duration);
             const active = p._id === activeId;
             const locked = isTasksLocked(p);
+            const avatarSrc = getCardAvatar(p);
+            const initial = getCardInitial(p);
+            const creatorName = getCardCreatorName(p);
             return (
               <li
                 key={p._id}
@@ -140,6 +96,12 @@ export default function FolderPanel({
                 tabIndex={0}
                 title={`Open ${p.name}`}
                 onClick={() => (onOpenWork ? onOpenWork(p) : onSelect(p))}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onOpenTopics(p, rect);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -156,84 +118,96 @@ export default function FolderPanel({
                     {getNotificationCount(p)}
                   </span>
                 ) : null}
-                <div
-                  className="project-select"
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const rect = e.currentTarget
-                      .closest("li")
-                      .getBoundingClientRect();
-                    onOpenTopics(p, rect);
-                  }}
-                >
-                  <span className="mini-glass" aria-hidden="true">
-                    <span
-                      className="mini-sand"
-                      style={{ height: `${progress * 100}%` }}
-                    />
-                  </span>
-                  <span className="project-copy">
-                    <strong>
-                      {p.name}
-                      {locked || p.originId || p.sharedTemplateId ? (
-                        <span
-                          className="work-lock-pill"
-                          title="Tasks sync from creator — new update added"
-                        >
-                          {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+
+                {/* Top Row: Mini-glass + Title on left; WorkMenu + Star on right */}
+                <div className="project-card-top">
+                  <div className="project-card-top-left">
+                    <div className="project-card-info">
+                      <strong className="project-card-title-wrap">
+                        <span className="project-title-text" title={p.name}>
+                          {p.name}
                         </span>
+                        {locked || p.originId || p.sharedTemplateId ? (
+                          <span
+                            className="work-lock-pill"
+                            title="Tasks sync from creator — new update added"
+                          >
+                            {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+                          </span>
+                        ) : null}
+                      </strong>
+                      {p.about?.trim() ? (
+                        <p className="project-card-about-preview" title={p.about.trim()}>
+                          {p.about.trim()}
+                        </p>
                       ) : null}
-                    </strong>
-                    {fillLabel(p.elapsedMs, duration) ? (
-                      <span>{fillLabel(p.elapsedMs, duration)}</span>
-                    ) : null}
-                  </span>
-                </div>
-                <div
-                  className="project-row-actions"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <WorkFolderStats
-                    project={p}
-                    allProjects={allFolderProjects || projects}
-                    layout="row"
-                  />
-                  <WorkMenu
-                    workName={p.name}
-                    onShareFollow={
-                      locked ? undefined : () => onShareFollow?.(p)
-                    }
-                    onShareAssign={
-                      locked ? undefined : () => onShareAssign?.(p)
-                    }
-                    folders={folders}
-                    currentFolderId={p.folderId || null}
-                    onMoveToFolder={
-                      onMoveToFolder
-                        ? (folderId) => onMoveToFolder(p, folderId)
-                        : undefined
-                    }
-                    onToggleImportant={
-                      onToggleImportant
-                        ? () => onToggleImportant(p, !p.important)
-                        : undefined
-                    }
-                    isImportant={Boolean(p.important)}
-                    onDelete={() => onDelete(p._id)}
-                  />
-                  <button
-                    type="button"
-                    className="mark-important"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleImportant(p, true);
-                    }}
-                    aria-label={`Add ${p.name} to important`}
-                    title={`Add ${p.name} to important`}
+                    </div>
+                  </div>
+
+                  <div
+                    className="project-card-top-right"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    ★
-                  </button>
+                    <WorkFolderStats
+                      project={p}
+                      allProjects={allFolderProjects || projects}
+                      layout="row"
+                    />
+                    <WorkMenu
+                      workName={p.name}
+                      onShareFollow={
+                        locked ? undefined : () => onShareFollow?.(p)
+                      }
+                      onShareAssign={
+                        locked ? undefined : () => onShareAssign?.(p)
+                      }
+                      folders={folders}
+                      currentFolderId={p.folderId || null}
+                      onMoveToFolder={
+                        onMoveToFolder
+                          ? (folderId) => onMoveToFolder(p, folderId)
+                          : undefined
+                      }
+                      onToggleImportant={
+                        onToggleImportant
+                          ? () => onToggleImportant(p, !p.important)
+                          : undefined
+                      }
+                      isImportant={Boolean(p.important)}
+                      onDelete={() => onDelete(p._id)}
+                    />
+                    <button
+                      type="button"
+                      className={`mark-important ${p.important ? "is-on" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleImportant(p, !p.important);
+                      }}
+                      aria-label={`Toggle important for ${p.name}`}
+                      title={p.important ? `Remove ${p.name} from important` : `Add ${p.name} to important`}
+                    >
+                      ★
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Circular Avatar on right */}
+                <div className="project-card-bottom">
+                  <div
+                    className="project-card-bottom-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      className="project-card-avatar-wrap"
+                      title={creatorName ? `Created by ${creatorName}` : "Creator profile"}
+                    >
+                      {avatarSrc ? (
+                        <img src={avatarSrc} className="project-card-avatar" alt={creatorName} />
+                      ) : (
+                        <span className="project-card-avatar-fallback">{initial}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </li>
             );

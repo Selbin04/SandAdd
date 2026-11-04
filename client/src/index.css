@@ -28,6 +28,7 @@
   --danger: #e06b5a;
   --ok: #4cb38a;
   --chip-on-fg: #ffffff;
+  --progress-accent: #BEE3EF;
   font-family: Figtree, system-ui, sans-serif;
   background: var(--ink);
   color: var(--paper);

@@ -1,8 +1,8 @@
 .popular-folders-box {
   margin-top: 14px;
   padding: 16px;
-  background: color-mix(in srgb, var(--brass) 6%, var(--panel));
-  border: 1px solid var(--line);
+  background: color-mix(in srgb, #BEE3EF 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, #BEE3EF 35%, var(--line));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -28,9 +28,9 @@
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 20%, transparent);
-  color: var(--brass);
-  border: 1px solid var(--brass);
+  background: #BEE3EF;
+  color: #0f172a;
+  border: 1px solid #BEE3EF;
 }
 
 .popular-folders-head h2 {

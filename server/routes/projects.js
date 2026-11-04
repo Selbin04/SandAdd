@@ -181,6 +181,13 @@ function parseProjectInput(body, { partial = false } = {}) {
         : String(body.creatorHandle).slice(0, 80);
   }
 
+  if (body.creatorAvatar !== undefined) {
+    result.creatorAvatar =
+      body.creatorAvatar == null || body.creatorAvatar === ""
+        ? null
+        : String(body.creatorAvatar);
+  }
+
   if (body.folderId !== undefined) {
     result.folderId =
       body.folderId == null || body.folderId === ""
@@ -231,6 +238,7 @@ function asProject(doc) {
     sharedTemplateId: obj.sharedTemplateId || null,
     creatorName: obj.creatorName || null,
     creatorHandle: obj.creatorHandle || null,
+    creatorAvatar: obj.creatorAvatar || null,
     folderId: obj.folderId || null,
     about: String(obj.about || ""),
   };

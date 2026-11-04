@@ -124,6 +124,22 @@ export default function WorkMenu({
         </li>
       ) : null}
 
+      {canMove && currentFolderId ? (
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onMoveToFolder(null);
+            }}
+          >
+            Remove from folder
+          </button>
+        </li>
+      ) : null}
+
       {canMove ? (
         <>
           <li role="none" className="work-menu-section">

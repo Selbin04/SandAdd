@@ -2,6 +2,7 @@ import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 import WorkFolderStats from "./WorkFolderStats.jsx";
+import { getCardAvatar, getCardCreatorName, getCardInitial } from "../lib/projectCardAvatar.js";
 
 export default function SelectedStack({
   projects,
@@ -58,6 +59,9 @@ export default function SelectedStack({
               const progress = fillProgress(p.elapsedMs, duration);
               const active = p._id === activeId;
               const locked = isTasksLocked(p);
+              const avatarSrc = getCardAvatar(p);
+              const initial = getCardInitial(p);
+              const creatorName = getCardCreatorName(p);
               return (
                 <div
                   key={p._id}
@@ -85,44 +89,48 @@ export default function SelectedStack({
                 >
                   <div className="selected-rect-top">
                     <div className="selected-rect-top-left">
-                      <span className="mini-glass" aria-hidden="true">
-                        <span
-                          className="mini-sand"
-                          style={{ height: `${progress * 100}%` }}
-                        />
-                      </span>
+                      <div className="project-card-info">
+                        <strong className="project-card-title-wrap">
+                          <span className="selected-rect-name" title={p.name}>
+                            {p.name}
+                          </span>
+                          {locked || p.originId || p.sharedTemplateId ? (
+                            <span
+                              className="work-lock-pill"
+                              title="Tasks sync from creator — new update added"
+                            >
+                              {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
+                            </span>
+                          ) : null}
+                        </strong>
+                        {p.about?.trim() ? (
+                          <p className="project-card-about-preview" title={p.about.trim()}>
+                            {p.about.trim()}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="selected-rect-bottom">
+                    <div className="selected-rect-bottom-left">
                       <WorkFolderStats
                         project={p}
                         allProjects={projects}
                         layout="card"
                       />
                     </div>
-                    {fillLabel(p.elapsedMs, duration) ? (
-                      <span className="selected-rect-time">
-                        {fillLabel(p.elapsedMs, duration)}
-                      </span>
-                    ) : null}
-                  </div>
 
-                  <div className="selected-rect-body">
-                    <strong className="selected-rect-name" title={p.name}>
-                      {p.name}
-                    </strong>
-                    {locked || p.originId || p.sharedTemplateId ? (
-                      <span
-                        className="work-lock-pill"
-                        title="Tasks sync from creator — new update added"
-                      >
-                        {p.originMode === "assign" ? "CONTRIBUTION" : "FOLLOWING"}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="selected-rect-track" aria-hidden="true">
-                    <span
-                      className="selected-rect-fill"
-                      style={{ width: `${Math.round(progress * 100)}%` }}
-                    />
+                    <div
+                      className="project-card-avatar-wrap"
+                      title={creatorName ? `Created by ${creatorName}` : "Creator profile"}
+                    >
+                      {avatarSrc ? (
+                        <img src={avatarSrc} className="project-card-avatar" alt={creatorName} />
+                      ) : (
+                        <span className="project-card-avatar-fallback">{initial}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -403,7 +403,8 @@ function bumpFeedEpoch() {
 export function readAuthorProfile() {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
-    if (!raw) return { ...DEFAULT_PROFILE };
+    const userAvatar = localStorage.getItem("sandadd.userAvatar") || "";
+    if (!raw) return { ...DEFAULT_PROFILE, avatar: userAvatar };
     const parsed = JSON.parse(raw);
     return {
       name:
@@ -414,9 +415,10 @@ export function readAuthorProfile() {
         typeof parsed.handle === "string" && parsed.handle.trim()
           ? parsed.handle.trim().replace(/^@/, "")
           : DEFAULT_PROFILE.handle,
+      avatar: parsed.avatar || userAvatar || "",
     };
   } catch {
-    return { ...DEFAULT_PROFILE };
+    return { ...DEFAULT_PROFILE, avatar: "" };
   }
 }
 

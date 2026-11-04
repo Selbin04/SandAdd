@@ -11,16 +11,16 @@
   font-weight: 700;
   padding: 3px 9px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 12%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--line));
-  color: var(--brass);
+  background: #BEE3EF;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  color: #0f172a;
   cursor: pointer;
   transition: all 0.16s ease;
 }
 
 .middle-tasks-add-quick-btn:hover {
-  background: var(--brass);
-  color: var(--ink);
+  background: #a9d9e7;
+  color: #0f172a;
   transform: translateY(-1px);
 }
 
@@ -215,14 +215,67 @@
   gap: 4px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: transparent;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  background: #BEE3EF;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-left: 3.5px solid #0284c7;
+  color: #0f172a;
   margin-bottom: 6px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.middle-task-item:hover {
+  background: #a9d9e7;
+  border-color: #0284c7;
+}
+
+.middle-task-item.is-top-item {
+  border-left: 3.5px solid #0284c7;
+  background: #BEE3EF;
+}
+
+.middle-task-item .middle-tasks-text {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.middle-task-item .middle-top-badge {
+  background: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+.middle-task-item .middle-tasks-check {
+  background: #ffffff;
+  border: 1.5px solid rgba(15, 23, 42, 0.28);
+  color: transparent;
+}
+
+.middle-task-item .middle-tasks-check:hover {
+  border-color: #0284c7;
+}
+
+.middle-task-item .middle-tasks-check.checked {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.middle-task-item .middle-tasks-delete-btn {
+  color: #334155;
+}
+
+.middle-task-item .middle-tasks-delete-btn:hover {
+  color: #0f172a;
 }
 
 .middle-task-item.is-done {
+  background: color-mix(in srgb, #BEE3EF 60%, transparent);
+  border-color: rgba(15, 23, 42, 0.15);
   opacity: 0.75;
+}
+
+.middle-task-item.is-done .middle-tasks-text {
+  text-decoration: line-through;
+  color: #334155;
 }
 
 .middle-task-cover-banner {
