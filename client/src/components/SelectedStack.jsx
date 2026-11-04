@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 import WorkFolderStats from "./WorkFolderStats.jsx";
@@ -10,6 +11,19 @@ export default function SelectedStack({
   onOpenTopics,
 }) {
   const selectedScroll = useHorizontalScroll();
+  const [, setAvatarUpdateTick] = useState(0);
+
+  useEffect(() => {
+    const onAvatarChange = () => setAvatarUpdateTick((t) => t + 1);
+    window.addEventListener("sandadd:avatar-changed", onAvatarChange);
+    window.addEventListener("sandadd:profile-updated", onAvatarChange);
+    window.addEventListener("storage", onAvatarChange);
+    return () => {
+      window.removeEventListener("sandadd:avatar-changed", onAvatarChange);
+      window.removeEventListener("sandadd:profile-updated", onAvatarChange);
+      window.removeEventListener("storage", onAvatarChange);
+    };
+  }, []);
 
   return (
     <aside className="panel selected-panel">

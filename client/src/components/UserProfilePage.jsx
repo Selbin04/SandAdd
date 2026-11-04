@@ -5,6 +5,7 @@ import {
   loadProfilePosts,
   updateUserPost,
 } from "../lib/socialFeed.js";
+import { resizeImageToAvatar, saveUserAvatar } from "../lib/avatarHelper.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import "./UserProfilePage.css";
@@ -44,7 +45,13 @@ function readProfile() {
 
 function saveProfile(profile) {
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    const raw = localStorage.getItem(PROFILE_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    const next = { ...existing, ...profile };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sandadd:profile-updated", { detail: next }));
+    }
   } catch {
     /* ignore */
   }
@@ -59,13 +66,7 @@ function readAvatar() {
 }
 
 function saveAvatar(dataUrl) {
-  try {
-    if (dataUrl) localStorage.setItem(AVATAR_KEY, dataUrl);
-    else localStorage.removeItem(AVATAR_KEY);
-    return true;
-  } catch {
-    return false;
-  }
+  return saveUserAvatar(dataUrl);
 }
 
 function toHandle(name) {
@@ -267,32 +268,31 @@ export default function UserProfilePage() {
     window.setTimeout(() => setShareNote(""), 2000);
   };
 
-  const onPickAvatar = (e) => {
+  const onPickAvatar = async (e) => {
     const file = e.target.files?.[0];
     setAvatarError("");
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    if (!file.type || !file.type.startsWith("image/")) {
       setAvatarError("Choose an image file");
       return;
     }
-    if (file.size > 1_500_000) {
-      setAvatarError("Image too large — use one under 1.5 MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
-      if (!dataUrl) return;
+    try {
+      const dataUrl = await resizeImageToAvatar(file, 256, 0.85);
+      if (!dataUrl) {
+        setAvatarError("Could not read that image");
+        return;
+      }
       const ok = saveAvatar(dataUrl);
       if (!ok) {
-        setAvatarError("Could not save photo (storage full)");
+        setAvatarError("Could not save photo");
         return;
       }
       setAvatar(dataUrl);
-    };
-    reader.onerror = () => setAvatarError("Could not read that image");
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch (err) {
+      setAvatarError(err?.message || "Could not read that image");
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const clearAvatar = () => {

@@ -731,6 +731,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onAvatarChanged = (e) => {
+      const nextAvatar = typeof e.detail === "string" ? e.detail : localStorage.getItem("sandadd.userAvatar") || "";
+      setProjects((list) =>
+        list.map((p) => {
+          if (!p.originId && !p.sharedTemplateId && p.originMode !== "assign") {
+            if (p._id) {
+              updateProject(p._id, { creatorAvatar: nextAvatar || null }).catch(() => {});
+            }
+            return { ...p, creatorAvatar: nextAvatar || null };
+          }
+          return p;
+        })
+      );
+    };
+    window.addEventListener("sandadd:avatar-changed", onAvatarChanged);
+    return () => window.removeEventListener("sandadd:avatar-changed", onAvatarChanged);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     const token = getAuthToken();
     if (!token) {

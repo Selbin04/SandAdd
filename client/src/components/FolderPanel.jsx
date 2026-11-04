@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import WorkFolderStats from "./WorkFolderStats.jsx";
@@ -24,6 +24,19 @@ export default function FolderPanel({
 }) {
   const [showAddFile, setShowAddFile] = useState(false);
   const [newFileName, setNewFileName] = useState("");
+  const [, setAvatarUpdateTick] = useState(0);
+
+  useEffect(() => {
+    const onAvatarChange = () => setAvatarUpdateTick((t) => t + 1);
+    window.addEventListener("sandadd:avatar-changed", onAvatarChange);
+    window.addEventListener("sandadd:profile-updated", onAvatarChange);
+    window.addEventListener("storage", onAvatarChange);
+    return () => {
+      window.removeEventListener("sandadd:avatar-changed", onAvatarChange);
+      window.removeEventListener("sandadd:profile-updated", onAvatarChange);
+      window.removeEventListener("storage", onAvatarChange);
+    };
+  }, []);
 
   const handleAddSubmit = (e) => {
     e.preventDefault();

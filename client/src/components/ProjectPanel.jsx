@@ -37,6 +37,19 @@ export default function ProjectPanel({
   const [isFloating, setIsFloating] = useState(false);
   const folderScroll = useHorizontalScroll();
   const importantScroll = useHorizontalScroll();
+  const [, setAvatarUpdateTick] = useState(0);
+
+  useEffect(() => {
+    const onAvatarChange = () => setAvatarUpdateTick((t) => t + 1);
+    window.addEventListener("sandadd:avatar-changed", onAvatarChange);
+    window.addEventListener("sandadd:profile-updated", onAvatarChange);
+    window.addEventListener("storage", onAvatarChange);
+    return () => {
+      window.removeEventListener("sandadd:avatar-changed", onAvatarChange);
+      window.removeEventListener("sandadd:profile-updated", onAvatarChange);
+      window.removeEventListener("storage", onAvatarChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showCreate) return;

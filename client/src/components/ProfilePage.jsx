@@ -49,7 +49,13 @@ function readProfile() {
 
 function saveProfile(profile) {
   try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    const raw = localStorage.getItem(PROFILE_KEY);
+    const existing = raw ? JSON.parse(raw) : {};
+    const next = { ...existing, ...profile };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sandadd:profile-updated", { detail: next }));
+    }
   } catch {
     /* ignore */
   }
