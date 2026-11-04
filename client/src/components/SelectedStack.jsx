@@ -1,4 +1,3 @@
-import { fillLabel, fillProgress, projectDuration } from "../lib/time.js";
 import { isTasksLocked } from "../lib/liveWorks.js";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 import WorkFolderStats from "./WorkFolderStats.jsx";
@@ -55,8 +54,6 @@ export default function SelectedStack({
             aria-label="Selected progress folders"
           >
             {projects.map((p) => {
-              const duration = projectDuration(p);
-              const progress = fillProgress(p.elapsedMs, duration);
               const active = p._id === activeId;
               const locked = isTasksLocked(p);
               const avatarSrc = getCardAvatar(p);
