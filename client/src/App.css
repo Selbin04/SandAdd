@@ -486,6 +486,14 @@
   align-items: start;
 }
 
+.layout:has(> .layout-right:only-child),
+.layout.layout-single {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-areas: "main" !important;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
 .layout-left {
   grid-area: left;
   min-width: 0;
@@ -500,6 +508,12 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.layout:has(> .layout-right:only-child) .layout-right,
+.layout.layout-single .layout-right {
+  grid-area: main !important;
+  width: 100%;
 }
 
 .layout-selected {

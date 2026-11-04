@@ -1165,12 +1165,20 @@ export default function App() {
       projects.find((p) => p._id === shareSeed.projectId)) ||
     projects.find((p) => p._id === activeId) ||
     (activeName ? { _id: activeId, name: activeName } : null);
-  const regularProjects = projects.filter(
-    (p) => !p.important && !p.folderId
+  const sortProjects = (list) =>
+    [...list].sort((a, b) => {
+      if (Boolean(b.important) !== Boolean(a.important)) {
+        return b.important ? 1 : -1;
+      }
+      return 0;
+    });
+
+  const regularProjects = projects.filter((p) => !p.folderId);
+  const displayedRegularProjects = sortProjects(
+    activeFolderId
+      ? projects.filter((p) => String(p.folderId || "") === String(activeFolderId))
+      : regularProjects
   );
-  const displayedRegularProjects = activeFolderId
-    ? projects.filter((p) => !p.important && String(p.folderId || "") === String(activeFolderId))
-    : regularProjects;
   const importantProjects = projects
     .filter((p) => p.important)
     .sort((a, b) => {
@@ -1919,38 +1927,7 @@ export default function App() {
           }}
         />
       ) : (
-      <div className="layout">
-        <div className="layout-left">
-          <div id="selected-panel" className="layout-selected">
-            <SelectedStack
-              projects={selectedProjects}
-              activeId={activeId}
-              onSelect={handleSelect}
-              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "today")}
-            />
-          </div>
-
-          <div className="layout-important" id="important-panel">
-            <ProjectPanel
-              title="Important"
-              projects={importantProjects}
-              activeId={activeId}
-              onSelect={handleSelect}
-              onOpenWork={handleOpenWork}
-              onDelete={handleDelete}
-              onToggleImportant={handleToggleImportant}
-              importantAction="remove"
-              emptyText="No important projects."
-              onOpenTopics={(project, rect) => handleOpenTopics(project, rect, "all")}
-              onSetStars={handleSetStars}
-              onShareFollow={(project) => setWorkShare({ project, mode: "follow" })}
-              onShareAssign={(project) => setWorkShare({ project, mode: "assign" })}
-              folders={folders}
-              onMoveToFolder={handleMoveToFolder}
-            />
-          </div>
-        </div>
-
+      <div className="layout layout-single">
         <div className="layout-right">
           <div id="projects-panel" className="layout-projects">
             <ProjectPanel
