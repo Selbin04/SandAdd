@@ -1789,7 +1789,9 @@ export default function DonePopup({
                 const hasTopicPosts = topicPostsCount > 0;
                 const totalSourceCount = sourceCount + topicPostsCount;
                 const isTopFile = index === 0 && !todayMode;
-                const canOpenSource = !busyFile && (!readOnlyTasks || hasSource || hasTopicPosts);
+                const isMemberFile = Boolean(topic?.membershipOnly || topic?.audience === "membership");
+                const isLockedForUser = Boolean(isMemberFile && !membershipStatus?.isMember && !membershipStatus?.isCreator);
+                const canOpenSource = !busyFile && !isLockedForUser && (!readOnlyTasks || hasSource || hasTopicPosts);
 
                 const showCheck = topic.hasCheckbox !== false;
                 const hasCover = Boolean(
@@ -1808,13 +1810,30 @@ export default function DonePopup({
                         : "none";
                 const isFullCover = hasCover && coverMode === "full";
                 const isTopCover = hasCover && coverMode === "top";
-                const isMemberFile = Boolean(topic?.membershipOnly || topic?.audience === "membership");
 
                 return (
                   <li
                     key={topic.id}
-                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} ${isFullCover ? "has-cover cover-full" : isTopCover ? "has-cover cover-top" : ""}`}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} ${isFullCover ? "has-cover cover-full" : isTopCover ? "has-cover cover-top" : ""} ${isLockedForUser ? "is-membership-locked" : ""}`}
+                    onClick={isLockedForUser ? () => setShowMembershipModal(true) : undefined}
                   >
+                    {isLockedForUser && (
+                      <div
+                        className="done-membership-blur-overlay"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMembershipModal(true);
+                        }}
+                        title="Member only progress file — Click to unlock"
+                        aria-label="Member only progress file — Click to unlock"
+                      >
+                        <div className="done-membership-lock-pill">
+                          <span className="lock-pill-icon">🔒</span>
+                          <span className="lock-pill-title">Member Only Progress File</span>
+                          <span className="lock-pill-action">Unlock 👑</span>
+                        </div>
+                      </div>
+                    )}
                     {isFullCover ? (
                       <div className="done-cover-full-wrapper">
                         <div className="done-cover-full-backdrop">
@@ -1831,6 +1850,10 @@ export default function DonePopup({
                                 className={`done-cover-check ${finished ? "is-checked" : ""}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  if (isLockedForUser) {
+                                    setShowMembershipModal(true);
+                                    return;
+                                  }
                                   onToggle?.(project._id, topic.id);
                                 }}
                                 aria-pressed={finished}
@@ -2033,6 +2056,10 @@ export default function DonePopup({
                                   className={`done-check ${finished ? "is-checked" : ""}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    if (isLockedForUser) {
+                                      setShowMembershipModal(true);
+                                      return;
+                                    }
                                     onToggle?.(project?._id || project?.id, topic.id);
                                   }}
                                   aria-pressed={finished}
@@ -2144,6 +2171,10 @@ export default function DonePopup({
                               className={`done-check ${finished ? "is-checked" : ""}`}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                if (isLockedForUser) {
+                                  setShowMembershipModal(true);
+                                  return;
+                                }
                                 onToggle?.(project._id, topic.id);
                               }}
                               aria-pressed={finished}
@@ -2161,7 +2192,7 @@ export default function DonePopup({
                       </div>
                     )}
 
-                  {isOpen ? (
+                  {isOpen && !isLockedForUser ? (
                     <div className="done-source-panel" role="tablist">
                       <div className="done-source-tabs">
                         <button
