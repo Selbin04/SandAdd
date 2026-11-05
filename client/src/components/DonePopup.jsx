@@ -14,6 +14,8 @@ import { getFollowedWorkGroup } from "../lib/followingStore.js";
 import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
+import MembershipModal from "./MembershipModal.jsx";
+import { getMembership, isSharedOrFollowedWork } from "../lib/membershipStore.js";
 import AiSourceSummary from "./AiSourceSummary.jsx";
 import TaskSourcePosts from "./TaskSourcePosts.jsx";
 import SourceTextFullScreenModal from "./SourceTextFullScreenModal.jsx";
@@ -591,6 +593,19 @@ export default function DonePopup({
   aboutSlot = null,
 }) {
   const [showHourglassModal, setShowHourglassModal] = useState(false);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [membershipStatus, setMembershipStatus] = useState(() => getMembership(project));
+  const [isMembershipOnly, setIsMembershipOnly] = useState(false);
+
+  useEffect(() => {
+    setMembershipStatus(getMembership(project));
+    const onMembershipUpdate = () => {
+      setMembershipStatus(getMembership(project));
+    };
+    window.addEventListener("sandadd:membership-updated", onMembershipUpdate);
+    return () => window.removeEventListener("sandadd:membership-updated", onMembershipUpdate);
+  }, [project]);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [text, setText] = useState("");
   const [source, setSource] = useState("");
@@ -658,6 +673,8 @@ export default function DonePopup({
     Boolean(getLiveWork(project?.originId || project?.sharedTemplateId || project?._id)) ||
     Boolean(project?.creatorHandle && String(project.creatorHandle).trim().length > 0)
   );
+
+  const isSharedFolder = isSharedOrFollowedWork(project) || isCollaborativeWork;
 
   const getLikeCountForTopic = (topicId) => {
     const allT = Array.isArray(project?.topics) ? project.topics : [];
@@ -1396,6 +1413,31 @@ export default function DonePopup({
           </div>
           <div className="done-head-right">
             <div className="done-head-actions-row">
+              {isSharedFolder && (
+                <button
+                  type="button"
+                  className={`done-head-membership-btn ${membershipStatus?.isMember ? "is-member" : ""}`}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowMembershipModal(true);
+                  }}
+                  title={
+                    membershipStatus?.isMember
+                      ? membershipStatus.isCreator
+                        ? "Creator Membership Settings"
+                        : "Active Member — View perks"
+                      : "Membership options (Support / Valuable paths)"
+                  }
+                  aria-label="Membership options"
+                >
+                  <span className="done-head-membership-crown" aria-hidden="true">👑</span>
+                  <span className="done-head-membership-text">
+                    {membershipStatus?.isMember && !membershipStatus?.isCreator ? "Member" : "Membership"}
+                  </span>
+                </button>
+              )}
               <button
                 type="button"
                 className="done-head-hourglass-btn"
@@ -1578,6 +1620,8 @@ export default function DonePopup({
                       hasCheckbox,
                       coverImage: addCoverImage,
                       coverMode: addCoverImage ? addCoverMode : "none",
+                      membershipOnly: isSharedFolder ? isMembershipOnly : false,
+                      audience: isSharedFolder && isMembershipOnly ? "membership" : "normal",
                     });
                     setText("");
                     setSource("");
@@ -1587,6 +1631,7 @@ export default function DonePopup({
                     setAddCoverMode("top");
                     setSourceError("");
                     setHasCheckbox(true);
+                    setIsMembershipOnly(false);
                   }}
                 >
                   <input
@@ -1617,6 +1662,33 @@ export default function DonePopup({
                       onChange={(e) => setSourceTitle(e.target.value)}
                     />
                   ) : null}
+                  {isSharedFolder && (
+                    <div className="done-add-audience-row">
+                      <span className="done-add-audience-label">Progress file is for:</span>
+                      <div className="done-add-audience-group" role="radiogroup" aria-label="Target audience">
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={!isMembershipOnly}
+                          className={`done-add-audience-btn ${!isMembershipOnly ? "is-active" : ""}`}
+                          onClick={() => setIsMembershipOnly(false)}
+                        >
+                          <span className="audience-btn-icon">🌐</span>
+                          <span>Normal users</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={isMembershipOnly}
+                          className={`done-add-audience-btn is-member ${isMembershipOnly ? "is-active" : ""}`}
+                          onClick={() => setIsMembershipOnly(true)}
+                        >
+                          <span className="audience-btn-icon">👑</span>
+                          <span>Membership users</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="done-add-actions">
                     <label className="done-add-checkbox-opt" title="Uncheck to create a note line without a checkbox">
                       <input
@@ -1736,6 +1808,7 @@ export default function DonePopup({
                         : "none";
                 const isFullCover = hasCover && coverMode === "full";
                 const isTopCover = hasCover && coverMode === "top";
+                const isMemberFile = Boolean(topic?.membershipOnly || topic?.audience === "membership");
 
                 return (
                   <li
@@ -1774,6 +1847,25 @@ export default function DonePopup({
                             <span className={`done-cover-pill-text ${finished ? "is-done" : ""}`}>
                               {topic.text}
                             </span>
+                            {isMemberFile ? (
+                              <button
+                                type="button"
+                                className="done-membership-file-badge"
+                                title={
+                                  membershipStatus?.isMember
+                                    ? "Unlocked Member progress file"
+                                    : "Members-only progress file — Click to unlock membership"
+                                }
+                                onClick={(e) => {
+                                  if (!membershipStatus?.isMember) {
+                                    e.stopPropagation();
+                                    setShowMembershipModal(true);
+                                  }
+                                }}
+                              >
+                                👑 {membershipStatus?.isMember ? "Member" : "Members Only"}
+                              </button>
+                            ) : null}
                             {isTopFile ? (
                               <span className="done-top-badge done-top-badge-sky" title="Top of progress files stack (latest)">
                                 TOP
@@ -1852,6 +1944,25 @@ export default function DonePopup({
                                 <span className={`done-text ${finished ? "is-done" : ""}`}>
                                   {topic.text}
                                 </span>
+                                {isMemberFile ? (
+                                  <button
+                                    type="button"
+                                    className="done-membership-file-badge"
+                                    title={
+                                      membershipStatus?.isMember
+                                        ? "Unlocked Member progress file"
+                                        : "Members-only progress file — Click to unlock membership"
+                                    }
+                                    onClick={(e) => {
+                                      if (!membershipStatus?.isMember) {
+                                        e.stopPropagation();
+                                        setShowMembershipModal(true);
+                                      }
+                                    }}
+                                  >
+                                    👑 {membershipStatus?.isMember ? "Member" : "Members Only"}
+                                  </button>
+                                ) : null}
                                 {isTopFile ? (
                                   <span className="done-top-badge" title="Top of progress files stack (latest)">
                                     TOP
@@ -1947,6 +2058,25 @@ export default function DonePopup({
                             <span className="done-text">
                               {topic.text}
                             </span>
+                            {isMemberFile ? (
+                              <button
+                                type="button"
+                                className="done-membership-file-badge"
+                                title={
+                                  membershipStatus?.isMember
+                                    ? "Unlocked Member progress file"
+                                    : "Members-only progress file — Click to unlock membership"
+                                }
+                                onClick={(e) => {
+                                  if (!membershipStatus?.isMember) {
+                                    e.stopPropagation();
+                                    setShowMembershipModal(true);
+                                  }
+                                }}
+                              >
+                                👑 {membershipStatus?.isMember ? "Member" : "Members Only"}
+                              </button>
+                            ) : null}
                             {isTopFile ? (
                               <span className="done-top-badge" title="Top of progress files stack (latest)">
                                 TOP
@@ -3168,6 +3298,13 @@ export default function DonePopup({
         onClose={() => setFullScreenSource(null)}
       />
     ) : null}
+
+    {showMembershipModal && (
+      <MembershipModal
+        project={project}
+        onClose={() => setShowMembershipModal(false)}
+      />
+    )}
   </>
   );
 }

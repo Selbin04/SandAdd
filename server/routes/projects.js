@@ -117,6 +117,8 @@ function parseProjectInput(body, { partial = false } = {}) {
       }
       const rawMode = String(topic?.coverMode || "").toLowerCase();
       const coverMode = rawMode === "full" ? "full" : rawMode === "top" ? "top" : coverImage ? "top" : "none";
+      const membershipOnly = Boolean(topic?.membershipOnly || topic?.audience === "membership");
+      const audience = membershipOnly ? "membership" : String(topic?.audience || "normal");
 
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
@@ -136,6 +138,8 @@ function parseProjectInput(body, { partial = false } = {}) {
         asks,
         coverImage,
         coverMode,
+        membershipOnly,
+        audience,
       };
     }).filter(Boolean);
   }

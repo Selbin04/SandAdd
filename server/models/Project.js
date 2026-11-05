@@ -42,6 +42,8 @@ const topicSchema = new mongoose.Schema(
     asks: { type: [mongoose.Schema.Types.Mixed], default: [] },
     coverImage: { type: mongoose.Schema.Types.Mixed, default: null },
     coverMode: { type: String, enum: ["top", "full", "none"], default: "none" },
+    membershipOnly: { type: Boolean, default: false },
+    audience: { type: String, default: "normal" },
   },
   { _id: false }
 );

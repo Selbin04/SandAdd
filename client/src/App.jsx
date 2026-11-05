@@ -1600,6 +1600,11 @@ export default function App() {
         proof: null,
       });
     }
+    const membershipOnly = Boolean(
+      sourceInfo?.membershipOnly || sourceInfo?.audience === "membership"
+    );
+    const audience = membershipOnly ? "membership" : "normal";
+
     const newTopic = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       text: itemText,
@@ -1610,6 +1615,8 @@ export default function App() {
       hasCheckbox: hasCheckbox !== false,
       coverImage,
       coverMode,
+      membershipOnly,
+      audience,
     };
     const topics = [
       newTopic,
