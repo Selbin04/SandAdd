@@ -25,6 +25,8 @@ import {
 } from "../api.js";
 import FileUploadHint from "./FileUploadHint.jsx";
 import ProofMedia from "./ProofMedia.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl } from "../lib/youtubeHelper.js";
 import {
   WorkSourceControl,
   normalizeSourceUrl,
@@ -488,18 +490,24 @@ function FeedCard({
       ) : null}
       <ProofMedia proof={item.proof} />
       {item.link && (!item.proof || item.proof.type !== "link") ? (
-        <a
-          href={normalizeSourceUrl(item.link)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="social-proof-link"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="social-proof-link-icon" aria-hidden="true">
-            🔗
-          </span>
-          <span className="social-proof-link-label">{item.link}</span>
-        </a>
+        isYouTubeUrl(item.link) ? (
+          <div style={{ marginTop: "8px", width: "100%" }}>
+            <YouTubeEmbed url={item.link} />
+          </div>
+        ) : (
+          <a
+            href={normalizeSourceUrl(item.link)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="social-proof-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="social-proof-link-icon" aria-hidden="true">
+              🔗
+            </span>
+            <span className="social-proof-link-label">{item.link}</span>
+          </a>
+        )
       ) : null}
       <PostActions
         postId={item.id}

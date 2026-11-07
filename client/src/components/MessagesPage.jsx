@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hydrateSocialFeeds, loadSharedMessages } from "../lib/socialFeed.js";
 import ProofMedia from "./ProofMedia.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 import { WorkSourceControl, normalizeSourceUrl } from "./SourceMedia.jsx";
 import "./MessagesPage.css";
 
@@ -171,18 +173,29 @@ function MessageBubble({ msg, onFollowProject }) {
       ) : null}
       <ProofMedia proof={msg.proof} className="messages-proof" />
       {msg.link && (!msg.proof || msg.proof.type !== "link") ? (
-        <a
-          href={normalizeSourceUrl(msg.link)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="messages-proof-link"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="messages-proof-link-icon" aria-hidden="true">
-            🔗
-          </span>
-          <span className="messages-proof-link-label">{msg.link}</span>
-        </a>
+        isYouTubeUrl(msg.link) ? (
+          <div style={{ marginTop: "6px", width: "100%" }}>
+            <YouTubeEmbed url={msg.link} />
+          </div>
+        ) : (
+          <a
+            href={normalizeSourceUrl(msg.link)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="messages-proof-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="messages-proof-link-icon" aria-hidden="true">
+              🔗
+            </span>
+            <span className="messages-proof-link-label">{msg.link}</span>
+          </a>
+        )
+      ) : null}
+      {!msg.link && !msg.proof && extractYouTubeUrl(msg.text) ? (
+        <div style={{ marginTop: "6px", width: "100%" }}>
+          <YouTubeEmbed url={extractYouTubeUrl(msg.text).url} />
+        </div>
       ) : null}
     </div>
   );

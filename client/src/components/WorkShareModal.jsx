@@ -17,6 +17,8 @@ import TaskSelector from "./TaskSelector.jsx";
 import ProofMedia from "./ProofMedia.jsx";
 import FileUploadHint from "./FileUploadHint.jsx";
 import { normalizeSourceUrl } from "./SourceMedia.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl } from "../lib/youtubeHelper.js";
 import "./WorkShareModal.css";
 
 function resolveExactCreator(project, author) {
@@ -525,7 +527,9 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                 </div>
                 {linkUrl.trim() ? (
                   <div className="work-share-link-preview">
-                    <span className="work-share-link-badge">Attached</span>
+                    <span className="work-share-link-badge">
+                      {isYouTubeUrl(linkUrl) ? "▶ YouTube Video" : "Attached"}
+                    </span>
                     <a
                       href={normalizeSourceUrl(linkUrl)}
                       target="_blank"
@@ -534,6 +538,11 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
                     >
                       Test link ↗
                     </a>
+                  </div>
+                ) : null}
+                {isYouTubeUrl(linkUrl) ? (
+                  <div style={{ marginTop: "10px", width: "100%" }}>
+                    <YouTubeEmbed url={linkUrl} />
                   </div>
                 ) : null}
               </div>

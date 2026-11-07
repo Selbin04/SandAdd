@@ -2160,8 +2160,8 @@
   background: var(--input-bg);
   color: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 8px;
+  border-radius: 20px;
+  padding: 7px 14px;
 }
 
 .done-add-source {
@@ -2459,8 +2459,8 @@
   background: var(--input-bg);
   color: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 6px 8px;
+  border-radius: 20px;
+  padding: 6px 14px;
   font-size: 12px;
 }
 
@@ -4054,6 +4054,45 @@
 [data-theme="light"] .done-membership-lock-pill .lock-pill-title {
   color: #0f172a;
 }
+
+/* YouTube In-App Detection Hint */
+.done-youtube-detected-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 6px 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255, 0, 0, 0.12);
+  border: 1px solid rgba(255, 0, 0, 0.35);
+  color: #ff4d4d;
+  font-size: 11.5px;
+  font-weight: 600;
+  animation: yt-hint-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.done-youtube-detected-hint .yt-detected-icon {
+  font-size: 10px;
+  color: #ff0000;
+}
+
+[data-theme="light"] .done-youtube-detected-hint {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+@keyframes yt-hint-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 
 
 

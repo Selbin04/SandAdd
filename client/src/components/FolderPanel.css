@@ -186,10 +186,15 @@
   align-items: center;
   gap: 8px;
   margin: 6px 0 10px 0;
-  padding: 6px 8px;
+  padding: 6px 14px;
   background: var(--input-bg);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 20px;
+}
+
+.folder-add-file-form .chip {
+  border-radius: 20px;
+  padding: 6px 14px;
 }
 
 .folder-add-file-form input {
@@ -214,8 +219,8 @@
   background: var(--input-bg);
   color: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 20px;
+  padding: 8px 14px;
   font: inherit;
   font-size: 13px;
 }

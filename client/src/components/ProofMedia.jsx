@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { isImageProof, isPdfProof, isVideoProof } from "../lib/socialFeed.js";
 import { normalizeSourceUrl } from "./SourceMedia.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 
 function openProofPdf(proof) {
   if (!proof?.dataUrl) return;
@@ -99,6 +101,17 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
   if (proof.type === "link" || proof.kind === "link" || proof.url) {
     const linkUrl = proof.url || proof.link || proof.name;
     const label = proof.name || linkUrl;
+
+    if (isYouTubeUrl(linkUrl)) {
+      return (
+        <YouTubeEmbed
+          url={linkUrl}
+          title={proof.name && proof.name !== linkUrl ? proof.name : ""}
+          className={`${className}-youtube`}
+        />
+      );
+    }
+
     return (
       <a
         href={normalizeSourceUrl(linkUrl)}
@@ -116,12 +129,18 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
   }
   if (proof.type === "text" || proof.kind === "text" || proof.text) {
     const textContent = proof.text || proof.name;
+    const yt = extractYouTubeUrl(textContent);
     return (
       <div className={`${className}-text-card`}>
         <span className={`${className}-text-icon`} aria-hidden="true">
           📝
         </span>
         <p className={`${className}-text-content`}>{textContent}</p>
+        {yt ? (
+          <div style={{ marginTop: "8px", width: "100%" }}>
+            <YouTubeEmbed url={yt.url} />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -147,6 +166,9 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
     );
   }
   if (proof.name) {
+    if (isYouTubeUrl(proof.name)) {
+      return <YouTubeEmbed url={proof.name} className={`${className}-youtube`} />;
+    }
     const pending = proof.hasMedia && !proof.dataUrl;
     return (
       <p className={`${className}-file`}>

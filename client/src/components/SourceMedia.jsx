@@ -8,6 +8,8 @@ import {
 } from "../lib/socialFeed.js";
 import AiSourceSummary from "./AiSourceSummary.jsx";
 import TaskSourcePosts from "./TaskSourcePosts.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 import "./SourceMedia.css";
 
 export function normalizeSourceUrl(raw) {
@@ -28,7 +30,7 @@ export function openSourceUrl(url) {
 export function isUrlSource(raw) {
   const s = String(raw || "").trim();
   if (!s) return false;
-  return /^https?:\/\//i.test(s) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
+  return isYouTubeUrl(s) || /^https?:\/\//i.test(s) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
 }
 
 export function workHasSource(work) {
@@ -278,6 +280,18 @@ export function LinkCoverSlicePreview({
   isEditMode = false,
   readOnly = false,
 }) {
+  if (isYouTubeUrl(url)) {
+    return (
+      <YouTubeEmbed
+        url={url}
+        title={title}
+        onEdit={onEdit}
+        isEditMode={isEditMode}
+        readOnly={readOnly}
+      />
+    );
+  }
+
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const normalized = normalizeSourceUrl(url);
@@ -721,6 +735,11 @@ export function WorkSourceControl({ work }) {
                     </div>
                   ) : null}
                   <p className="source-media-text-content">{textSources[0]?.content || work.source}</p>
+                  {extractYouTubeUrl(textSources[0]?.content || work.source) ? (
+                    <div style={{ marginTop: "8px", width: "100%" }}>
+                      <YouTubeEmbed url={extractYouTubeUrl(textSources[0]?.content || work.source).url} />
+                    </div>
+                  ) : null}
                   <div style={{ marginTop: "8px" }}>
                     <AiSourceSummary
                       source={{
@@ -795,16 +814,24 @@ export function WorkSourceControl({ work }) {
           {tab === "text" && hasText ? (
             <div className="work-source-pane">
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {textSources.map((t, i) => (
-                  <div key={i} className="source-media-text-card">
-                    {t.title ? (
-                      <div className="source-media-text-card-head">
-                        <strong className="source-media-text-title">{t.title}</strong>
-                      </div>
-                    ) : null}
-                    <p className="source-media-text-content">{t.content}</p>
-                  </div>
-                ))}
+                {textSources.map((t, i) => {
+                  const yt = extractYouTubeUrl(t.content);
+                  return (
+                    <div key={i} className="source-media-text-card">
+                      {t.title ? (
+                        <div className="source-media-text-card-head">
+                          <strong className="source-media-text-title">{t.title}</strong>
+                        </div>
+                      ) : null}
+                      <p className="source-media-text-content">{t.content}</p>
+                      {yt ? (
+                        <div style={{ marginTop: "8px", width: "100%" }}>
+                          <YouTubeEmbed url={yt.url} />
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : null}

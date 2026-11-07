@@ -901,6 +901,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+  border-radius: 10px;
 }
 
 @media (min-width: 769px) {
@@ -922,7 +923,8 @@
     background: var(--panel-top);
     padding: 10px 14px 12px 14px;
     margin: 0;
-    border-bottom: 1px solid var(--line);
+    border: 1px solid var(--line);
+    border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
@@ -950,8 +952,13 @@
   background: var(--input-bg);
   color: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 20px;
+  padding: 8px 16px;
+}
+
+.new-project .chip {
+  border-radius: 20px;
+  padding: 7px 16px;
 }
 
 .project-list {
@@ -2850,6 +2857,7 @@
     bottom: auto;
     z-index: 1;
     margin: 8px 0 12px 0;
+    border-radius: 10px;
   }
 
   .layout-projects .new-project.is-floating-mobile {
@@ -2862,7 +2870,7 @@
     z-index: 100 !important;
     background: color-mix(in srgb, var(--panel) 96%, var(--brass) 4%) !important;
     border: 1px solid var(--brass) !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     padding: 8px 10px !important;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 8px color-mix(in srgb, var(--brass) 30%, transparent) !important;
     backdrop-filter: blur(10px) !important;
@@ -2941,11 +2949,13 @@
     flex-direction: row;
     align-items: center;
     gap: 6px;
+    border-radius: 10px;
   }
 
   .layout-projects .new-project input {
     font-size: 13px;
-    padding: 7px 10px;
+    padding: 7px 14px;
+    border-radius: 20px;
   }
 
   .layout-projects .storage-pill {

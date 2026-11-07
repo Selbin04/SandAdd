@@ -24,6 +24,8 @@ import {
   VideoCoverSlicePreview,
   LinkCoverSlicePreview,
 } from "./SourceMedia.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -44,7 +46,7 @@ function openSourceUrl(url) {
 function isUrlSource(raw) {
   const s = String(raw || "").trim();
   if (!s) return false;
-  return /^https?:\/\//i.test(s) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
+  return isYouTubeUrl(s) || /^https?:\/\//i.test(s) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
 }
 
 export function getTopicSources(topic) {
@@ -1652,6 +1654,12 @@ export default function DonePopup({
                       if (e.target.value) setSourceProof(null);
                     }}
                   />
+                  {isYouTubeUrl(source) ? (
+                    <div className="done-youtube-detected-hint">
+                      <span className="yt-detected-icon">▶</span>
+                      <span>YouTube video recognized (plays inside this app)</span>
+                    </div>
+                  ) : null}
                   {source.trim() || sourceProof ? (
                     <input
                       type="text"
@@ -2294,12 +2302,15 @@ export default function DonePopup({
                                     <div className="done-source-pills-track">
                                       {sourceList.map((item, idx) => {
                                         const isSelected = idx === safeIdx;
+                                        const isYt = isYouTubeUrl(item.content);
                                         const typeName =
                                           item.type === "file"
                                             ? "File"
-                                            : item.type === "link" || isUrlSource(item.content)
-                                              ? "Link"
-                                              : "Note";
+                                            : isYt
+                                              ? "YouTube"
+                                              : item.type === "link" || isUrlSource(item.content)
+                                                ? "Link"
+                                                : "Note";
                                         const name =
                                           item.title ||
                                           item.proof?.name ||
@@ -2517,6 +2528,11 @@ export default function DonePopup({
                                               <p className="done-source-text-content">
                                                 {fullContent}
                                               </p>
+                                              {extractYouTubeUrl(fullContent) ? (
+                                                <div style={{ marginTop: "10px", width: "100%" }}>
+                                                  <YouTubeEmbed url={extractYouTubeUrl(fullContent).url} />
+                                                </div>
+                                              ) : null}
                                             </div>
                                           </div>
                                         );
@@ -2620,9 +2636,15 @@ export default function DonePopup({
                             type="url"
                             value={linkDraft}
                             onChange={(e) => setLinkDraft(e.target.value)}
-                            placeholder="https://github.com/…"
+                            placeholder="https://github.com/… or YouTube video"
                             aria-label="Source link"
                           />
+                          {isYouTubeUrl(linkDraft) && (
+                            <div className="done-youtube-detected-hint">
+                              <span className="yt-detected-icon">▶</span>
+                              <span>YouTube video recognized — will play directly inside this app!</span>
+                            </div>
+                          )}
                           <button
                             type="button"
                             className="done-source-primary"
