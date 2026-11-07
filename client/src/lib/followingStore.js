@@ -133,9 +133,16 @@ export function joinFollowedWorkGroup(templateOrProject) {
 
 export function getFollowedWorkGroup(originId) {
   if (!originId) return null;
-  const id = `fw-${String(originId)}`;
+  const targetId = String(originId);
   const groups = loadFollowedWorkGroups();
-  const group = groups.find((item) => item.id === id);
+  const group = groups.find(
+    (item) =>
+      item.id === `fw-${targetId}` ||
+      item.id === targetId ||
+      String(item.originId || "") === targetId ||
+      String(item.templateId || "") === targetId ||
+      String(item.projectId || "") === targetId
+  );
   if (!group || group.role !== "Creator") return group || null;
 
   const messages = (group.messages || []).filter(

@@ -1048,11 +1048,47 @@ export async function fetchTopicPosts(topicId) {
   return local;
 }
 
-function loadAllGroupPosts() {
+export function loadAllGroupPosts() {
   if (groupPostsCache) return groupPostsCache;
   const data = readJson(GROUP_FEED_KEY, {});
   groupPostsCache = data && typeof data === "object" ? data : {};
   return groupPostsCache;
+}
+
+export function isProjectSharedAsPostOrGroup(project) {
+  if (!project) return false;
+  const pid = String(project._id || project.id || "");
+  const porigin = String(project.originId || project.sharedTemplateId || "");
+  const pname = String(project.name || "").trim().toLowerCase();
+
+  // Check user posts (Social -> View)
+  const userPosts = loadUserPosts();
+  if (Array.isArray(userPosts)) {
+    const hasPost = userPosts.some((p) => {
+      const matchId = pid && (String(p.projectId || "") === pid || String(p.sharedProject?.originId || "") === pid);
+      const matchOrigin = porigin && (String(p.projectId || "") === porigin || String(p.sharedProject?.originId || "") === porigin);
+      const matchName = pname && String(p.projectName || p.name || "").trim().toLowerCase() === pname;
+      return (matchId || matchOrigin || matchName) && (p.shareMode === "follow" || p.shareMode === "assign" || Boolean(p.sharedProject));
+    });
+    if (hasPost) return true;
+  }
+
+  // Check all group posts
+  const groupMap = loadAllGroupPosts();
+  if (groupMap && typeof groupMap === "object") {
+    for (const list of Object.values(groupMap)) {
+      if (!Array.isArray(list)) continue;
+      const hasGroupPost = list.some((p) => {
+        const matchId = pid && (String(p.projectId || "") === pid || String(p.sharedProject?.originId || "") === pid);
+        const matchOrigin = porigin && (String(p.projectId || "") === porigin || String(p.sharedProject?.originId || "") === porigin);
+        const matchName = pname && String(p.projectName || p.name || "").trim().toLowerCase() === pname;
+        return (matchId || matchOrigin || matchName) && (p.shareMode === "follow" || p.shareMode === "assign" || Boolean(p.sharedProject));
+      });
+      if (hasGroupPost) return true;
+    }
+  }
+
+  return false;
 }
 
 function saveAllGroupPosts(map) {

@@ -25,6 +25,12 @@ import {
   LinkCoverSlicePreview,
 } from "./SourceMedia.jsx";
 import YouTubeEmbed from "./YouTubeEmbed.jsx";
+import {
+  getDummyBaseStats,
+  getDummyTopicLikes,
+  getDummyTopicComments,
+  formatStatCount,
+} from "../lib/projectStats.js";
 import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 import "./DonePopup.css";
 
@@ -81,25 +87,63 @@ function topicHasSource(topic) {
 
 const TASK_COMMENTS_KEY_PREFIX = "sandadd.taskComments.";
 
-function getTaskComments(projectId, topicOrId) {
+function getTaskComments(projectId, topicOrId, isShared = false) {
   const topicId = typeof topicOrId === "object" ? topicOrId?.id : topicOrId;
   const fromTopic = typeof topicOrId === "object" && Array.isArray(topicOrId?.comments)
     ? topicOrId.comments
     : [];
-  if (!projectId || !topicId) return fromTopic;
-  try {
-    const raw = localStorage.getItem(`${TASK_COMMENTS_KEY_PREFIX}${projectId}.${topicId}`);
-    if (!raw) return fromTopic;
-    const list = JSON.parse(raw);
-    if (!Array.isArray(list) || list.length === 0) return fromTopic;
-    const ids = new Set(list.map((c) => c.id));
-    for (const c of fromTopic) {
-      if (!ids.has(c.id)) list.push(c);
+  let userComments = [];
+  let deletedDummyIds = new Set();
+
+  if (projectId && topicId) {
+    try {
+      const raw = localStorage.getItem(`${TASK_COMMENTS_KEY_PREFIX}${projectId}.${topicId}`);
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) userComments = list;
+      }
+    } catch {
+      /* ignore */
     }
-    return list;
-  } catch {
-    return fromTopic;
+    try {
+      const delRaw = localStorage.getItem(`sandadd.deletedComments.${projectId}.${topicId}`);
+      if (delRaw) {
+        const delList = JSON.parse(delRaw);
+        if (Array.isArray(delList)) deletedDummyIds = new Set(delList);
+      }
+    } catch {
+      /* ignore */
+    }
   }
+
+  const ids = new Set();
+  const result = [];
+
+  for (const c of userComments) {
+    if (c?.id && !ids.has(c.id)) {
+      ids.add(c.id);
+      result.push(c);
+    }
+  }
+
+  for (const c of fromTopic) {
+    if (c?.id && !ids.has(c.id)) {
+      ids.add(c.id);
+      result.push(c);
+    }
+  }
+
+  if (isShared && topicOrId) {
+    const dummyComments = getDummyTopicComments(topicOrId);
+    for (const c of dummyComments) {
+      if (c?.id && !ids.has(c.id) && !deletedDummyIds.has(c.id)) {
+        ids.add(c.id);
+        result.push(c);
+      }
+    }
+  }
+
+  return result;
 }
 
 function saveTaskComments(projectId, topicId, comments) {
@@ -685,7 +729,8 @@ export default function DonePopup({
     const stored = taskLikeCounts[topicId];
     if (typeof stored === "number") return stored;
     if (topic && typeof topic.likeCount === "number" && topic.likeCount > 0) return topic.likeCount;
-    return isLiked ? 1 : 0;
+    const base = isSharedFolder ? getDummyTopicLikes(topic || topicId) : 0;
+    return base + (isLiked ? 1 : 0);
   };
   const [askModalTopic, setAskModalTopic] = useState(null);
   const [askText, setAskText] = useState("");
@@ -767,6 +812,10 @@ export default function DonePopup({
     }
     return 0;
   });
+
+  const dummyFolderStats = getDummyBaseStats(project);
+  const displayFolderLikes = dummyFolderStats.baseLikes + totalFolderLikes;
+  const displayFolderMembers = dummyFolderStats.baseMembers + followersCount;
 
   useEffect(() => {
     const updateFollowers = () => {
@@ -1031,7 +1080,7 @@ export default function DonePopup({
     });
 
     setTaskLikeCounts((prev) => {
-      const current = typeof prev[topic.id] === "number" ? prev[topic.id] : (taskLikes[topic.id] ? 1 : 0);
+      const current = typeof prev[topic.id] === "number" ? prev[topic.id] : getLikeCountForTopic(topic.id);
       const nextCount = Math.max(0, current + (nextLiked ? 1 : -1));
       const nextMap = { ...prev, [topic.id]: nextCount };
       try {
@@ -1056,7 +1105,7 @@ export default function DonePopup({
     setTaskMenuTopic(null);
     setCommentModalTopic(topic);
     setCommentText("");
-    setTaskComments(getTaskComments(project?._id, topic));
+    setTaskComments(getTaskComments(project?._id, topic, isSharedFolder));
   };
 
   const handleSubmitComment = (e) => {
@@ -1084,6 +1133,19 @@ export default function DonePopup({
     const next = taskComments.filter((c) => c.id !== commentId);
     setTaskComments(next);
     saveTaskComments(project?._id, commentModalTopic.id, next);
+
+    try {
+      const delKey = `sandadd.deletedComments.${project?._id}.${commentModalTopic.id}`;
+      const raw = localStorage.getItem(delKey);
+      const list = raw ? JSON.parse(raw) : [];
+      if (!list.includes(commentId)) {
+        list.push(commentId);
+        localStorage.setItem(delKey, JSON.stringify(list));
+      }
+    } catch {
+      /* ignore */
+    }
+
     if (project?._id) {
       deleteTopicCommentApi(project._id, commentModalTopic.id, commentId).catch(() => {});
     }
@@ -1491,14 +1553,14 @@ export default function DonePopup({
               ) : null}
             </div>
 
-            {isCollaborativeWork ? (
+            {isSharedFolder ? (
               <div
                 className="done-head-stats-row"
-                aria-label={`Progress folder statistics: ${totalFolderLikes} likes, ${followersCount} followers`}
+                aria-label={`Progress folder statistics: ${displayFolderLikes} likes, ${displayFolderMembers} members`}
               >
                 <div
                   className="done-head-stat-pill"
-                  title={`${totalFolderLikes} total like${totalFolderLikes === 1 ? "" : "s"} across all progress files`}
+                  title={`${displayFolderLikes.toLocaleString()} total likes across all progress files`}
                 >
                   <svg
                     className="done-head-stat-icon is-like"
@@ -1511,11 +1573,11 @@ export default function DonePopup({
                   >
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                   </svg>
-                  <span className="done-head-stat-count">{totalFolderLikes}</span>
+                  <span className="done-head-stat-count">{formatStatCount(displayFolderLikes)}</span>
                 </div>
                 <div
                   className="done-head-stat-pill"
-                  title={`${followersCount} follower${followersCount === 1 ? "" : "s"} of this progress folder`}
+                  title={`${displayFolderMembers.toLocaleString()} members in this progress folder`}
                 >
                   <svg
                     className="done-head-stat-icon is-followers"
@@ -1534,7 +1596,7 @@ export default function DonePopup({
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
-                  <span className="done-head-stat-count">{followersCount}</span>
+                  <span className="done-head-stat-count">{formatStatCount(displayFolderMembers)}</span>
                 </div>
               </div>
             ) : null}
@@ -1934,15 +1996,20 @@ export default function DonePopup({
                           {/* Bottom Row: white circular button at bottom right (as in user screenshot) */}
                           <div className="done-cover-bottom-row">
                             <div className="done-cover-actions">
-                              {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                              {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                                 <button
                                   type="button"
                                   className={`done-cover-heart-btn ${taskLikes[topic.id] ? "is-liked" : ""} ${finished ? "is-done" : ""}`}
                                   onClick={(e) => handleToggleTaskMenu(topic, e)}
-                                  title="Actions (Ask, Like, Comment, Report)"
+                                  title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                   aria-label={`Actions for ${topic.text}`}
                                 >
                                   <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                  {isSharedFolder ? (
+                                    <span className="done-cover-like-mini-count">
+                                      {formatStatCount(getLikeCountForTopic(topic.id))}
+                                    </span>
+                                  ) : null}
                                 </button>
                               ) : null}
                               {!todayMode && !readOnlyTasks && (
@@ -2034,15 +2101,20 @@ export default function DonePopup({
 
                             <div className="done-row-side">
                               <div className="done-row-actions">
-                                {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                                {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                                   <button
                                     type="button"
-                                    className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                                    className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
                                     onClick={(e) => handleToggleTaskMenu(topic, e)}
-                                    title="Actions (Ask, Like, Comment, Report)"
+                                    title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                     aria-label={`Actions for ${topic.text}`}
                                   >
                                     <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                    {isSharedFolder ? (
+                                      <span className="done-task-like-mini-count">
+                                        {formatStatCount(getLikeCountForTopic(topic.id))}
+                                      </span>
+                                    ) : null}
                                   </button>
                                 ) : null}
                                 {!todayMode && !readOnlyTasks && (
@@ -2145,17 +2217,22 @@ export default function DonePopup({
 
                         <div className="done-row-side">
                           <div className="done-row-actions">
-                            {Boolean(!todayMode || isCollaborativeWork || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                            {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                               <button
                                 type="button"
-                                className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""}`}
+                                className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
                                 onClick={(e) => handleToggleTaskMenu(topic, e)}
-                                title="Actions (Ask, Like, Comment, Report)"
+                                title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                 aria-label={`Actions for ${topic.text}`}
                                 aria-haspopup="true"
                                 aria-expanded={taskMenuTopic?.id === topic.id}
                               >
                                 <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                {isSharedFolder ? (
+                                  <span className="done-task-like-mini-count">
+                                    {formatStatCount(getLikeCountForTopic(topic.id))}
+                                  </span>
+                                ) : null}
                               </button>
                             ) : null}
                             {!todayMode && !readOnlyTasks && (
@@ -2748,10 +2825,10 @@ export default function DonePopup({
               <span className="task-action-label">Comment</span>
               <span
                 className={`task-action-count-badge ${
-                  getTaskComments(project?._id, taskMenuTopic.id).length > 0 ? "has-comments" : ""
+                  getTaskComments(project?._id, taskMenuTopic.id, isSharedFolder).length > 0 ? "has-comments" : ""
                 }`}
               >
-                {getTaskComments(project?._id, taskMenuTopic.id).length}
+                {getTaskComments(project?._id, taskMenuTopic.id, isSharedFolder).length}
               </span>
             </button>
           </li>

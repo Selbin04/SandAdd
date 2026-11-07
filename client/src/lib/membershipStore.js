@@ -1,6 +1,7 @@
 import { getFollowedWorkGroup } from "./followingStore.js";
 import { getLiveWork } from "./liveWorks.js";
 import { isUserOwnProject } from "./projectCardAvatar.js";
+import { isProjectSharedAsPostOrGroup } from "./socialFeed.js";
 
 const MEMBERSHIP_PREFIX = "sandadd.membership.";
 
@@ -17,16 +18,44 @@ export function getMembershipKey(project) {
  */
 export function isSharedOrFollowedWork(project) {
   if (!project) return false;
-  return Boolean(
+  const id = project._id || project.id;
+  const origin = project.originId || project.sharedTemplateId || id;
+
+  if (
     project.originId ||
     project.sharedTemplateId ||
     project.isShared ||
+    project.sharedAsPost ||
     project.shareMode === "follow" ||
+    project.shareMode === "assign" ||
     project.originMode === "follow" ||
+    project.originMode === "assign" ||
     project.mode === "follow" ||
-    Boolean(getFollowedWorkGroup(project.originId || project.sharedTemplateId || project._id || project.id)) ||
-    Boolean(getLiveWork(project.originId || project.sharedTemplateId || project._id || project.id))
-  );
+    project.mode === "assign"
+  ) {
+    return true;
+  }
+
+  try {
+    if (id && localStorage.getItem(`sandadd.sharedToFollow.${id}`) === "true") return true;
+    if (origin && localStorage.getItem(`sandadd.sharedToFollow.${origin}`) === "true") return true;
+  } catch {}
+
+  try {
+    if (origin && getFollowedWorkGroup(origin)) return true;
+    if (id && getFollowedWorkGroup(id)) return true;
+  } catch {}
+
+  try {
+    if (origin && getLiveWork(origin)) return true;
+    if (id && getLiveWork(id)) return true;
+  } catch {}
+
+  try {
+    if (isProjectSharedAsPostOrGroup(project)) return true;
+  } catch {}
+
+  return false;
 }
 
 /**

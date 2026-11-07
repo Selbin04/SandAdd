@@ -278,6 +278,11 @@ export default function WorkShareModal({ project, mode = "follow", onClose, onSh
       }
 
       if (mode === "follow" || mode === "assign") {
+        try {
+          if (project._id) {
+            localStorage.setItem(`sandadd.sharedToFollow.${project._id}`, "true");
+          }
+        } catch {}
         joinFollowedWorkGroup({
           ...sharedProject,
           originId: project._id,

@@ -1289,13 +1289,7 @@
   background: var(--surface-strong);
 }
 
-.project-card-avatar-fallback {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--paper);
-  line-height: 1;
-  text-transform: uppercase;
-}
+.project-card-avatar {
   width: 100%;
   height: 100%;
   object-fit: cover;

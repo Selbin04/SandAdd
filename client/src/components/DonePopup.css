@@ -868,18 +868,43 @@
 
 .done-return-btn {
   flex-shrink: 0;
-  width: 22px;
+  width: auto;
+  min-width: 22px;
   height: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0 4px;
+  gap: 3px;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   transition: all 0.15s ease;
+}
+
+.done-return-btn.is-liked {
+  color: #ef4444;
+}
+
+.done-return-btn.is-liked svg {
+  color: #ef4444;
+  fill: currentColor;
+}
+
+.done-task-like-mini-count {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--muted, #94a3b8);
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+
+.done-return-btn:hover .done-task-like-mini-count,
+.done-return-btn.is-liked .done-task-like-mini-count {
+  color: #ef4444;
 }
 
 .done-return-btn:hover {
@@ -3215,9 +3240,10 @@
 }
 
 .done-cover-heart-btn {
-  width: 28px;
+  width: auto;
+  min-width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: 999px;
   border: none;
   background: rgba(255, 255, 255, 0.88);
   color: #475569;
@@ -3227,7 +3253,20 @@
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: all 0.16s ease;
-  padding: 0;
+  padding: 0 7px;
+  gap: 3.5px;
+}
+
+.done-cover-like-mini-count {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #475569;
+}
+
+.done-cover-heart-btn:hover .done-cover-like-mini-count,
+.done-cover-heart-btn.is-liked .done-cover-like-mini-count {
+  color: #ef4444;
 }
 
 .done-cover-heart-btn:hover {
