@@ -1476,13 +1476,25 @@ export default function App() {
           const local = topics.find((x) => x.id === t.id);
           let item = {
             ...t,
+            description: local?.description || t.description || "",
             hasCheckbox: local ? local.hasCheckbox !== false : t.hasCheckbox !== false,
           };
           if (local?.sourceProof?.dataUrl) {
             item = { ...item, sourceProof: { ...item.sourceProof, ...local.sourceProof } };
           }
-          if (local?.coverImage?.dataUrl) {
-            item = { ...item, coverImage: { ...item.coverImage, ...local.coverImage } };
+          if (local?.coverImage) {
+            const localCover = typeof local.coverImage === "string"
+              ? { dataUrl: local.coverImage, hasMedia: true, name: "Cover", type: "image/svg+xml" }
+              : local.coverImage;
+            item = {
+              ...item,
+              coverImage: {
+                ...(typeof item.coverImage === "object" && item.coverImage ? item.coverImage : {}),
+                ...localCover,
+                dataUrl: localCover.dataUrl || (typeof item.coverImage === "object" ? item.coverImage?.dataUrl : ""),
+                themeId: localCover.themeId || (typeof item.coverImage === "object" ? item.coverImage?.themeId : undefined),
+              },
+            };
           }
           if (local?.coverMode) {
             item = { ...item, coverMode: local.coverMode };
@@ -1583,22 +1595,43 @@ export default function App() {
           : "none";
 
     let sources = [];
-    if (sourceProof) {
-      sources.push({
-        id: `src-${Date.now()}-f`,
-        type: "file",
-        content: sourceProof.name || "File",
-        proof: sourceProof,
-      });
-    }
-    if (source) {
-      const isUrl = /^https?:\/\//i.test(source) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(source);
-      sources.push({
-        id: `src-${Date.now()}-t`,
-        type: isUrl ? "link" : "text",
-        content: source,
-        proof: null,
-      });
+    if (Array.isArray(sourceInfo?.sources) && sourceInfo.sources.length > 0) {
+      sources = sourceInfo.sources.map((s, idx) => ({
+        id: s.id || `src-${Date.now()}-${idx}`,
+        title: s.title || (s.type === "link" ? "Reference Resource" : "Description & Guide"),
+        type: s.type || (/^https?:\/\//i.test(s.content) ? "link" : "text"),
+        content: String(s.content || s.text || s.source || "").trim(),
+        proof: s.proof || null,
+      }));
+    } else {
+      if (sourceInfo?.description && String(sourceInfo.description).trim()) {
+        sources.push({
+          id: `src-${Date.now()}-desc`,
+          title: "Description & Guide",
+          type: "text",
+          content: String(sourceInfo.description).trim(),
+          proof: null,
+        });
+      }
+      if (sourceProof) {
+        sources.push({
+          id: `src-${Date.now()}-f`,
+          title: sourceProof.name || "Attached File",
+          type: "file",
+          content: sourceProof.name || "File",
+          proof: sourceProof,
+        });
+      }
+      if (source && (!sourceInfo?.description || source !== sourceInfo.description)) {
+        const isUrl = /^https?:\/\//i.test(source) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(source);
+        sources.push({
+          id: `src-${Date.now()}-t`,
+          title: isUrl ? "Reference Resource" : "Note",
+          type: isUrl ? "link" : "text",
+          content: source,
+          proof: null,
+        });
+      }
     }
     const membershipOnly = Boolean(
       sourceInfo?.membershipOnly || sourceInfo?.audience === "membership"
@@ -1608,6 +1641,7 @@ export default function App() {
     const newTopic = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       text: itemText,
+      description: String(sourceInfo?.description || "").trim(),
       done: false,
       source,
       sourceProof,

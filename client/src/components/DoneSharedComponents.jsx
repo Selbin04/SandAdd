@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { restoreTopicSourceProof } from "../lib/socialFeed.js";
+import { COVER_PRESETS, getCoverPresetDataUrl } from "../lib/scheduledProgressStore.js";
 
 export function IconPaperclip({ className = "" }) {
   return (
@@ -57,8 +58,16 @@ export function IconHeartBubble({ className = "", filled = false }) {
 export function DoneCoverImage({ cover, className = "" }) {
   const resolveCoverUrl = (c) => {
     if (!c) return "";
-    if (typeof c === "string") return c;
-    return c.dataUrl || "";
+    if (typeof c === "string") {
+      if (COVER_PRESETS.some((p) => p.id === c)) return getCoverPresetDataUrl(c);
+      return c;
+    }
+    if (c.dataUrl) return c.dataUrl;
+    if (c.themeId) return getCoverPresetDataUrl(c.themeId);
+    if (c.name && COVER_PRESETS.some((p) => p.id === c.name)) {
+      return getCoverPresetDataUrl(c.name);
+    }
+    return "";
   };
 
   const [url, setUrl] = useState(() => resolveCoverUrl(cover));
@@ -69,18 +78,33 @@ export function DoneCoverImage({ cover, className = "" }) {
       return;
     }
     if (typeof cover === "string" && cover) {
-      setUrl(cover);
+      if (COVER_PRESETS.some((p) => p.id === cover)) {
+        setUrl(getCoverPresetDataUrl(cover));
+      } else {
+        setUrl(cover);
+      }
       return;
     }
     if (cover.dataUrl) {
       setUrl(cover.dataUrl);
       return;
     }
+    if (cover.themeId) {
+      setUrl(getCoverPresetDataUrl(cover.themeId));
+      return;
+    }
+    if (cover.name && COVER_PRESETS.some((p) => p.id === cover.name)) {
+      setUrl(getCoverPresetDataUrl(cover.name));
+      return;
+    }
     if (cover.mediaId) {
       let alive = true;
       restoreTopicSourceProof(cover).then((full) => {
-        if (alive && full?.dataUrl) {
+        if (!alive) return;
+        if (full?.dataUrl) {
           setUrl(full.dataUrl);
+        } else if (cover.themeId) {
+          setUrl(getCoverPresetDataUrl(cover.themeId));
         }
       });
       return () => {
@@ -88,7 +112,7 @@ export function DoneCoverImage({ cover, className = "" }) {
       };
     }
     setUrl("");
-  }, [cover, cover?.dataUrl, cover?.mediaId]);
+  }, [cover, cover?.dataUrl, cover?.themeId, cover?.name, cover?.mediaId]);
 
   if (!url) return null;
   return <img src={url} alt="Cover" className={className} />;

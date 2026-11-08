@@ -59,27 +59,51 @@ function isUrlSource(raw) {
 }
 
 export function getTopicSources(topic) {
+  let list = [];
   if (Array.isArray(topic?.sources) && topic.sources.length > 0) {
-    return topic.sources;
+    list = [...topic.sources];
   }
-  const list = [];
+
+  // Ensure description text is included as a source if present on the topic
+  const hasDescInSources = list.some(
+    (s) =>
+      s.title === "Description & Action Plan" ||
+      (s.content && topic?.description && String(s.content).trim() === String(topic.description).trim())
+  );
+  if (!hasDescInSources && topic?.description && String(topic.description).trim()) {
+    list.unshift({
+      id: "topic-desc",
+      type: "text",
+      title: "Description & Action Plan",
+      content: String(topic.description).trim(),
+      proof: null,
+    });
+  }
+
+  if (list.length > 0) {
+    return list;
+  }
   if (topic?.sourceProof?.dataUrl || topic?.sourceProof?.mediaId || topic?.sourceProof?.name) {
     list.push({
       id: "legacy-file",
       type: "file",
+      title: topic.sourceProof.name || "Attached file",
       content: topic.sourceProof.name || "Attached file",
       proof: topic.sourceProof,
     });
   }
   if (String(topic?.source || "").trim()) {
     const s = String(topic.source).trim();
-    const isUrl = isUrlSource(s);
-    list.push({
-      id: "legacy-source",
-      type: isUrl ? "link" : "text",
-      content: s,
-      proof: null,
-    });
+    if (!topic?.description || s !== String(topic.description).trim()) {
+      const isUrl = isUrlSource(s);
+      list.push({
+        id: "legacy-source",
+        type: isUrl ? "link" : "text",
+        title: isUrl ? "Reference Resource" : "Source Note",
+        content: s,
+        proof: null,
+      });
+    }
   }
   return list;
 }
@@ -415,8 +439,16 @@ function IconNoCover({ className = "" }) {
 function DoneCoverImage({ cover, className = "" }) {
   const resolveCoverUrl = (c) => {
     if (!c) return "";
-    if (typeof c === "string") return c;
-    return c.dataUrl || "";
+    if (typeof c === "string") {
+      if (COVER_PRESETS.some((p) => p.id === c)) return getCoverPresetDataUrl(c);
+      return c;
+    }
+    if (c.dataUrl) return c.dataUrl;
+    if (c.themeId) return getCoverPresetDataUrl(c.themeId);
+    if (c.name && COVER_PRESETS.some((p) => p.id === c.name)) {
+      return getCoverPresetDataUrl(c.name);
+    }
+    return "";
   };
 
   const [url, setUrl] = useState(() => resolveCoverUrl(cover));
@@ -427,18 +459,33 @@ function DoneCoverImage({ cover, className = "" }) {
       return;
     }
     if (typeof cover === "string" && cover) {
-      setUrl(cover);
+      if (COVER_PRESETS.some((p) => p.id === cover)) {
+        setUrl(getCoverPresetDataUrl(cover));
+      } else {
+        setUrl(cover);
+      }
       return;
     }
     if (cover.dataUrl) {
       setUrl(cover.dataUrl);
       return;
     }
+    if (cover.themeId) {
+      setUrl(getCoverPresetDataUrl(cover.themeId));
+      return;
+    }
+    if (cover.name && COVER_PRESETS.some((p) => p.id === cover.name)) {
+      setUrl(getCoverPresetDataUrl(cover.name));
+      return;
+    }
     if (cover.mediaId) {
       let alive = true;
       restoreTopicSourceProof(cover).then((full) => {
-        if (alive && full?.dataUrl) {
+        if (!alive) return;
+        if (full?.dataUrl) {
           setUrl(full.dataUrl);
+        } else if (cover.themeId) {
+          setUrl(getCoverPresetDataUrl(cover.themeId));
         }
       });
       return () => {
@@ -446,7 +493,7 @@ function DoneCoverImage({ cover, className = "" }) {
       };
     }
     setUrl("");
-  }, [cover, cover?.dataUrl, cover?.mediaId]);
+  }, [cover, cover?.dataUrl, cover?.themeId, cover?.name, cover?.mediaId]);
 
   if (!url) return null;
   return <img src={url} alt="Cover" className={className} />;
@@ -629,6 +676,27 @@ function PdfInline({ proof, large = false }) {
   );
 }
 
+function computeFollowersCount(project, allProjects = []) {
+  if (typeof project?.followersCount === "number") return project.followersCount;
+  if (typeof project?.followerCount === "number") return project.followerCount;
+  if (Array.isArray(project?.followers)) return project.followers.length;
+  if (Array.isArray(project?.subscribers)) return project.subscribers.length;
+  const origin = project?.originId || project?.sharedTemplateId || project?._id;
+  const group = getFollowedWorkGroup(origin);
+  if (group?.members && Array.isArray(group.members) && group.members.length > 0) {
+    return group.members.length;
+  }
+  const copies = (allProjects || []).filter((p) => {
+    const pOrigin = p.originId || p.sharedTemplateId;
+    return pOrigin && (pOrigin === project?._id || pOrigin === project?.originId || pOrigin === project?.sharedTemplateId);
+  }).length;
+  if (copies > 0) return copies;
+  if (project?.originMode === "follow" || project?.shareMode === "follow" || project?.mode === "follow") {
+    return 1;
+  }
+  return 0;
+}
+
 export default function DonePopup({
   project,
   x,
@@ -649,6 +717,7 @@ export default function DonePopup({
   allProjects = [],
   aboutSlot = null,
 }) {
+  const [followersCount, setFollowersCount] = useState(() => computeFollowersCount(project, allProjects));
   const [showHourglassModal, setShowHourglassModal] = useState(false);
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [membershipStatus, setMembershipStatus] = useState(() => getMembership(project));
@@ -804,64 +873,13 @@ export default function DonePopup({
     return sum + (topic?.id ? getLikeCountForTopic(topic.id) : 0);
   }, 0);
 
-  const [followersCount, setFollowersCount] = useState(() => {
-    if (typeof project?.followersCount === "number") return project.followersCount;
-    if (typeof project?.followerCount === "number") return project.followerCount;
-    if (Array.isArray(project?.followers)) return project.followers.length;
-    if (Array.isArray(project?.subscribers)) return project.subscribers.length;
-    const origin = project?.originId || project?.sharedTemplateId || project?._id;
-    const group = getFollowedWorkGroup(origin);
-    if (group?.members && Array.isArray(group.members) && group.members.length > 0) {
-      return group.members.length;
-    }
-    const copies = (allProjects || []).filter((p) => {
-      const pOrigin = p.originId || p.sharedTemplateId;
-      return pOrigin && (pOrigin === project?._id || pOrigin === project?.originId || pOrigin === project?.sharedTemplateId);
-    }).length;
-    if (copies > 0) return copies;
-    if (project?.originMode === "follow" || project?.shareMode === "follow" || project?.mode === "follow") {
-      return 1;
-    }
-    return 0;
-  });
-
   const dummyFolderStats = getDummyBaseStats(project);
   const displayFolderLikes = dummyFolderStats.baseLikes + totalFolderLikes;
   const displayFolderMembers = dummyFolderStats.baseMembers + followersCount;
 
   useEffect(() => {
     const updateFollowers = () => {
-      if (typeof project?.followersCount === "number") {
-        setFollowersCount(project.followersCount);
-        return;
-      }
-      if (typeof project?.followerCount === "number") {
-        setFollowersCount(project.followerCount);
-        return;
-      }
-      if (Array.isArray(project?.followers)) {
-        setFollowersCount(project.followers.length);
-        return;
-      }
-      const origin = project?.originId || project?.sharedTemplateId || project?._id;
-      const group = getFollowedWorkGroup(origin);
-      if (group?.members && Array.isArray(group.members) && group.members.length > 0) {
-        setFollowersCount(group.members.length);
-        return;
-      }
-      const copies = (allProjects || []).filter((p) => {
-        const pOrigin = p.originId || p.sharedTemplateId;
-        return pOrigin && (pOrigin === project?._id || pOrigin === project?.originId || pOrigin === project?.sharedTemplateId);
-      }).length;
-      if (copies > 0) {
-        setFollowersCount(copies);
-        return;
-      }
-      if (project?.originMode === "follow" || project?.shareMode === "follow" || project?.mode === "follow") {
-        setFollowersCount(1);
-        return;
-      }
-      setFollowersCount(0);
+      setFollowersCount(computeFollowersCount(project, allProjects));
     };
 
     updateFollowers();
@@ -1616,7 +1634,20 @@ export default function DonePopup({
 
   const openCoverModal = (topic) => {
     setCoverModalTopic(topic);
-    const existing = topic.coverImage || null;
+    let existing = topic.coverImage || null;
+    if (typeof existing === "string") {
+      const isPreset = COVER_PRESETS.some((p) => p.id === existing);
+      existing = isPreset
+        ? getCoverPresetObject(existing)
+        : {
+            dataUrl: existing,
+            name: "Cover theme",
+            hasMedia: true,
+            type: existing.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+          };
+    } else if (existing && typeof existing === "object" && !existing.dataUrl && existing.themeId) {
+      existing = getCoverPresetObject(existing.themeId);
+    }
     setCoverModalImage(existing);
     setCoverModalTheme(existing?.themeId || "space");
     const mode =
@@ -1624,7 +1655,7 @@ export default function DonePopup({
         ? "full"
         : topic.coverMode === "top"
           ? "top"
-          : topic.coverImage
+          : existing
             ? "top"
             : "none";
     setCoverModalMode(mode);
@@ -2149,7 +2180,9 @@ export default function DonePopup({
                   topic?.coverImage &&
                     (topic.coverImage.dataUrl ||
                       topic.coverImage.mediaId ||
-                      (typeof topic.coverImage === "string" && topic.coverImage.length > 0))
+                      topic.coverImage.themeId ||
+                      (topic.coverImage.name && COVER_PRESETS.some((p) => p.id === topic.coverImage.name)) ||
+                      (typeof topic.coverImage === "string" && topic.coverImage.trim().length > 0))
                 );
                 const coverMode =
                   topic?.coverMode === "full"

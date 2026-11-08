@@ -256,15 +256,59 @@ export function checkAndTriggerScheduled(projectId, onPushCallback) {
       if (!isNaN(scheduledTime) && scheduledTime <= now) {
         // Trigger auto-push
         try {
-          const coverPayload = item.coverImage
-            ? item.coverImage
-            : item.coverTheme
-              ? getCoverPresetDataUrl(item.coverTheme)
-              : null;
+          let coverPayload = item.coverImage;
+          if (!coverPayload && item.coverTheme) {
+            coverPayload = getCoverPresetObject(item.coverTheme);
+          } else if (typeof coverPayload === "string") {
+            const isPreset = COVER_PRESETS.some((p) => p.id === coverPayload);
+            coverPayload = isPreset
+              ? getCoverPresetObject(coverPayload)
+              : {
+                  dataUrl: coverPayload,
+                  name: "Cover",
+                  hasMedia: true,
+                  type: coverPayload.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+                  themeId: item.coverTheme || undefined,
+                };
+          } else if (coverPayload && typeof coverPayload === "object" && !coverPayload.dataUrl && (coverPayload.themeId || item.coverTheme)) {
+            coverPayload = {
+              ...coverPayload,
+              dataUrl: getCoverPresetDataUrl(coverPayload.themeId || item.coverTheme),
+              themeId: coverPayload.themeId || item.coverTheme,
+            };
+          }
+
+          const desc = String(item.description || "").trim();
+          const ref = String(item.source || "").trim();
+          const scheduledSources = [];
+          if (desc) {
+            scheduledSources.push({
+              id: `src-sched-desc-${item.id}`,
+              title: "Description & Action Plan",
+              type: "text",
+              content: desc,
+              proof: null,
+            });
+          }
+          if (ref) {
+            const isUrl = /^https?:\/\//i.test(ref) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(ref);
+            scheduledSources.push({
+              id: `src-sched-ref-${item.id}`,
+              title: "Reference Resource",
+              type: isUrl ? "link" : "text",
+              content: ref,
+              proof: null,
+            });
+          }
+          const combinedSource = desc && ref
+            ? `${desc}\n\nReference: ${ref}`
+            : desc || ref;
 
           onPushCallback(item.text, {
-            source: item.source || item.description || "",
-            sourceTitle: item.sourceTitle || "",
+            source: combinedSource,
+            sourceTitle: item.sourceTitle || item.text,
+            description: desc,
+            sources: scheduledSources,
             coverImage: coverPayload,
             coverMode: item.coverMode || "top",
             hasCheckbox: true,

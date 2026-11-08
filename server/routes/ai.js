@@ -270,14 +270,14 @@ async function callGeminiApi({ prompt, apiKey, inlineData = null }) {
   const payload = {
     contents: [{ parts }],
     generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 600,
+      temperature: 0.25,
+      maxOutputTokens: 2048,
       responseMimeType: "application/json",
     },
   };
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
+  const timer = setTimeout(() => controller.abort(), 15000);
 
   try {
     const res = await fetch(url, {
@@ -295,8 +295,9 @@ async function callGeminiApi({ prompt, apiKey, inlineData = null }) {
     const data = await res.json();
     const candidateText =
       data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const cleaned = String(candidateText).trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
-    return JSON.parse(candidateText);
+    return JSON.parse(cleaned);
   } finally {
     clearTimeout(timer);
   }
@@ -779,31 +780,33 @@ Return a JSON object with this exact structure:
       // 1. If Gemini API key is available, generate with Gemini
       if (apiKey) {
         try {
-          const geminiPrompt = `You are a productivity AI assistant and progress path planner.
-Project Name: "${projectName || "Progress Folder"}"
-User Goal/Prompt: "${cleanPrompt || "Create milestones for this folder"}"
+          const geminiPrompt = `You are a world-class AI productivity architect and milestone planner.
+User's Idea / Prompt: "${cleanPrompt || "Create structured progress files"}"
+Progress Folder Name: "${projectName || "Progress Folder"}"
+Number of Progress Files to create: ${numItems}
 Existing Milestones in folder: ${
             Array.isArray(existingTopics) && existingTopics.length > 0
               ? existingTopics.map((t) => (typeof t === "string" ? t : t?.text || "")).filter(Boolean).join(", ")
               : "None yet"
           }
 
-Task:
-Generate exactly ${numItems} practical, distinct, highly actionable progress files (milestones/steps) that build upon each other in sequence.
-For each progress file, provide:
-- "text": A crisp, motivating milestone title (5-10 words, e.g. "Draft Core Architecture & Data Models")
-- "description": 1-2 sentences explaining specifically what to accomplish or deliver
-- "source": Suggested reference URL, documentation search term, or reading resource
-- "coverTheme": One of ["space", "sunset", "neon", "forest", "royal", "midnight"]
-- "estimatedMinutes": Suggested time in minutes (e.g. 30, 45, 60)
+Instructions:
+1. Deeply understand the core idea, domain, skill, or objective expressed in the user's prompt ("${cleanPrompt}").
+2. Build exactly ${numItems} sequential, highly suitable progress files (milestones) directly derived from the user's idea.
+3. For each progress file, provide:
+   - "text": A crisp, motivating milestone title (5-10 words, e.g. "Step 1: Set Up Project Architecture & Core Dependencies")
+   - "description": A comprehensive, practical description text for this progress file (2-3 complete sentences explaining what this progress file is, key deliverables, implementation steps, and actionable guidance).
+   - "source": An appropriate, real, high-quality reference URL or authoritative documentation link directly relevant to this specific step (e.g. official docs, guides, standards, or learning resources).
+   - "coverTheme": One of ["space", "sunset", "neon", "forest", "royal", "midnight"]
+   - "estimatedMinutes": Suggested time in minutes (e.g. 30, 45, 60, 90)
 
-Return ONLY a strict JSON array of objects with the exact keys: text, description, source, coverTheme, estimatedMinutes.
+Return ONLY a strict JSON array of ${numItems} objects with exact keys: text, description, source, coverTheme, estimatedMinutes.
 Example format:
 [
   {
-    "text": "Set Up Environment & Core Dependencies",
-    "description": "Initialize repository structure, install required libraries, and verify build setup.",
-    "source": "https://developer.mozilla.org",
+    "text": "Step 1: Foundational Setup & Dependency Architecture",
+    "description": "Initialize the project environment, configure linting and directory structures, and establish core library dependencies.",
+    "source": "https://developer.mozilla.org/en-US/docs/Learn",
     "coverTheme": "neon",
     "estimatedMinutes": 30
   }
@@ -853,186 +856,204 @@ Example format:
 }
 
 /**
- * Intelligent domain-aware milestone generator fallback
+ * Intelligent domain-aware milestone generator fallback.
+ * Parses user prompt ideas and synthesizes suitable progress files with rich descriptions and appropriate sources.
  */
 function generateFallbackMilestones(prompt = "", projectName = "", count = 3) {
-  const query = `${projectName} ${prompt}`.toLowerCase();
-  const themes = ["space", "sunset", "neon", "forest", "royal", "midnight"];
+  const num = Math.max(1, Math.min(5, parseInt(count, 10) || 3));
+  const raw = `${prompt} ${projectName}`.trim();
+  const lower = raw.toLowerCase();
+
+  // Extract cleaned-up subject from user prompt
+  let subject = prompt.trim()
+    .replace(/^(create|make|generate|build|give me|write|design|plan|prepare|learn|master)\s+/i, "")
+    .replace(/^(milestones|steps|progress files|tasks|roadmap|plan)\s+(for|about|to|on)\s+/i, "")
+    .replace(/^(how to|in \d+ steps?)\s+/i, "")
+    .replace(/\s+(in \d+ steps?|up to \d+|milestones?)$/i, "")
+    .trim();
+
+  if (!subject) {
+    subject = projectName.trim() || "Progress Milestone";
+  }
+
+  // Capitalize first letter of subject
+  subject = subject.charAt(0).toUpperCase() + subject.slice(1);
 
   let pool = [];
 
-  if (/code|react|node|api|python|app|dev|web|sql|fullstack|js|software/i.test(query)) {
+  if (/react|next\.?js|vue|angular|svelte|frontend|web\s*dev|html|css|tailwind|javascript|typescript/i.test(lower)) {
     pool = [
       {
-        text: "Initialize Project Architecture & Environment",
-        description: "Configure development dependencies, linting, directory layout, and git repo.",
-        source: "https://developer.mozilla.org",
+        text: `Phase 1: Project Setup & Core Tooling for ${subject}`,
+        description: `Initialize project repository, install development dependencies, configure linting, and establish modern folder architecture for ${subject}.`,
+        source: "https://developer.mozilla.org/en-US/docs/Learn",
         coverTheme: "neon",
       },
       {
-        text: "Design Core Schema, State & Models",
-        description: "Establish foundational data structures, state management flow, and validation rules.",
-        source: "https://react.dev",
+        text: `Phase 2: Component Architecture & State Management for ${subject}`,
+        description: `Build reusable UI primitive components, structure modular layouts, and implement responsive state management patterns.`,
+        source: "https://react.dev/learn",
         coverTheme: "space",
       },
       {
-        text: "Implement Primary User Workflow & Interface",
-        description: "Build the primary interactive view and connect data inputs to backend handlers.",
-        source: "https://web.dev",
+        text: `Phase 3: Interactive Workflows & Data Integration for ${subject}`,
+        description: `Connect user interface forms to backend endpoints, handle asynchronous loading states, and implement robust error boundaries.`,
+        source: "https://web.dev/learn",
         coverTheme: "midnight",
       },
       {
-        text: "Integrate Real-time Sync, Error Boundaries & Tests",
-        description: "Add robust error catching, edge-case coverage, and unit test validations.",
-        source: "https://vitest.dev",
+        text: `Phase 4: Optimization, Accessibility & Automated Testing for ${subject}`,
+        description: `Conduct performance audits, adhere to WCAG accessibility criteria, minimize bundle size, and write unit/integration test coverage.`,
+        source: "https://vite.dev/guide/",
         coverTheme: "royal",
       },
       {
-        text: "Performance Audit, Optimization & Deployment",
-        description: "Run bundle analysis, compress assets, and deploy to production environment.",
+        text: `Phase 5: Production Deployment & Verification for ${subject}`,
+        description: `Configure CI/CD build pipelines, deploy to cloud hosting with custom domains, and verify cross-browser responsiveness.`,
         source: "https://vercel.com/docs",
         coverTheme: "sunset",
       },
     ];
-  } else if (/fitness|workout|gym|health|diet|run|marathon|weight/i.test(query)) {
+  } else if (/python|ai|machine\s*learning|deep\s*learning|data\s*science|pandas|pytorch|tensorflow|nlp|llm/i.test(lower)) {
     pool = [
       {
-        text: "Baseline Assessment & Goal Definition",
-        description: "Record starting metrics, define daily target thresholds, and calibrate timeline.",
+        text: `Phase 1: Environment Setup & Dataset Ingestion for ${subject}`,
+        description: `Set up Python virtual environment, install data analysis libraries, and load raw datasets with automated verification.`,
+        source: "https://docs.python.org/3/tutorial/",
+        coverTheme: "space",
+      },
+      {
+        text: `Phase 2: Exploratory Analysis & Feature Engineering for ${subject}`,
+        description: `Clean missing values, generate statistical distributions, and transform input features for predictive modeling.`,
+        source: "https://pandas.pydata.org/docs/getting_started/",
+        coverTheme: "midnight",
+      },
+      {
+        text: `Phase 3: Model Architecture & Baseline Training for ${subject}`,
+        description: `Design baseline algorithm, establish cross-validation splits, and train initial models with loss metric tracking.`,
+        source: "https://pytorch.org/tutorials/",
+        coverTheme: "neon",
+      },
+      {
+        text: `Phase 4: Hyperparameter Tuning & Model Validation for ${subject}`,
+        description: `Tune hyperparameters, compare test accuracy across benchmarks, and generate confusion matrices and error reports.`,
+        source: "https://huggingface.co/docs",
+        coverTheme: "royal",
+      },
+      {
+        text: `Phase 5: Inference Pipeline & Practical Deployment for ${subject}`,
+        description: `Export trained weights, containerize inference service with FastAPI, and document reproducible execution steps.`,
+        source: "https://scikit-learn.org/stable/tutorial/",
+        coverTheme: "forest",
+      },
+    ];
+  } else if (/fitness|workout|gym|health|diet|running|marathon|weight|exercise|nutrition|yoga/i.test(lower)) {
+    pool = [
+      {
+        text: `Phase 1: Baseline Assessment & Goal Calibration for ${subject}`,
+        description: `Record baseline fitness metrics, establish safe movement standards, and outline weekly training volume targets for ${subject}.`,
         source: "https://www.who.int/health-topics/physical-activity",
         coverTheme: "forest",
       },
       {
-        text: "Nutrition Blueprint & Hydration Protocol",
-        description: "Formulate daily meal planning, protein targets, and recovery hydration schedule.",
-        source: "https://nutrition.gov",
+        text: `Phase 2: Nutritional Blueprint & Hydration Protocol for ${subject}`,
+        description: `Calculate daily macronutrient targets, plan nutrient-dense meals, and establish consistent hydration timing for optimal energy.`,
+        source: "https://nutrition.gov/topics/basic-nutrition",
         coverTheme: "sunset",
       },
       {
-        text: "Core Endurance & Functional Mobility Routine",
-        description: "Complete dynamic warm-up protocol and foundational multi-joint movements.",
-        source: "https://acefitness.org",
+        text: `Phase 3: Core Conditioning & Movement Mechanics for ${subject}`,
+        description: `Execute dynamic warm-ups, master proper biomechanical form across key compound movements, and track initial sets.`,
+        source: "https://www.acefitness.org/resources/everyone/exercise-library/",
         coverTheme: "neon",
       },
       {
-        text: "Progressive Overload & Intensity Calibration",
-        description: "Systematically increase volume or pace while maintaining biomechanical form.",
-        source: "https://bodybuilding.com",
+        text: `Phase 4: Progressive Overload & Endurance Scaling for ${subject}`,
+        description: `Systematically increase training resistance, pace, or intervals while maintaining strict recovery protocols.`,
+        source: "https://www.runnersworld.com/training/",
         coverTheme: "space",
       },
       {
-        text: "Milestone Benchmark Test & Recovery Review",
-        description: "Measure progress against initial baseline and refine schedule for next cycle.",
-        source: "https://runnersworld.com",
+        text: `Phase 5: Performance Benchmark & Long-Term Roadmap for ${subject}`,
+        description: `Re-evaluate physical benchmarks against initial baselines, analyze adaptations, and build a sustainable maintenance plan.`,
+        source: "https://bodybuilding.com/content",
         coverTheme: "royal",
       },
     ];
-  } else if (/learn|study|exam|course|book|language|french|spanish|japanese|history/i.test(query)) {
+  } else if (/business|startup|saas|marketing|ecommerce|sales|product|launch|finance/i.test(lower)) {
     pool = [
       {
-        text: "Foundations & High-Frequency Core Concepts",
-        description: "Master the 20% of essential fundamentals that drive 80% of practical comprehension.",
-        source: "https://en.wikipedia.org",
-        coverTheme: "royal",
-      },
-      {
-        text: "Active Recall Flashcards & Spaced Practice",
-        description: "Build custom practice drills and review key terminology without reference notes.",
-        source: "https://ankisrs.net",
-        coverTheme: "midnight",
-      },
-      {
-        text: "Applied Scenario Simulation & Problem Solving",
-        description: "Tackle real-world exercises and synthesize notes into concise mental models.",
-        source: "https://khanacademy.org",
-        coverTheme: "space",
-      },
-      {
-        text: "Deep Dive into Advanced Edge Cases & Nuance",
-        description: "Analyze complex exceptions, specialized patterns, and contextual usage.",
-        source: "https://coursera.org",
-        coverTheme: "neon",
-      },
-      {
-        text: "Synthesis Capstone & Comprehensive Review",
-        description: "Explain the entire subject in your own words and complete full benchmark assessment.",
-        source: "https://edx.org",
-        coverTheme: "sunset",
-      },
-    ];
-  } else if (/business|startup|marketing|sales|product|launch|finance/i.test(query)) {
-    pool = [
-      {
-        text: "Market Research & Target Audience Persona",
-        description: "Identify high-pain customer segments, competitor positioning, and unique value proposition.",
+        text: `Phase 1: Market Research & Audience Discovery for ${subject}`,
+        description: `Identify high-urgency customer pain points, conduct competitor gap analysis, and define unique value proposition for ${subject}.`,
         source: "https://hbr.org",
         coverTheme: "midnight",
       },
       {
-        text: "Value Proposition Canvas & Offer Packaging",
-        description: "Craft compelling messaging, pricing tiers, and risk-reversal guarantees.",
-        source: "https://strategyzer.com",
+        text: `Phase 2: Value Proposition & Offer Packaging for ${subject}`,
+        description: `Draft compelling offer copy, outline tiered pricing structures, and create risk-reversal guarantees for conversion.`,
+        source: "https://ycombinator.com/library",
         coverTheme: "sunset",
       },
       {
-        text: "Funnel Blueprint & High-Converting Landing Flow",
-        description: "Build lead capture mechanism, clear CTA pathway, and conversion analytics.",
+        text: `Phase 3: High-Converting Landing Experience for ${subject}`,
+        description: `Build responsive conversion page, integrate lead capture forms, and instrument analytics funnels.`,
         source: "https://stripe.com/resources",
         coverTheme: "space",
       },
       {
-        text: "Multi-Channel Distribution & Outreach Pilot",
-        description: "Launch targeted outreach across direct messaging, search, and community channels.",
-        source: "https://hubspot.com",
+        text: `Phase 4: Multi-Channel Outreach & Traffic Acquisition for ${subject}`,
+        description: `Launch targeted distribution across search, social communities, and direct partner channels to validate traffic.`,
+        source: "https://moz.com/beginners-guide-to-seo",
         coverTheme: "neon",
       },
       {
-        text: "KPI Review, Churn Analysis & Scale Strategy",
-        description: "Evaluate conversion rates, gather qualitative feedback, and double down on winning channels.",
-        source: "https://ycombinator.com/library",
+        text: `Phase 5: KPI Review, Conversion Optimization & Scaling for ${subject}`,
+        description: `Analyze acquisition costs, gather customer feedback, optimize churn points, and scale winning promotional vectors.`,
+        source: "https://help.shopify.com",
         coverTheme: "royal",
       },
     ];
   } else {
-    // Universal milestones
-    const subject = prompt || projectName || "Milestone";
+    // Dynamic universal prompt-driven synthesis
+    const enc = encodeURIComponent(subject.split(" ")[0].toLowerCase());
     pool = [
       {
-        text: `Phase 1: Exploration & Foundations of ${subject}`,
-        description: `Research prerequisites, outline objectives, and establish workspace setup for ${subject}.`,
-        source: "https://google.com",
+        text: `Phase 1: Foundations, Scope & Setup for ${subject}`,
+        description: `Research essential principles, organize prerequisite resources, and establish workspace foundations for ${subject}.`,
+        source: `https://en.wikipedia.org/wiki/${enc || "Productivity"}`,
         coverTheme: "space",
       },
       {
-        text: `Phase 2: Core Implementation & Key Deliverables`,
-        description: `Execute main workload, produce primary assets, and document step-by-step findings.`,
-        source: "https://notion.so",
+        text: `Phase 2: Core Methodology & First Prototype for ${subject}`,
+        description: `Map out sequential steps, construct initial functional drafts, and test early assumptions against clear success criteria.`,
+        source: "https://khanacademy.org",
         coverTheme: "neon",
       },
       {
-        text: `Phase 3: Testing, Refinement & Quality Polish`,
-        description: `Identify friction points, polish outputs, and verify standards against requirements.`,
-        source: "https://medium.com",
+        text: `Phase 3: Deep Execution & Key Deliverables for ${subject}`,
+        description: `Tackle primary workload, produce tangible milestone artifacts, and document key findings and best practices.`,
+        source: "https://notion.so",
         coverTheme: "sunset",
       },
       {
-        text: `Phase 4: Practical Integration & Validation`,
-        description: `Test in real-world scenario, collect peer or self feedback, and eliminate bottlenecks.`,
-        source: "https://github.com",
+        text: `Phase 4: Quality Review, Polish & Refinement for ${subject}`,
+        description: `Identify edge cases, eliminate friction, polish visual/technical quality, and ensure rigorous standards for ${subject}.`,
+        source: "https://medium.com",
         coverTheme: "midnight",
       },
       {
-        text: `Phase 5: Final Review, Documentation & Capstone`,
-        description: `Package completed work, celebrate milestone completion, and outline next progression.`,
-        source: "https://wikipedia.org",
+        text: `Phase 5: Capstone Completion, Validation & Launch for ${subject}`,
+        description: `Synthesize finished components, conduct final verification, publish milestone documentation, and celebrate completion.`,
+        source: "https://github.com",
         coverTheme: "royal",
       },
     ];
   }
 
-  return pool.slice(0, count).map((item, idx) => ({
+  const themes = ["space", "sunset", "neon", "forest", "royal", "midnight"];
+  return pool.slice(0, num).map((item, idx) => ({
     ...item,
-    coverTheme: themes[idx % themes.length],
+    coverTheme: item.coverTheme || themes[idx % themes.length],
     estimatedMinutes: 30 + idx * 15,
   }));
 }

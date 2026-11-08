@@ -8,6 +8,7 @@ import {
   createSocialGroupApi,
   joinSocialGroupApi,
 } from "../api.js";
+import { getCoverPresetDataUrl, COVER_PRESETS } from "./scheduledProgressStore.js";
 
 const FEED_KEY = "sandadd.socialPosts";
 const GROUP_FEED_KEY = "sandadd.groupPosts";
@@ -218,6 +219,34 @@ export function lightSourceProof(proof) {
   };
 }
 
+export function lightCoverProof(cover) {
+  if (!cover) return null;
+  if (typeof cover === "string") {
+    const trimmed = cover.trim();
+    if (!trimmed) return null;
+    const isPreset = COVER_PRESETS.some((p) => p.id === trimmed);
+    const dataUrl = isPreset ? getCoverPresetDataUrl(trimmed) : trimmed;
+    return {
+      dataUrl,
+      name: "Cover theme",
+      type: dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+      hasMedia: true,
+      ...(isPreset ? { themeId: trimmed } : {}),
+    };
+  }
+  const themeId = cover.themeId || (COVER_PRESETS.some((p) => p.id === cover.name) ? cover.name : undefined);
+  const dataUrl = cover.dataUrl || (themeId ? getCoverPresetDataUrl(themeId) : "");
+  return {
+    mediaId: cover.mediaId || null,
+    name: cover.name || (themeId ? "Cover theme" : "Cover"),
+    type: cover.type || (dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg"),
+    size: cover.size || 0,
+    hasMedia: Boolean(dataUrl || cover.mediaId || themeId),
+    ...(themeId ? { themeId } : {}),
+    ...(dataUrl ? { dataUrl } : {}),
+  };
+}
+
 export async function persistTopicSourceProof(proof) {
   if (!proof) return;
   await persistProofMedia(proof);
@@ -237,8 +266,7 @@ export async function restoreProjectsTopicMedia(projects) {
         (t) =>
           t?.sourceProof?.mediaId ||
           t?.sourceProof?.hasMedia ||
-          t?.coverImage?.mediaId ||
-          t?.coverImage?.hasMedia ||
+          t?.coverImage ||
           (Array.isArray(t?.sources) &&
             t.sources.some((s) => s?.proof?.mediaId || s?.proof?.hasMedia))
       );
@@ -251,7 +279,28 @@ export async function restoreProjectsTopicMedia(projects) {
           }
           let coverImage = t?.coverImage;
           if (coverImage) {
-            coverImage = await restoreProofMedia(coverImage);
+            if (typeof coverImage === "string") {
+              const trimmed = coverImage.trim();
+              const isPreset = COVER_PRESETS.some((p) => p.id === trimmed);
+              const dataUrl = isPreset ? getCoverPresetDataUrl(trimmed) : trimmed;
+              coverImage = {
+                dataUrl,
+                hasMedia: true,
+                name: "Cover theme",
+                type: dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+                ...(isPreset ? { themeId: trimmed } : {}),
+              };
+            } else {
+              if (coverImage.mediaId) {
+                coverImage = await restoreProofMedia(coverImage);
+              }
+              if (!coverImage?.dataUrl && coverImage?.themeId) {
+                coverImage = {
+                  ...coverImage,
+                  dataUrl: getCoverPresetDataUrl(coverImage.themeId),
+                };
+              }
+            }
           }
           let sources = Array.isArray(t?.sources) ? t.sources : [];
           if (sources.length > 0) {
@@ -281,8 +330,16 @@ export async function prepareTopicsForSave(topics) {
     if (t?.sourceProof?.dataUrl && t.sourceProof.mediaId) {
       await persistProofMedia(t.sourceProof);
     }
-    if (t?.coverImage?.dataUrl && t.coverImage.mediaId) {
-      await persistProofMedia(t.coverImage);
+    if (t?.coverImage) {
+      const coverObj = typeof t.coverImage === "string"
+        ? { dataUrl: t.coverImage, hasMedia: true, name: "Cover", type: "image/svg+xml" }
+        : t.coverImage;
+      if (!coverObj.mediaId && coverObj.dataUrl && !coverObj.themeId && !coverObj.dataUrl.startsWith("data:image/svg")) {
+        coverObj.mediaId = `media-cover-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      }
+      if (coverObj.dataUrl && coverObj.mediaId) {
+        await persistProofMedia(coverObj);
+      }
     }
     let sources = Array.isArray(t?.sources) ? t.sources : [];
     if (sources.length > 0) {
@@ -303,7 +360,7 @@ export async function prepareTopicsForSave(topics) {
       ...t,
       source: String(t.source || "").trim(),
       sourceProof: lightSourceProof(t.sourceProof),
-      coverImage: t?.coverImage ? lightSourceProof(t.coverImage) : null,
+      coverImage: t?.coverImage ? lightCoverProof(t.coverImage) : null,
       coverMode: t?.coverMode || (t?.coverImage ? "top" : "none"),
       sources,
     });

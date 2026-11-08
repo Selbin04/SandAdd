@@ -148,21 +148,82 @@ export default function AiProgressWorkspace({
     }
   };
 
+  const resolveItemCoverPayload = (item) => {
+    let coverPayload = item.coverImage;
+    if (!coverPayload && item.coverTheme) {
+      coverPayload = getCoverPresetObject(item.coverTheme);
+    } else if (typeof coverPayload === "string") {
+      const isPreset = COVER_PRESETS.some((p) => p.id === coverPayload);
+      coverPayload = isPreset
+        ? getCoverPresetObject(coverPayload)
+        : {
+            dataUrl: coverPayload,
+            name: "Cover",
+            hasMedia: true,
+            type: coverPayload.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+            themeId: item.coverTheme || undefined,
+          };
+    } else if (coverPayload && typeof coverPayload === "object") {
+      const themeId = coverPayload.themeId || item.coverTheme;
+      if (!coverPayload.dataUrl && themeId) {
+        coverPayload = {
+          ...coverPayload,
+          dataUrl: getCoverPresetDataUrl(themeId),
+          themeId,
+        };
+      }
+    }
+    return coverPayload;
+  };
+
+  const buildItemSources = (item) => {
+    const list = [];
+    const desc = String(item.description || "").trim();
+    const ref = String(item.source || "").trim();
+
+    if (desc) {
+      list.push({
+        id: `src-desc-${item.id || Date.now()}`,
+        title: "Description & Action Plan",
+        type: "text",
+        content: desc,
+        proof: null,
+      });
+    }
+
+    if (ref) {
+      const isUrl = /^https?:\/\//i.test(ref) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(ref);
+      list.push({
+        id: `src-ref-${item.id || Date.now()}`,
+        title: "Reference Resource",
+        type: isUrl ? "link" : "text",
+        content: ref,
+        proof: null,
+      });
+    }
+
+    return list;
+  };
+
   // Push single item directly to progress path
   const handlePushDirectly = (item) => {
     if (readOnlyTasks) {
       showToast?.("Progress folder is in read-only mode");
       return;
     }
-    const coverPayload = item.coverImage
-      ? (typeof item.coverImage === "string" ? getCoverPresetObject(item.coverTheme || "space") : item.coverImage)
-      : item.coverTheme
-        ? getCoverPresetObject(item.coverTheme)
-        : null;
+    const coverPayload = resolveItemCoverPayload(item);
+    const itemSources = buildItemSources(item);
+    const desc = String(item.description || "").trim();
+    const ref = String(item.source || "").trim();
+    const combinedSource = desc && ref
+      ? `${desc}\n\nReference: ${ref}`
+      : desc || ref;
 
     onAddTopic?.(item.text, {
-      source: item.source || item.description || "",
+      source: combinedSource,
       sourceTitle: item.sourceTitle || item.text,
+      description: desc,
+      sources: itemSources,
       coverImage: coverPayload,
       coverMode: item.coverMode || (coverPayload ? "top" : "none"),
       hasCheckbox: true,
@@ -188,15 +249,19 @@ export default function AiProgressWorkspace({
     if (unpushed.length === 0) return;
 
     unpushed.forEach((item) => {
-      const coverPayload = item.coverImage
-        ? (typeof item.coverImage === "string" ? getCoverPresetObject(item.coverTheme || "space") : item.coverImage)
-        : item.coverTheme
-          ? getCoverPresetObject(item.coverTheme)
-          : null;
+      const coverPayload = resolveItemCoverPayload(item);
+      const itemSources = buildItemSources(item);
+      const desc = String(item.description || "").trim();
+      const ref = String(item.source || "").trim();
+      const combinedSource = desc && ref
+        ? `${desc}\n\nReference: ${ref}`
+        : desc || ref;
 
       onAddTopic?.(item.text, {
-        source: item.source || item.description || "",
+        source: combinedSource,
         sourceTitle: item.sourceTitle || item.text,
+        description: desc,
+        sources: itemSources,
         coverImage: coverPayload,
         coverMode: item.coverMode || (coverPayload ? "top" : "none"),
         hasCheckbox: true,
@@ -456,14 +521,28 @@ export default function AiProgressWorkspace({
 
           <form onSubmit={handleGenerateAi} className="ws-gen-form">
             <div className="ws-input-row">
-              <input
-                type="text"
-                className="ws-prompt-input"
-                placeholder={`E.g. Create milestones for ${project?.name || "this progress path"}...`}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                disabled={isGenerating}
-              />
+              <div className="ws-prompt-input-wrapper">
+                <span className="ws-prompt-icon" aria-hidden="true">💡</span>
+                <input
+                  type="text"
+                  className="ws-prompt-input"
+                  placeholder="Enter your prompt / idea (e.g. 'Build an e-commerce website', 'Learn Python data science', 'Marathon preparation plan')..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  disabled={isGenerating}
+                  aria-label="Progress file prompt or idea"
+                />
+                {prompt ? (
+                  <button
+                    type="button"
+                    className="ws-prompt-clear-btn"
+                    onClick={() => setPrompt("")}
+                    title="Clear prompt"
+                  >
+                    ✕
+                  </button>
+                ) : null}
+              </div>
 
               <div className="ws-count-selector" title="Choose 1 to 5 progress files to generate">
                 <span className="ws-count-label">Count:</span>
@@ -488,12 +567,12 @@ export default function AiProgressWorkspace({
                 {isGenerating ? (
                   <>
                     <span className="ws-spinner" aria-hidden="true" />
-                    <span>Generating...</span>
+                    <span>Generating Ideas...</span>
                   </>
                 ) : (
                   <>
                     <span aria-hidden="true">✨</span>
-                    <span>Generate with AI ({count})</span>
+                    <span>Generate Progress Files ({count})</span>
                   </>
                 )}
               </button>
@@ -519,7 +598,7 @@ export default function AiProgressWorkspace({
               <button
                 type="button"
                 className="ws-quick-pill"
-                onClick={() => setPrompt(`Testing, Polish & Capstone Deliverables`)}
+                onClick={() => setPrompt(`Testing, Polish & Capstone Deliverables for ${project?.name || "project"}`)}
               >
                 Testing & Polish
               </button>
@@ -609,35 +688,46 @@ export default function AiProgressWorkspace({
             {filteredItems.map((item) => {
               const isPushed = item.status === "pushed";
               const isScheduled = item.status === "scheduled" && item.scheduledAt;
-              const hasCover = Boolean(item.coverImage);
+              const itemCover = resolveItemCoverPayload(item);
+              const hasCover = Boolean(
+                itemCover &&
+                  (itemCover.dataUrl ||
+                    itemCover.themeId ||
+                    itemCover.mediaId ||
+                    (typeof itemCover === "string" && itemCover.trim().length > 0))
+              );
               const coverMode = item.coverMode || (hasCover ? "top" : "none");
               const isFullCover = hasCover && coverMode === "full";
               const isTopCover = hasCover && coverMode === "top";
               const isSourceExpanded = expandedSourceId === item.id;
               const scheduledDate = isScheduled ? new Date(item.scheduledAt) : null;
               const hasSource = Boolean(item.source || item.description);
+              const sourceCount = (item.description ? 1 : 0) + (item.source ? 1 : 0);
 
               const renderSourceExpand = (isCover = false) => {
                 if (!isSourceExpanded) return null;
                 return (
                   <div className={`ws-item-source-expand ${isCover ? "is-cover-mode" : ""}`}>
-                    {item.description && (
-                      <p className="ws-item-desc-text">
-                        <strong>Deliverable:</strong> {item.description}
-                      </p>
-                    )}
-                    {item.source && (
-                      <p className="ws-item-source-link">
-                        <strong>Reference:</strong>{" "}
-                        <a
-                          href={item.source.startsWith("http") ? item.source : `https://${item.source}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {item.source}
-                        </a>
-                      </p>
-                    )}
+                    {item.description ? (
+                      <div className="ws-source-desc-section">
+                        <span className="ws-source-section-tag">📄 Description & Action Plan</span>
+                        <p className="ws-item-desc-text">{item.description}</p>
+                      </div>
+                    ) : null}
+                    {item.source ? (
+                      <div className="ws-source-link-section">
+                        <span className="ws-source-section-tag">🔗 Reference Resource</span>
+                        <p className="ws-item-source-link">
+                          <a
+                            href={item.source.startsWith("http") ? item.source : `https://${item.source}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {item.source}
+                          </a>
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 );
               };
@@ -755,7 +845,7 @@ export default function AiProgressWorkspace({
                   {isFullCover ? (
                     <div className="done-cover-full-wrapper">
                       <div className="done-cover-full-backdrop">
-                        <DoneCoverImage cover={item.coverImage} className="done-cover-full-img" />
+                        <DoneCoverImage cover={itemCover} className="done-cover-full-img" />
                         <div className="done-cover-full-scrim" />
                       </div>
 
@@ -793,7 +883,7 @@ export default function AiProgressWorkspace({
                             title={hasSource ? item.source || item.description : "No source"}
                           >
                             <span className="done-source-label">
-                              SOURCE ({item.source ? 1 : 0})
+                              SOURCE ({sourceCount})
                             </span>
                           </button>
                         </div>
@@ -829,7 +919,7 @@ export default function AiProgressWorkspace({
                     /* Option 2: Top Banner Cover */
                     <div className="done-cover-top-wrapper">
                       <div className="done-cover-top-banner">
-                        <DoneCoverImage cover={item.coverImage} className="done-cover-top-img" />
+                        <DoneCoverImage cover={itemCover} className="done-cover-top-img" />
                       </div>
 
                       <div className="done-cover-top-body">
@@ -858,10 +948,10 @@ export default function AiProgressWorkspace({
                             >
                               <IconPaperclip className="done-source-icon" />
                               <span className="done-source-label">Source</span>
-                              {item.source ? (
+                              {sourceCount > 0 ? (
                                 <span className="done-source-count-chip">
                                   <span className="done-source-sep">•</span>
-                                  <span className="done-source-count">1</span>
+                                  <span className="done-source-count">{sourceCount}</span>
                                 </span>
                               ) : null}
                             </button>
@@ -921,10 +1011,10 @@ export default function AiProgressWorkspace({
                           >
                             <IconPaperclip className="done-source-icon" />
                             <span className="done-source-label">Source</span>
-                            {item.source ? (
+                            {sourceCount > 0 ? (
                               <span className="done-source-count-chip">
                                 <span className="done-source-sep">•</span>
-                                <span className="done-source-count">1</span>
+                                <span className="done-source-count">{sourceCount}</span>
                               </span>
                             ) : null}
                           </button>
@@ -1278,42 +1368,199 @@ function formatScheduledTime(date) {
 }
 
 function generateLocalProgressFiles(prompt = "", projectName = "", count = 3) {
+  const num = Math.max(1, Math.min(5, parseInt(count, 10) || 3));
+  const raw = `${prompt} ${projectName}`.trim();
+  const lower = raw.toLowerCase();
+
+  // Extract clean subject from user prompt
+  let subject = prompt.trim()
+    .replace(/^(create|make|generate|build|give me|write|design|plan|prepare|learn|master)\s+/i, "")
+    .replace(/^(milestones|steps|progress files|tasks|roadmap|plan)\s+(for|about|to|on)\s+/i, "")
+    .replace(/^(how to|in \d+ steps?)\s+/i, "")
+    .replace(/\s+(in \d+ steps?|up to \d+|milestones?)$/i, "")
+    .trim();
+
+  if (!subject) {
+    subject = projectName.trim() || "Progress Milestone";
+  }
+
+  subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+
+  let pool = [];
+
+  if (/react|next\.?js|vue|angular|svelte|frontend|web\s*dev|html|css|tailwind|javascript|typescript/i.test(lower)) {
+    pool = [
+      {
+        title: `Phase 1: Project Setup & Core Tooling for ${subject}`,
+        desc: `Initialize project repository, install development dependencies, configure linting, and establish modern folder architecture for ${subject}.`,
+        source: "https://developer.mozilla.org/en-US/docs/Learn",
+        coverTheme: "neon",
+      },
+      {
+        title: `Phase 2: Component Architecture & State Management for ${subject}`,
+        desc: `Build reusable UI primitive components, structure modular layouts, and implement responsive state management patterns.`,
+        source: "https://react.dev/learn",
+        coverTheme: "space",
+      },
+      {
+        title: `Phase 3: Interactive Workflows & Data Integration for ${subject}`,
+        desc: `Connect user interface forms to backend endpoints, handle asynchronous loading states, and implement robust error boundaries.`,
+        source: "https://web.dev/learn",
+        coverTheme: "midnight",
+      },
+      {
+        title: `Phase 4: Optimization, Accessibility & Automated Testing for ${subject}`,
+        desc: `Conduct performance audits, adhere to WCAG accessibility criteria, minimize bundle size, and write unit/integration test coverage.`,
+        source: "https://vite.dev/guide/",
+        coverTheme: "royal",
+      },
+      {
+        title: `Phase 5: Production Deployment & Verification for ${subject}`,
+        desc: `Configure CI/CD build pipelines, deploy to cloud hosting with custom domains, and verify cross-browser responsiveness.`,
+        source: "https://vercel.com/docs",
+        coverTheme: "sunset",
+      },
+    ];
+  } else if (/python|ai|machine\s*learning|deep\s*learning|data\s*science|pandas|pytorch|tensorflow|nlp|llm/i.test(lower)) {
+    pool = [
+      {
+        title: `Phase 1: Environment Setup & Dataset Ingestion for ${subject}`,
+        desc: `Set up Python virtual environment, install data analysis libraries, and load raw datasets with automated verification.`,
+        source: "https://docs.python.org/3/tutorial/",
+        coverTheme: "space",
+      },
+      {
+        title: `Phase 2: Exploratory Analysis & Feature Engineering for ${subject}`,
+        desc: `Clean missing values, generate statistical distributions, and transform input features for predictive modeling.`,
+        source: "https://pandas.pydata.org/docs/getting_started/",
+        coverTheme: "midnight",
+      },
+      {
+        title: `Phase 3: Model Architecture & Baseline Training for ${subject}`,
+        desc: `Design baseline algorithm, establish cross-validation splits, and train initial models with loss metric tracking.`,
+        source: "https://pytorch.org/tutorials/",
+        coverTheme: "neon",
+      },
+      {
+        title: `Phase 4: Hyperparameter Tuning & Model Validation for ${subject}`,
+        desc: `Tune hyperparameters, compare test accuracy across benchmarks, and generate confusion matrices and error reports.`,
+        source: "https://huggingface.co/docs",
+        coverTheme: "royal",
+      },
+      {
+        title: `Phase 5: Inference Pipeline & Practical Deployment for ${subject}`,
+        desc: `Export trained weights, containerize inference service with FastAPI, and document reproducible execution steps.`,
+        source: "https://scikit-learn.org/stable/tutorial/",
+        coverTheme: "forest",
+      },
+    ];
+  } else if (/fitness|workout|gym|health|diet|running|marathon|weight|exercise|nutrition|yoga/i.test(lower)) {
+    pool = [
+      {
+        title: `Phase 1: Baseline Assessment & Goal Calibration for ${subject}`,
+        desc: `Record baseline fitness metrics, establish safe movement standards, and outline weekly training volume targets for ${subject}.`,
+        source: "https://www.who.int/health-topics/physical-activity",
+        coverTheme: "forest",
+      },
+      {
+        title: `Phase 2: Nutritional Blueprint & Hydration Protocol for ${subject}`,
+        desc: `Calculate daily macronutrient targets, plan nutrient-dense meals, and establish consistent hydration timing for optimal energy.`,
+        source: "https://nutrition.gov/topics/basic-nutrition",
+        coverTheme: "sunset",
+      },
+      {
+        title: `Phase 3: Core Conditioning & Movement Mechanics for ${subject}`,
+        desc: `Execute dynamic warm-ups, master proper biomechanical form across key compound movements, and track initial sets.`,
+        source: "https://www.acefitness.org/resources/everyone/exercise-library/",
+        coverTheme: "neon",
+      },
+      {
+        title: `Phase 4: Progressive Overload & Endurance Scaling for ${subject}`,
+        desc: `Systematically increase training resistance, pace, or intervals while maintaining strict recovery protocols.`,
+        source: "https://www.runnersworld.com/training/",
+        coverTheme: "space",
+      },
+      {
+        title: `Phase 5: Performance Benchmark & Long-Term Roadmap for ${subject}`,
+        desc: `Re-evaluate physical benchmarks against initial baselines, analyze adaptations, and build a sustainable maintenance plan.`,
+        source: "https://bodybuilding.com/content",
+        coverTheme: "royal",
+      },
+    ];
+  } else if (/business|startup|saas|marketing|ecommerce|sales|product|launch|finance/i.test(lower)) {
+    pool = [
+      {
+        title: `Phase 1: Market Research & Audience Discovery for ${subject}`,
+        desc: `Identify high-urgency customer pain points, conduct competitor gap analysis, and define unique value proposition for ${subject}.`,
+        source: "https://hbr.org",
+        coverTheme: "midnight",
+      },
+      {
+        title: `Phase 2: Value Proposition & Offer Packaging for ${subject}`,
+        desc: `Draft compelling offer copy, outline tiered pricing structures, and create risk-reversal guarantees for conversion.`,
+        source: "https://ycombinator.com/library",
+        coverTheme: "sunset",
+      },
+      {
+        title: `Phase 3: High-Converting Landing Experience for ${subject}`,
+        desc: `Build responsive conversion page, integrate lead capture forms, and instrument analytics funnels.`,
+        source: "https://stripe.com/resources",
+        coverTheme: "space",
+      },
+      {
+        title: `Phase 4: Multi-Channel Outreach & Traffic Acquisition for ${subject}`,
+        desc: `Launch targeted distribution across search, social communities, and direct partner channels to validate traffic.`,
+        source: "https://moz.com/beginners-guide-to-seo",
+        coverTheme: "neon",
+      },
+      {
+        title: `Phase 5: KPI Review, Conversion Optimization & Scaling for ${subject}`,
+        desc: `Analyze acquisition costs, gather customer feedback, optimize churn points, and scale winning promotional vectors.`,
+        source: "https://help.shopify.com",
+        coverTheme: "royal",
+      },
+    ];
+  } else {
+    const enc = encodeURIComponent(subject.split(" ")[0].toLowerCase());
+    pool = [
+      {
+        title: `Phase 1: Foundations, Scope & Setup for ${subject}`,
+        desc: `Research essential principles, organize prerequisite resources, and establish workspace foundations for ${subject}.`,
+        source: `https://en.wikipedia.org/wiki/${enc || "Productivity"}`,
+        coverTheme: "space",
+      },
+      {
+        title: `Phase 2: Core Methodology & First Prototype for ${subject}`,
+        desc: `Map out sequential steps, construct initial functional drafts, and test early assumptions against clear success criteria.`,
+        source: "https://khanacademy.org",
+        coverTheme: "neon",
+      },
+      {
+        title: `Phase 3: Deep Execution & Key Deliverables for ${subject}`,
+        desc: `Tackle primary workload, produce tangible milestone artifacts, and document key findings and best practices.`,
+        source: "https://notion.so",
+        coverTheme: "sunset",
+      },
+      {
+        title: `Phase 4: Quality Review, Polish & Refinement for ${subject}`,
+        desc: `Identify edge cases, eliminate friction, polish visual/technical quality, and ensure rigorous standards for ${subject}.`,
+        source: "https://medium.com",
+        coverTheme: "midnight",
+      },
+      {
+        title: `Phase 5: Capstone Completion, Validation & Launch for ${subject}`,
+        desc: `Synthesize finished components, conduct final verification, publish milestone documentation, and celebrate completion.`,
+        source: "https://github.com",
+        coverTheme: "royal",
+      },
+    ];
+  }
+
   const themes = ["space", "sunset", "neon", "forest", "royal", "midnight"];
-  const num = Math.max(1, Math.min(5, count));
-  const baseTitle = prompt.trim() || projectName || "Progress Milestone";
-
-  const templates = [
-    {
-      title: `1. Foundations & Setup: ${baseTitle}`,
-      desc: "Establish core prerequisites, configure tools and define required deliverables.",
-      source: "https://developer.mozilla.org",
-    },
-    {
-      title: `2. Core Implementation: ${baseTitle}`,
-      desc: "Build key functions, construct primary workflow and assemble foundational assets.",
-      source: "https://web.dev",
-    },
-    {
-      title: `3. Testing & Iteration: ${baseTitle}`,
-      desc: "Validate edge cases, gather feedback and refine functionality for stability.",
-      source: "https://github.com",
-    },
-    {
-      title: `4. Advanced Integration & Polish: ${baseTitle}`,
-      desc: "Connect integrations, optimize efficiency and enhance overall polish.",
-      source: "https://notion.so",
-    },
-    {
-      title: `5. Final Review & Capstone Deployment: ${baseTitle}`,
-      desc: "Complete comprehensive sign-off, publish deliverables and celebrate progress path.",
-      source: "https://medium.com",
-    },
-  ];
-
-  return templates.slice(0, num).map((t, i) => ({
+  return pool.slice(0, num).map((t, i) => ({
     text: t.title,
     description: t.desc,
     source: t.source,
-    coverTheme: themes[i % themes.length],
+    coverTheme: t.coverTheme || themes[i % themes.length],
   }));
 }

@@ -112,13 +112,13 @@ function parseProjectInput(body, { partial = false } = {}) {
           name: "Cover theme",
           type: coverProof.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
         };
-      } else if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl)) {
+      } else if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl || coverProof.themeId)) {
         coverImage = {
           mediaId: String(coverProof.mediaId || ""),
           name: String(coverProof.name || "").slice(0, 120),
           type: String(coverProof.type || "").slice(0, 80),
           size: Number(coverProof.size) || 0,
-          hasMedia: Boolean(coverProof.hasMedia || coverProof.mediaId || coverProof.dataUrl),
+          hasMedia: Boolean(coverProof.hasMedia || coverProof.mediaId || coverProof.dataUrl || coverProof.themeId),
           ...(coverProof.dataUrl ? { dataUrl: coverProof.dataUrl } : {}),
           ...(coverProof.themeId ? { themeId: String(coverProof.themeId) } : {}),
         };
@@ -131,6 +131,7 @@ function parseProjectInput(body, { partial = false } = {}) {
       return {
         id: String(topic?.id || `${Date.now()}-${index}`),
         text,
+        description: String(topic?.description || "").trim().slice(0, 4000),
         done: Boolean(topic?.done),
         hasCheckbox,
         checkboxEnabled: hasCheckbox,
@@ -230,6 +231,7 @@ function asProject(doc) {
     stars: Math.min(5, Math.max(0, Number(obj.stars) || 0)),
     topics: (Array.isArray(obj.topics) ? obj.topics : []).map((t) => ({
       ...t,
+      description: String(t.description || ""),
       hasCheckbox: t.hasCheckbox !== false && t.checkboxEnabled !== false,
       checkboxEnabled: t.hasCheckbox !== false && t.checkboxEnabled !== false,
       sourceTitle: String(t.sourceTitle || ""),
