@@ -752,5 +752,287 @@ Return a JSON object with this exact structure:
     }
   });
 
+  /**
+   * AI Workspace: Generate up to 5 progress files at once
+   */
+  router.post("/generate-topics", async (req, res) => {
+    try {
+      const {
+        prompt = "",
+        count = 3,
+        projectName = "",
+        existingTopics = [],
+        clientApiKey = "",
+      } = req.body || {};
+
+      const numItems = Math.max(1, Math.min(5, parseInt(count, 10) || 3));
+      const cleanPrompt = String(prompt || "").trim();
+      const apiKey =
+        clientApiKey ||
+        process.env.GEMINI_API_KEY ||
+        process.env.GOOGLE_API_KEY ||
+        process.env.OPENAI_API_KEY ||
+        "";
+
+      let generatedTopics = [];
+
+      // 1. If Gemini API key is available, generate with Gemini
+      if (apiKey) {
+        try {
+          const geminiPrompt = `You are a productivity AI assistant and progress path planner.
+Project Name: "${projectName || "Progress Folder"}"
+User Goal/Prompt: "${cleanPrompt || "Create milestones for this folder"}"
+Existing Milestones in folder: ${
+            Array.isArray(existingTopics) && existingTopics.length > 0
+              ? existingTopics.map((t) => (typeof t === "string" ? t : t?.text || "")).filter(Boolean).join(", ")
+              : "None yet"
+          }
+
+Task:
+Generate exactly ${numItems} practical, distinct, highly actionable progress files (milestones/steps) that build upon each other in sequence.
+For each progress file, provide:
+- "text": A crisp, motivating milestone title (5-10 words, e.g. "Draft Core Architecture & Data Models")
+- "description": 1-2 sentences explaining specifically what to accomplish or deliver
+- "source": Suggested reference URL, documentation search term, or reading resource
+- "coverTheme": One of ["space", "sunset", "neon", "forest", "royal", "midnight"]
+- "estimatedMinutes": Suggested time in minutes (e.g. 30, 45, 60)
+
+Return ONLY a strict JSON array of objects with the exact keys: text, description, source, coverTheme, estimatedMinutes.
+Example format:
+[
+  {
+    "text": "Set Up Environment & Core Dependencies",
+    "description": "Initialize repository structure, install required libraries, and verify build setup.",
+    "source": "https://developer.mozilla.org",
+    "coverTheme": "neon",
+    "estimatedMinutes": 30
+  }
+]`;
+
+          const geminiResult = await callGeminiApi({ prompt: geminiPrompt, apiKey });
+          if (Array.isArray(geminiResult)) {
+            generatedTopics = geminiResult;
+          } else if (geminiResult && Array.isArray(geminiResult.topics)) {
+            generatedTopics = geminiResult.topics;
+          }
+        } catch (geminiErr) {
+          console.warn("Gemini generation fallback:", geminiErr?.message);
+        }
+      }
+
+      // 2. Intelligent local fallback generator if no API key or Gemini failed
+      if (!Array.isArray(generatedTopics) || generatedTopics.length === 0) {
+        generatedTopics = generateFallbackMilestones(cleanPrompt, projectName, numItems);
+      }
+
+      // Sanitize and ensure maximum 5 items
+      const sanitized = generatedTopics.slice(0, numItems).map((item, idx) => ({
+        id: `gen_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+        text: String(item.text || `Progress Step ${idx + 1}`).trim(),
+        description: String(item.description || "Actionable milestone for this progress path.").trim(),
+        source: String(item.source || "").trim(),
+        coverTheme: item.coverTheme || ["space", "sunset", "neon", "forest", "royal", "midnight"][idx % 6],
+        estimatedMinutes: parseInt(item.estimatedMinutes, 10) || 45,
+      }));
+
+      return res.json({
+        ok: true,
+        count: sanitized.length,
+        topics: sanitized,
+      });
+    } catch (err) {
+      console.error("AI generate-topics failed:", err);
+      return res.status(500).json({
+        error: "Failed to generate progress files",
+        details: err?.message,
+      });
+    }
+  });
+
   return router;
+}
+
+/**
+ * Intelligent domain-aware milestone generator fallback
+ */
+function generateFallbackMilestones(prompt = "", projectName = "", count = 3) {
+  const query = `${projectName} ${prompt}`.toLowerCase();
+  const themes = ["space", "sunset", "neon", "forest", "royal", "midnight"];
+
+  let pool = [];
+
+  if (/code|react|node|api|python|app|dev|web|sql|fullstack|js|software/i.test(query)) {
+    pool = [
+      {
+        text: "Initialize Project Architecture & Environment",
+        description: "Configure development dependencies, linting, directory layout, and git repo.",
+        source: "https://developer.mozilla.org",
+        coverTheme: "neon",
+      },
+      {
+        text: "Design Core Schema, State & Models",
+        description: "Establish foundational data structures, state management flow, and validation rules.",
+        source: "https://react.dev",
+        coverTheme: "space",
+      },
+      {
+        text: "Implement Primary User Workflow & Interface",
+        description: "Build the primary interactive view and connect data inputs to backend handlers.",
+        source: "https://web.dev",
+        coverTheme: "midnight",
+      },
+      {
+        text: "Integrate Real-time Sync, Error Boundaries & Tests",
+        description: "Add robust error catching, edge-case coverage, and unit test validations.",
+        source: "https://vitest.dev",
+        coverTheme: "royal",
+      },
+      {
+        text: "Performance Audit, Optimization & Deployment",
+        description: "Run bundle analysis, compress assets, and deploy to production environment.",
+        source: "https://vercel.com/docs",
+        coverTheme: "sunset",
+      },
+    ];
+  } else if (/fitness|workout|gym|health|diet|run|marathon|weight/i.test(query)) {
+    pool = [
+      {
+        text: "Baseline Assessment & Goal Definition",
+        description: "Record starting metrics, define daily target thresholds, and calibrate timeline.",
+        source: "https://www.who.int/health-topics/physical-activity",
+        coverTheme: "forest",
+      },
+      {
+        text: "Nutrition Blueprint & Hydration Protocol",
+        description: "Formulate daily meal planning, protein targets, and recovery hydration schedule.",
+        source: "https://nutrition.gov",
+        coverTheme: "sunset",
+      },
+      {
+        text: "Core Endurance & Functional Mobility Routine",
+        description: "Complete dynamic warm-up protocol and foundational multi-joint movements.",
+        source: "https://acefitness.org",
+        coverTheme: "neon",
+      },
+      {
+        text: "Progressive Overload & Intensity Calibration",
+        description: "Systematically increase volume or pace while maintaining biomechanical form.",
+        source: "https://bodybuilding.com",
+        coverTheme: "space",
+      },
+      {
+        text: "Milestone Benchmark Test & Recovery Review",
+        description: "Measure progress against initial baseline and refine schedule for next cycle.",
+        source: "https://runnersworld.com",
+        coverTheme: "royal",
+      },
+    ];
+  } else if (/learn|study|exam|course|book|language|french|spanish|japanese|history/i.test(query)) {
+    pool = [
+      {
+        text: "Foundations & High-Frequency Core Concepts",
+        description: "Master the 20% of essential fundamentals that drive 80% of practical comprehension.",
+        source: "https://en.wikipedia.org",
+        coverTheme: "royal",
+      },
+      {
+        text: "Active Recall Flashcards & Spaced Practice",
+        description: "Build custom practice drills and review key terminology without reference notes.",
+        source: "https://ankisrs.net",
+        coverTheme: "midnight",
+      },
+      {
+        text: "Applied Scenario Simulation & Problem Solving",
+        description: "Tackle real-world exercises and synthesize notes into concise mental models.",
+        source: "https://khanacademy.org",
+        coverTheme: "space",
+      },
+      {
+        text: "Deep Dive into Advanced Edge Cases & Nuance",
+        description: "Analyze complex exceptions, specialized patterns, and contextual usage.",
+        source: "https://coursera.org",
+        coverTheme: "neon",
+      },
+      {
+        text: "Synthesis Capstone & Comprehensive Review",
+        description: "Explain the entire subject in your own words and complete full benchmark assessment.",
+        source: "https://edx.org",
+        coverTheme: "sunset",
+      },
+    ];
+  } else if (/business|startup|marketing|sales|product|launch|finance/i.test(query)) {
+    pool = [
+      {
+        text: "Market Research & Target Audience Persona",
+        description: "Identify high-pain customer segments, competitor positioning, and unique value proposition.",
+        source: "https://hbr.org",
+        coverTheme: "midnight",
+      },
+      {
+        text: "Value Proposition Canvas & Offer Packaging",
+        description: "Craft compelling messaging, pricing tiers, and risk-reversal guarantees.",
+        source: "https://strategyzer.com",
+        coverTheme: "sunset",
+      },
+      {
+        text: "Funnel Blueprint & High-Converting Landing Flow",
+        description: "Build lead capture mechanism, clear CTA pathway, and conversion analytics.",
+        source: "https://stripe.com/resources",
+        coverTheme: "space",
+      },
+      {
+        text: "Multi-Channel Distribution & Outreach Pilot",
+        description: "Launch targeted outreach across direct messaging, search, and community channels.",
+        source: "https://hubspot.com",
+        coverTheme: "neon",
+      },
+      {
+        text: "KPI Review, Churn Analysis & Scale Strategy",
+        description: "Evaluate conversion rates, gather qualitative feedback, and double down on winning channels.",
+        source: "https://ycombinator.com/library",
+        coverTheme: "royal",
+      },
+    ];
+  } else {
+    // Universal milestones
+    const subject = prompt || projectName || "Milestone";
+    pool = [
+      {
+        text: `Phase 1: Exploration & Foundations of ${subject}`,
+        description: `Research prerequisites, outline objectives, and establish workspace setup for ${subject}.`,
+        source: "https://google.com",
+        coverTheme: "space",
+      },
+      {
+        text: `Phase 2: Core Implementation & Key Deliverables`,
+        description: `Execute main workload, produce primary assets, and document step-by-step findings.`,
+        source: "https://notion.so",
+        coverTheme: "neon",
+      },
+      {
+        text: `Phase 3: Testing, Refinement & Quality Polish`,
+        description: `Identify friction points, polish outputs, and verify standards against requirements.`,
+        source: "https://medium.com",
+        coverTheme: "sunset",
+      },
+      {
+        text: `Phase 4: Practical Integration & Validation`,
+        description: `Test in real-world scenario, collect peer or self feedback, and eliminate bottlenecks.`,
+        source: "https://github.com",
+        coverTheme: "midnight",
+      },
+      {
+        text: `Phase 5: Final Review, Documentation & Capstone`,
+        description: `Package completed work, celebrate milestone completion, and outline next progression.`,
+        source: "https://wikipedia.org",
+        coverTheme: "royal",
+      },
+    ];
+  }
+
+  return pool.slice(0, count).map((item, idx) => ({
+    ...item,
+    coverTheme: themes[idx % themes.length],
+    estimatedMinutes: 30 + idx * 15,
+  }));
 }

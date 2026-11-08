@@ -211,6 +211,15 @@ export async function summarizeSourceApi({ type, content, proof, title }) {
   return readJson(res, "Could not summarize source");
 }
 
+export async function generateTopicsApi({ prompt, count = 3, projectName = "", existingTopics = [], clientApiKey = "" } = {}) {
+  const res = await fetch(`${API}/ai/generate-topics`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt, count, projectName, existingTopics, clientApiKey }),
+  });
+  return readJson(res, "Could not generate progress files with AI");
+}
+
 export async function fetchSocialPosts({ scope = "view", groupId = null, topicId = null } = {}) {
   const params = new URLSearchParams();
   if (topicId) {

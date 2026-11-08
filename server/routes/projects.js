@@ -105,7 +105,14 @@ function parseProjectInput(body, { partial = false } = {}) {
       const asks = Array.isArray(topic?.asks) ? topic.asks : [];
       const coverProof = topic?.coverImage;
       let coverImage = null;
-      if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl)) {
+      if (typeof coverProof === "string" && coverProof.trim()) {
+        coverImage = {
+          dataUrl: coverProof.trim(),
+          hasMedia: true,
+          name: "Cover theme",
+          type: coverProof.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+        };
+      } else if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl)) {
         coverImage = {
           mediaId: String(coverProof.mediaId || ""),
           name: String(coverProof.name || "").slice(0, 120),
@@ -113,6 +120,7 @@ function parseProjectInput(body, { partial = false } = {}) {
           size: Number(coverProof.size) || 0,
           hasMedia: Boolean(coverProof.hasMedia || coverProof.mediaId || coverProof.dataUrl),
           ...(coverProof.dataUrl ? { dataUrl: coverProof.dataUrl } : {}),
+          ...(coverProof.themeId ? { themeId: String(coverProof.themeId) } : {}),
         };
       }
       const rawMode = String(topic?.coverMode || "").toLowerCase();

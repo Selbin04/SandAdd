@@ -1,3 +1,5 @@
+@import "./AiProgressWorkspace.css";
+
 .done-backdrop {
   position: fixed;
   inset: 0;
@@ -55,6 +57,14 @@
   border: 1.5px solid #0284c7;
   background: color-mix(in srgb, #BEE3EF 12%, var(--panel));
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), height 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.done-card.has-workspace-open:not(.done-card-inline) {
+  width: min(540px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  min-height: min(600px, calc(100vh - 36px));
+  height: min(720px, calc(100vh - 36px));
 }
 
 .done-inline {
@@ -3801,6 +3811,56 @@
   background: color-mix(in srgb, var(--brass) 12%, transparent);
 }
 
+/* Aesthetic Preset Themes in DonePopup Cover Modal */
+.done-cover-presets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cover-presets-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.done-cover-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.done-cover-preset-chip {
+  height: 48px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: flex-end;
+  padding: 6px 8px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.done-cover-preset-chip:hover {
+  transform: translateY(-1px);
+}
+
+.done-cover-preset-chip.is-active {
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
+}
+
+.done-preset-chip-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  line-height: 1.2;
+}
+
 .cover-modal-footer {
   display: flex;
   align-items: center;
@@ -4130,6 +4190,219 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* =====================================================================
+   Hourglass Action Menu & Modals (Workspace, View, Document, Customize, Export, Report)
+   ===================================================================== */
+.done-head-hourglass-btn.is-active {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.hourglass-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: transparent;
+}
+
+.hourglass-action-menu {
+  position: fixed;
+  z-index: 100000;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  min-width: 195px;
+  background: var(--panel, #182026);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: task-menu-pop 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hourglass-action-menu li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hourglass-action-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper, #f2f6fa);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.hourglass-action-item-btn:hover {
+  background: var(--surface-strong, rgba(255, 255, 255, 0.08));
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.hourglass-action-item-btn:active {
+  transform: scale(0.98);
+}
+
+.hourglass-action-item-btn .menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--muted, #94a3b8);
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+
+.hourglass-action-item-btn:hover .menu-item-icon {
+  color: #38bdf8;
+}
+
+.hourglass-action-item-btn.is-report:hover .menu-item-icon {
+  color: #ef4444;
+}
+
+.hourglass-action-item-btn.is-report:hover {
+  color: #ef4444;
+}
+
+.hourglass-action-item-label {
+  flex: 1;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.hourglass-action-item-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted, #94a3b8);
+  letter-spacing: 0.02em;
+}
+
+.hourglass-action-item-btn:hover .hourglass-action-item-badge {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] .hourglass-action-menu {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .hourglass-action-item-btn {
+  color: #0f172a;
+}
+
+[data-theme="light"] .hourglass-action-item-btn:hover {
+  background: #f1f5f9;
+  color: #0284c7;
+}
+
+[data-theme="light"] .hourglass-action-item-btn .menu-item-icon {
+  color: #64748b;
+}
+
+[data-theme="light"] .hourglass-action-item-btn:hover .menu-item-icon {
+  color: #0284c7;
+}
+
+[data-theme="light"] .hourglass-action-item-badge {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Export Modal Specific Cards */
+.done-export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 16px 0 20px 0;
+}
+
+.done-export-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  background: var(--surface, rgba(255, 255, 255, 0.04));
+  color: var(--paper, #f2f6fa);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.done-export-card-btn:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.done-export-card-btn:active {
+  transform: scale(0.98);
+}
+
+.done-export-card-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.done-export-card-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.done-export-card-desc {
+  font-size: 11px;
+  color: var(--muted, #94a3b8);
+  text-align: center;
+}
+
+/* Customize Form styling */
+.done-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #94a3b8);
+}
+
+.done-customize-input {
+  height: 38px;
+  padding: 8px 12px;
+  resize: none;
+}
+
+/* Kanban in DonePopup */
+.done-kanban-wrapper {
+  padding: 12px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 520px;
 }
 
 

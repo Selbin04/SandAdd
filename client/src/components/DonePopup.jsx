@@ -32,6 +32,9 @@ import {
   formatStatCount,
 } from "../lib/projectStats.js";
 import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
+import KanbanBoard from "./KanbanBoard.jsx";
+import AiProgressWorkspace from "./AiProgressWorkspace.jsx";
+import { checkAndTriggerScheduled, COVER_PRESETS, getCoverPresetObject, getCoverPresetDataUrl } from "../lib/scheduledProgressStore.js";
 import "./DonePopup.css";
 
 function normalizeSourceUrl(raw) {
@@ -410,20 +413,28 @@ function IconNoCover({ className = "" }) {
 }
 
 function DoneCoverImage({ cover, className = "" }) {
-  const [url, setUrl] = useState(
-    cover?.dataUrl || (typeof cover === "string" ? cover : "")
-  );
+  const resolveCoverUrl = (c) => {
+    if (!c) return "";
+    if (typeof c === "string") return c;
+    return c.dataUrl || "";
+  };
+
+  const [url, setUrl] = useState(() => resolveCoverUrl(cover));
 
   useEffect(() => {
-    if (cover?.dataUrl) {
-      setUrl(cover.dataUrl);
+    if (!cover) {
+      setUrl("");
       return;
     }
     if (typeof cover === "string" && cover) {
       setUrl(cover);
       return;
     }
-    if (cover?.mediaId) {
+    if (cover.dataUrl) {
+      setUrl(cover.dataUrl);
+      return;
+    }
+    if (cover.mediaId) {
       let alive = true;
       restoreTopicSourceProof(cover).then((full) => {
         if (alive && full?.dataUrl) {
@@ -435,7 +446,7 @@ function DoneCoverImage({ cover, className = "" }) {
       };
     }
     setUrl("");
-  }, [cover?.dataUrl, cover?.mediaId]);
+  }, [cover, cover?.dataUrl, cover?.mediaId]);
 
   if (!url) return null;
   return <img src={url} alt="Cover" className={className} />;
@@ -663,6 +674,7 @@ export default function DonePopup({
   const addCoverFileRef = useRef(null);
   const [coverModalTopic, setCoverModalTopic] = useState(null);
   const [coverModalImage, setCoverModalImage] = useState(null);
+  const [coverModalTheme, setCoverModalTheme] = useState("space");
   const [coverModalMode, setCoverModalMode] = useState("top");
   const changeCoverFileRef = useRef(null);
   const [sourceError, setSourceError] = useState("");
@@ -860,6 +872,257 @@ export default function DonePopup({
   }, [project?._id, project?.originId, project?.sharedTemplateId, project?.followersCount, allProjects]);
 
   const [topicPostsCounts, setTopicPostsCounts] = useState({});
+
+  // Hourglass Menu & Action States (Workspace, View, Document, Customize, Export, Report)
+  const [showHourglassMenu, setShowHourglassMenu] = useState(false);
+  const [showWorkspacePage, setShowWorkspacePage] = useState(false);
+  const [hourglassMenuStyle, setHourglassMenuStyle] = useState({});
+  const hourglassBtnRef = useRef(null);
+  const hourglassMenuRef = useRef(null);
+  const [folderViewMode, setFolderViewMode] = useState("list");
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [customFolderName, setCustomFolderName] = useState(project?.name || "");
+  const [customFolderAbout, setCustomFolderAbout] = useState(project?.about || "");
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showFolderReportModal, setShowFolderReportModal] = useState(false);
+  const [folderReportReason, setFolderReportReason] = useState("Inappropriate or misleading content");
+  const [folderReportDetails, setFolderReportDetails] = useState("");
+
+  // Background Auto-Push Check for Scheduled Progress Files
+  useEffect(() => {
+    const projId = project?._id || project?.id;
+    if (!projId || !onAdd) return;
+
+    // Check immediately on mount/update
+    const initialPushed = checkAndTriggerScheduled(projId, (text, info) => {
+      onAdd(projId, text, info);
+    });
+    if (initialPushed && initialPushed.length > 0) {
+      initialPushed.forEach((p) => {
+        showToast(`⏰ Auto-pushed scheduled progress file: "${p.text}"`);
+      });
+    }
+
+    // Interval check every 10 seconds
+    const schedTimer = setInterval(() => {
+      const pushed = checkAndTriggerScheduled(projId, (text, info) => {
+        onAdd(projId, text, info);
+      });
+      if (pushed && pushed.length > 0) {
+        pushed.forEach((p) => {
+          showToast(`⏰ Auto-pushed scheduled progress file: "${p.text}"`);
+        });
+      }
+    }, 10000);
+
+    return () => clearInterval(schedTimer);
+  }, [project?._id, project?.id, onAdd]);
+
+  const handleToggleHourglassMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (showHourglassMenu) {
+      setShowHourglassMenu(false);
+      return;
+    }
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = 195;
+    const menuHeight = 265;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const isAbove = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+    const menuLeft = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+
+    setHourglassMenuStyle({
+      position: "fixed",
+      left: `${menuLeft}px`,
+      top: isAbove ? "auto" : `${rect.bottom + 6}px`,
+      bottom: isAbove ? `${window.innerHeight - rect.top + 6}px` : "auto",
+      zIndex: 100000,
+    });
+    setShowHourglassMenu(true);
+  };
+
+  const handleSelectProggWorkspace = () => {
+    setShowHourglassMenu(false);
+    setShowWorkspacePage(true);
+  };
+
+  const handleSelectView = () => {
+    setShowHourglassMenu(false);
+    setShowHourglassModal(true);
+  };
+
+  const handleSelectDocument = () => {
+    setShowHourglassMenu(false);
+    const completedCount = allTopics.filter((t) => t.done).length;
+    const docLines = [
+      `# ${project.name}`,
+      "",
+      project.about?.trim() ? `> ${project.about.trim()}\n` : "",
+      `### Progress Path Overview`,
+      `- **Total Progress Files:** ${allTopics.length}`,
+      `- **Completed Milestones:** ${completedCount} / ${allTopics.length} (${allTopics.length > 0 ? Math.round((completedCount / allTopics.length) * 100) : 0}%)`,
+      `- **Community Stats:** ${displayFolderLikes.toLocaleString()} likes · ${displayFolderMembers.toLocaleString()} members`,
+      "",
+      `### Progress Files Checklist`,
+      "",
+      ...allTopics.map((t, idx) => {
+        const check = t.done ? "[x]" : "[ ]";
+        const sources = getTopicSources(t);
+        let itemStr = `${idx + 1}. ${check} **${t.text}**`;
+        if (sources.length > 0) {
+          const sourceLabels = sources.map((s) => s.content || s.proof?.name || s.type).join(", ");
+          itemStr += `\n   - *Sources:* ${sourceLabels}`;
+        }
+        return itemStr;
+      }),
+      "",
+      "---",
+      `*Generated from ${project.name} on ${new Date().toLocaleDateString(undefined, { dateStyle: "long" })}*`,
+    ];
+
+    setFullScreenSource({
+      title: `${project.name} — Document`,
+      subtitle: `${allTopics.length} progress files · ${completedCount} completed`,
+      content: docLines.join("\n"),
+      canEdit: !readOnlyTasks,
+      initialEditing: false,
+      onSave: () => {
+        showToast("Document notes updated");
+        setFullScreenSource(null);
+      },
+    });
+  };
+
+  const handleSelectCustomize = () => {
+    setShowHourglassMenu(false);
+    setCustomFolderName(project?.name || "");
+    setCustomFolderAbout(project?.about || "");
+    setShowCustomizeModal(true);
+  };
+
+  const handleSaveCustomize = (e) => {
+    e.preventDefault();
+    const newName = customFolderName.trim();
+    if (!newName) return;
+    project.name = newName;
+    project.about = customFolderAbout.trim();
+
+    try {
+      const raw = localStorage.getItem("sandadd.projects");
+      if (raw) {
+        const list = JSON.parse(raw);
+        const updated = list.map((p) =>
+          p._id === project._id || p.id === project.id
+            ? { ...p, name: newName, about: project.about }
+            : p
+        );
+        localStorage.setItem("sandadd.projects", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("sandadd:project-updated"));
+      }
+    } catch {}
+
+    showToast("Progress folder customized successfully");
+    setShowCustomizeModal(false);
+  };
+
+  const handleSelectExport = () => {
+    setShowHourglassMenu(false);
+    setShowExportModal(true);
+  };
+
+  const downloadFile = (filename, fileContent, mimeType) => {
+    const blob = new Blob([fileContent], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportMarkdown = () => {
+    const safeName = (project.name || "progress").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    const completedCount = allTopics.filter((t) => t.done).length;
+    const mdLines = [
+      `# ${project.name}`,
+      "",
+      project.about?.trim() ? `> ${project.about.trim()}\n` : "",
+      `- Completed: ${completedCount} / ${allTopics.length}`,
+      `- Date: ${new Date().toLocaleDateString()}`,
+      "",
+      `## Tasks & Progress Files`,
+      ...allTopics.map((t) => {
+        const check = t.done ? "[x]" : "[ ]";
+        return `- ${check} ${t.text}`;
+      }),
+    ];
+    downloadFile(`${safeName}_progress.md`, mdLines.join("\n"), "text/markdown");
+    showToast("Exported as Markdown (.md)");
+    setShowExportModal(false);
+  };
+
+  const handleExportJSON = () => {
+    const safeName = (project.name || "progress").toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+    const exportData = {
+      name: project.name,
+      about: project.about || "",
+      exportedAt: new Date().toISOString(),
+      topics: allTopics.map((t) => ({
+        id: t.id,
+        text: t.text,
+        done: Boolean(t.done),
+        sources: getTopicSources(t),
+      })),
+      statistics: {
+        totalFiles: allTopics.length,
+        completedFiles: allTopics.filter((t) => t.done).length,
+        likes: displayFolderLikes,
+        members: displayFolderMembers,
+      },
+    };
+    downloadFile(`${safeName}_backup.json`, JSON.stringify(exportData, null, 2), "application/json");
+    showToast("Exported as JSON (.json)");
+    setShowExportModal(false);
+  };
+
+  const handleCopyExportText = async () => {
+    const textLines = [
+      `Progress: ${project.name}`,
+      ...allTopics.map((t) => `${t.done ? "✓" : "○"} ${t.text}`),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(textLines);
+      showToast("Copied progress checklist to clipboard!");
+    } catch {
+      showToast("Could not copy to clipboard");
+    }
+    setShowExportModal(false);
+  };
+
+  const handleSelectReport = () => {
+    setShowHourglassMenu(false);
+    setFolderReportReason("Inappropriate or misleading content");
+    setFolderReportDetails("");
+    setShowFolderReportModal(true);
+  };
+
+  const handleSubmitFolderReport = (e) => {
+    e.preventDefault();
+    showToast(`Report received for "${project.name}". Thank you.`);
+    setShowFolderReportModal(false);
+  };
+
+  const handleKanbanUpdate = (nextTopics) => {
+    if (!Array.isArray(nextTopics)) return;
+    nextTopics.forEach((t) => {
+      if (t?.id) onUpdateTopic?.(project._id || project.id, t.id, t);
+    });
+  };
 
   useEffect(() => {
     const updateCounts = () => {
@@ -1328,6 +1591,7 @@ export default function DonePopup({
     setBusyFile(true);
     try {
       const proof = await fileToProof(file);
+      setCoverModalTheme("");
       setCoverModalImage(proof);
       if (coverModalMode === "none") {
         setCoverModalMode("top");
@@ -1352,7 +1616,9 @@ export default function DonePopup({
 
   const openCoverModal = (topic) => {
     setCoverModalTopic(topic);
-    setCoverModalImage(topic.coverImage || null);
+    const existing = topic.coverImage || null;
+    setCoverModalImage(existing);
+    setCoverModalTheme(existing?.themeId || "space");
     const mode =
       topic.coverMode === "full"
         ? "full"
@@ -1421,17 +1687,27 @@ export default function DonePopup({
         hidden
         onChange={onPickChangeCover}
       />
-      <div
-        className={`done-card ${inline ? "done-card-inline" : ""}`}
-        style={inline ? undefined : { left, top }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-        role={inline ? undefined : "dialog"}
-        aria-label={inline ? undefined : todayMode
-          ? `${project.name} tasks for today`
-          : `${project.name} tasks`}
-      >
-        <div className={`done-head-bar ${inline ? "done-inline-head" : ""}`}>
+      {showWorkspacePage ? (
+        <AiProgressWorkspace
+          project={project}
+          inline={inline}
+          onClose={() => setShowWorkspacePage(false)}
+          onAddTopic={(text, info) => onAdd?.(project?._id || project?.id, text, info)}
+          showToast={showToast}
+          readOnlyTasks={readOnlyTasks}
+        />
+      ) : (
+        <div
+          className={`done-card ${inline ? "done-card-inline" : ""}`}
+          style={inline ? undefined : { left, top }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          role={inline ? undefined : "dialog"}
+          aria-label={inline ? undefined : todayMode
+            ? `${project.name} tasks for today`
+            : `${project.name} tasks`}
+        >
+          <div className={`done-head-bar ${inline ? "done-inline-head" : ""}`}>
           <div className="done-head-copy">
             {(() => {
               const creator = getProjectCreator(project);
@@ -1504,15 +1780,12 @@ export default function DonePopup({
               )}
               <button
                 type="button"
-                className="done-head-hourglass-btn"
+                className={`done-head-hourglass-btn ${showHourglassMenu ? "is-active" : ""}`}
+                ref={hourglassBtnRef}
                 onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowHourglassModal(true);
-                }}
-                aria-label={`Open hourglass and progress for ${project.name}`}
-                title="Open hourglass & progress"
+                onClick={handleToggleHourglassMenu}
+                aria-label={`Hourglass menu for ${project.name}`}
+                title="Hourglass options (Workspace, View, Document, Customize, Export, Report)"
               >
                 <svg
                   className="done-head-hourglass-icon"
@@ -1846,6 +2119,14 @@ export default function DonePopup({
                   ? "No tasks yet. Wait for the creator to add some."
                   : "No progress files in this stack yet. Add one above to start your stack."}
             </p>
+          ) : folderViewMode === "kanban" ? (
+            <div className="done-kanban-wrapper">
+              <KanbanBoard
+                project={project}
+                onUpdateTopics={handleKanbanUpdate}
+                activeName={project?.name}
+              />
+            </div>
           ) : (
             <ul ref={doneListRef} className="done-list">
               {topics.map((topic, index) => {
@@ -2766,6 +3047,7 @@ export default function DonePopup({
         )}
         </div>
       </div>
+      )}
     </div>
 
     {taskMenuTopic &&
@@ -3234,136 +3516,176 @@ export default function DonePopup({
             </header>
 
             <div className="cover-modal-body">
-              {/* Option Selector: 3 options (Top banner, Full card, Normal state) */}
-              <div
-                className="cover-options-grid"
-                role="radiogroup"
-                aria-label="Cover display option"
-              >
-                {/* Option 1: Top Banner */}
-                <div
-                  className={`cover-option-card ${
-                    coverModalMode === "top" && coverModalImage ? "is-selected" : ""
-                  }`}
-                  onClick={() => {
-                    setCoverModalMode("top");
-                    if (!coverModalImage) {
-                      changeCoverFileRef.current?.click();
-                    }
-                  }}
-                  role="radio"
-                  aria-checked={coverModalMode === "top" && Boolean(coverModalImage)}
-                  tabIndex={0}
-                >
-                  <div className="cover-option-visual is-top-demo">
+              {(() => {
+                const previewCoverUrl = coverModalImage?.dataUrl || (typeof coverModalImage === "string" ? coverModalImage : "");
+                return (
+                  <>
+                    {/* Option Selector: 3 options (Top banner, Full card, Normal state) */}
                     <div
-                      className="demo-top-img"
-                      style={{
-                        backgroundImage: coverModalImage?.dataUrl
-                          ? `url(${coverModalImage.dataUrl})`
-                          : undefined,
-                      }}
-                    />
-                    <div className="demo-top-body" />
-                  </div>
-                  <span className="cover-option-name">Top banner</span>
-                  <span className="cover-option-desc">Image at top, body below</span>
-                </div>
-
-                {/* Option 2: Full Card */}
-                <div
-                  className={`cover-option-card ${
-                    coverModalMode === "full" && coverModalImage ? "is-selected" : ""
-                  }`}
-                  onClick={() => {
-                    setCoverModalMode("full");
-                    if (!coverModalImage) {
-                      changeCoverFileRef.current?.click();
-                    }
-                  }}
-                  role="radio"
-                  aria-checked={coverModalMode === "full" && Boolean(coverModalImage)}
-                  tabIndex={0}
-                >
-                  <div className="cover-option-visual is-full-demo">
-                    <div
-                      className="demo-full-img"
-                      style={{
-                        backgroundImage: coverModalImage?.dataUrl
-                          ? `url(${coverModalImage.dataUrl})`
-                          : undefined,
-                      }}
+                      className="cover-options-grid"
+                      role="radiogroup"
+                      aria-label="Cover display option"
                     >
-                      <div className="demo-full-pill" />
-                    </div>
-                  </div>
-                  <span className="cover-option-name">Full card</span>
-                  <span className="cover-option-desc">Image covers entire card</span>
-                </div>
-
-                {/* Option 3: Normal State */}
-                <div
-                  className={`cover-option-card ${
-                    coverModalMode === "none" || !coverModalImage ? "is-selected" : ""
-                  }`}
-                  onClick={() => setCoverModalMode("none")}
-                  role="radio"
-                  aria-checked={coverModalMode === "none" || !coverModalImage}
-                  tabIndex={0}
-                >
-                  <div className="cover-option-visual is-none-demo">
-                    <div className="demo-none-body">
-                      <div className="demo-none-line" />
-                      <div className="demo-none-badge" />
-                    </div>
-                  </div>
-                  <span className="cover-option-name">Normal state</span>
-                  <span className="cover-option-desc">Without cover image</span>
-                </div>
-              </div>
-
-              {/* Image upload / change bar */}
-              {coverModalMode !== "none" ? (
-                <div className="cover-image-picker-bar">
-                  {coverModalImage ? (
-                    <div className="cover-chosen-info">
-                      <img
-                        src={coverModalImage.dataUrl}
-                        alt="Cover"
-                        className="cover-chosen-thumb"
-                      />
-                      <div className="cover-chosen-meta">
-                        <span className="cover-chosen-name">
-                          {coverModalImage.name || "Cover image attached"}
-                        </span>
-                        {coverModalImage.size ? (
-                          <span className="cover-chosen-size">
-                            {Math.round(coverModalImage.size / 1024)} KB
-                          </span>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        className="cover-repick-btn"
-                        onClick={() => changeCoverFileRef.current?.click()}
-                        disabled={busyFile}
+                      {/* Option 1: Top Banner */}
+                      <div
+                        className={`cover-option-card ${
+                          coverModalMode === "top" && coverModalImage ? "is-selected" : ""
+                        }`}
+                        onClick={() => {
+                          setCoverModalMode("top");
+                          if (!coverModalImage) {
+                            setCoverModalImage(getCoverPresetObject(coverModalTheme || "space"));
+                          }
+                        }}
+                        role="radio"
+                        aria-checked={coverModalMode === "top" && Boolean(coverModalImage)}
+                        tabIndex={0}
                       >
-                        {busyFile ? "Reading…" : "Change image"}
-                      </button>
+                        <div className="cover-option-visual is-top-demo">
+                          <div
+                            className="demo-top-img"
+                            style={{
+                              backgroundImage: previewCoverUrl
+                                ? `url("${previewCoverUrl}")`
+                                : undefined,
+                            }}
+                          />
+                          <div className="demo-top-body" />
+                        </div>
+                        <span className="cover-option-name">Top banner</span>
+                        <span className="cover-option-desc">Image at top, body below</span>
+                      </div>
+
+                      {/* Option 2: Full Card */}
+                      <div
+                        className={`cover-option-card ${
+                          coverModalMode === "full" && coverModalImage ? "is-selected" : ""
+                        }`}
+                        onClick={() => {
+                          setCoverModalMode("full");
+                          if (!coverModalImage) {
+                            setCoverModalImage(getCoverPresetObject(coverModalTheme || "space"));
+                          }
+                        }}
+                        role="radio"
+                        aria-checked={coverModalMode === "full" && Boolean(coverModalImage)}
+                        tabIndex={0}
+                      >
+                        <div className="cover-option-visual is-full-demo">
+                          <div
+                            className="demo-full-img"
+                            style={{
+                              backgroundImage: previewCoverUrl
+                                ? `url("${previewCoverUrl}")`
+                                : undefined,
+                            }}
+                          >
+                            <div className="demo-full-pill" />
+                          </div>
+                        </div>
+                        <span className="cover-option-name">Full card</span>
+                        <span className="cover-option-desc">Image covers entire card</span>
+                      </div>
+
+                      {/* Option 3: Normal State */}
+                      <div
+                        className={`cover-option-card ${
+                          coverModalMode === "none" || !coverModalImage ? "is-selected" : ""
+                        }`}
+                        onClick={() => setCoverModalMode("none")}
+                        role="radio"
+                        aria-checked={coverModalMode === "none" || !coverModalImage}
+                        tabIndex={0}
+                      >
+                        <div className="cover-option-visual is-none-demo">
+                          <div className="demo-none-body">
+                            <div className="demo-none-line" />
+                            <div className="demo-none-badge" />
+                          </div>
+                        </div>
+                        <span className="cover-option-name">Normal state</span>
+                        <span className="cover-option-desc">Without cover image</span>
+                      </div>
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="cover-upload-trigger-btn"
-                      onClick={() => changeCoverFileRef.current?.click()}
-                      disabled={busyFile}
-                    >
-                      <IconPhotoCover />
-                      <span>{busyFile ? "Reading image…" : "Choose cover image…"}</span>
-                    </button>
-                  )}
-                </div>
-              ) : null}
+
+                    {/* Aesthetic Preset Themes */}
+                    {coverModalMode !== "none" ? (
+                      <div className="done-cover-presets-section">
+                        <span className="cover-presets-title">Aesthetic Themes:</span>
+                        <div className="done-cover-presets-grid">
+                          {COVER_PRESETS.map((p) => {
+                            const isCurrentTheme =
+                              coverModalTheme === p.id ||
+                              coverModalImage?.themeId === p.id;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className={`done-cover-preset-chip ${isCurrentTheme && coverModalImage ? "is-active" : ""}`}
+                                style={{ background: p.gradient }}
+                                onClick={() => {
+                                  setCoverModalTheme(p.id);
+                                  setCoverModalImage(getCoverPresetObject(p.id));
+                                  if (coverModalMode === "none") {
+                                    setCoverModalMode("top");
+                                  }
+                                }}
+                              >
+                                <span className="done-preset-chip-name" style={{ color: p.textColor }}>
+                                  {p.name}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Image upload / change bar */}
+                    {coverModalMode !== "none" ? (
+                      <div className="cover-image-picker-bar">
+                        {coverModalImage ? (
+                          <div className="cover-chosen-info">
+                            <img
+                              src={previewCoverUrl}
+                              alt="Cover"
+                              className="cover-chosen-thumb"
+                            />
+                            <div className="cover-chosen-meta">
+                              <span className="cover-chosen-name">
+                                {coverModalImage.name || "Cover image attached"}
+                              </span>
+                              {coverModalImage.size ? (
+                                <span className="cover-chosen-size">
+                                  {Math.round(coverModalImage.size / 1024)} KB
+                                </span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              className="cover-repick-btn"
+                              onClick={() => changeCoverFileRef.current?.click()}
+                              disabled={busyFile}
+                            >
+                              {busyFile ? "Reading…" : "Upload custom"}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="cover-upload-trigger-btn"
+                            onClick={() => changeCoverFileRef.current?.click()}
+                            disabled={busyFile}
+                          >
+                            <IconPhotoCover />
+                            <span>{busyFile ? "Reading image…" : "Or upload custom image…"}</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
             </div>
 
             <footer className="cover-modal-footer">
@@ -3435,6 +3757,360 @@ export default function DonePopup({
         onClose={() => setShowMembershipModal(false)}
       />
     )}
+
+    {showHourglassMenu &&
+      createPortal(
+        <div
+          className="hourglass-menu-overlay"
+          onClick={() => setShowHourglassMenu(false)}
+        >
+          <ul
+            ref={hourglassMenuRef}
+            className="hourglass-action-menu"
+            style={hourglassMenuStyle}
+            role="menu"
+            aria-label="Hourglass options menu"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Progg Workspace */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn"
+                onClick={handleSelectProggWorkspace}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 22h14" />
+                    <path d="M5 2h14" />
+                    <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22" />
+                    <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">Progg Workspace</span>
+              </button>
+            </li>
+
+            {/* 2. View */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn"
+                onClick={handleSelectView}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">View</span>
+                <span className="hourglass-action-item-badge">Hourglass</span>
+              </button>
+            </li>
+
+            {/* 3. Document */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn"
+                onClick={handleSelectDocument}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                    <polyline points="10 9 9 9 8 9" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">Document</span>
+              </button>
+            </li>
+
+            {/* 4. Customize */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn"
+                onClick={handleSelectCustomize}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="4" y1="21" x2="4" y2="14" />
+                    <line x1="4" y1="10" x2="4" y2="3" />
+                    <line x1="12" y1="21" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12" y2="3" />
+                    <line x1="20" y1="21" x2="20" y2="16" />
+                    <line x1="20" y1="12" x2="20" y2="3" />
+                    <line x1="1" y1="14" x2="7" y2="14" />
+                    <line x1="9" y1="8" x2="15" y2="8" />
+                    <line x1="17" y1="16" x2="23" y2="16" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">Customize</span>
+              </button>
+            </li>
+
+            {/* 5. Export */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn"
+                onClick={handleSelectExport}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">Export</span>
+              </button>
+            </li>
+
+            {/* 6. Report */}
+            <li role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="hourglass-action-item-btn is-report"
+                onClick={handleSelectReport}
+              >
+                <span className="menu-item-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                    <line x1="4" y1="22" x2="4" y2="15" />
+                  </svg>
+                </span>
+                <span className="hourglass-action-item-label">Report</span>
+              </button>
+            </li>
+          </ul>
+        </div>,
+        document.body
+      )}
+
+    {showCustomizeModal &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setShowCustomizeModal(false)}
+        >
+          <div
+            className="task-action-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customize-modal-title"
+          >
+            <div className="task-action-modal-head">
+              <h4 id="customize-modal-title">Customize Progress Folder</h4>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setShowCustomizeModal(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveCustomize} className="done-customize-form">
+              <label className="done-field-label">
+                Folder Name
+                <input
+                  type="text"
+                  className="task-action-modal-textarea done-customize-input"
+                  value={customFolderName}
+                  onChange={(e) => setCustomFolderName(e.target.value)}
+                  maxLength={80}
+                  required
+                />
+              </label>
+
+              <label className="done-field-label" style={{ marginTop: "12px" }}>
+                Description & Notes
+                <textarea
+                  className="task-action-modal-textarea"
+                  rows={3}
+                  value={customFolderAbout}
+                  onChange={(e) => setCustomFolderAbout(e.target.value)}
+                  placeholder="Describe this progress path..."
+                />
+              </label>
+
+              <div className="task-action-modal-foot">
+                <button
+                  type="button"
+                  className="task-action-modal-cancel"
+                  onClick={() => setShowCustomizeModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="task-action-modal-submit">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {showExportModal &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setShowExportModal(false)}
+        >
+          <div
+            className="task-action-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="export-modal-title"
+          >
+            <div className="task-action-modal-head">
+              <h4 id="export-modal-title">Export Progress Folder</h4>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setShowExportModal(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="task-action-modal-taskname">
+              Export <strong>{project.name}</strong> ({allTopics.length} progress files)
+            </p>
+
+            <div className="done-export-grid">
+              <button
+                type="button"
+                className="done-export-card-btn"
+                onClick={handleExportMarkdown}
+              >
+                <span className="done-export-card-icon" aria-hidden="true">📝</span>
+                <span className="done-export-card-title">Markdown</span>
+                <span className="done-export-card-desc">Download .md file with checklist</span>
+              </button>
+
+              <button
+                type="button"
+                className="done-export-card-btn"
+                onClick={handleExportJSON}
+              >
+                <span className="done-export-card-icon" aria-hidden="true">📦</span>
+                <span className="done-export-card-title">JSON Data</span>
+                <span className="done-export-card-desc">Download full structured backup</span>
+              </button>
+
+              <button
+                type="button"
+                className="done-export-card-btn"
+                onClick={handleCopyExportText}
+              >
+                <span className="done-export-card-icon" aria-hidden="true">📋</span>
+                <span className="done-export-card-title">Copy Text</span>
+                <span className="done-export-card-desc">Copy checklist to clipboard</span>
+              </button>
+            </div>
+
+            <div className="task-action-modal-foot">
+              <button
+                type="button"
+                className="task-action-modal-cancel"
+                onClick={() => setShowExportModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+    {showFolderReportModal &&
+      createPortal(
+        <div
+          className="task-action-modal-overlay"
+          onClick={() => setShowFolderReportModal(false)}
+        >
+          <div
+            className="task-action-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-folder-title"
+          >
+            <div className="task-action-modal-head">
+              <h4 id="report-folder-title">Report Progress Folder</h4>
+              <button
+                type="button"
+                className="task-action-modal-close"
+                onClick={() => setShowFolderReportModal(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="task-action-modal-taskname">
+              Folder: <strong>{project.name}</strong>
+            </p>
+            <form onSubmit={handleSubmitFolderReport}>
+              <label className="done-field-label">
+                Reason
+                <select
+                  className="task-action-modal-textarea"
+                  style={{ height: "38px", padding: "6px 10px", marginBottom: "12px" }}
+                  value={folderReportReason}
+                  onChange={(e) => setFolderReportReason(e.target.value)}
+                >
+                  <option value="Inappropriate or misleading content">Inappropriate or misleading content</option>
+                  <option value="Copyright or intellectual property issue">Copyright or intellectual property issue</option>
+                  <option value="Spam, advertisement or duplicate">Spam, advertisement or duplicate</option>
+                  <option value="Broken links or missing sources">Broken links or missing sources</option>
+                  <option value="Other issue">Other issue</option>
+                </select>
+              </label>
+
+              <textarea
+                className="task-action-modal-textarea"
+                rows={3}
+                placeholder="Please describe the issue or reason for reporting..."
+                value={folderReportDetails}
+                onChange={(e) => setFolderReportDetails(e.target.value)}
+              />
+
+              <div className="task-action-modal-foot">
+                <button
+                  type="button"
+                  className="task-action-modal-cancel"
+                  onClick={() => setShowFolderReportModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="task-action-modal-submit"
+                  style={{ background: "#ef4444", borderColor: "#ef4444" }}
+                >
+                  Submit Report
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
   </>
   );
 }
