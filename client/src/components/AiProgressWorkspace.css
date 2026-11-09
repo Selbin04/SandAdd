@@ -1281,11 +1281,38 @@
   align-self: stretch !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  padding: 0 !important;
+  min-height: unset !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.done-list.ws-exact-done-list li.is-source-open .done-file-card {
+  width: calc(100% - 44px) !important;
+  max-width: 580px !important;
+  min-width: 240px !important;
+  box-sizing: border-box !important;
+}
+
+.done-list.ws-exact-done-list li:nth-child(odd).is-source-open .done-file-card {
+  align-self: flex-start !important;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+.done-list.ws-exact-done-list li:nth-child(even).is-source-open .done-file-card {
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 .done-list.ws-exact-done-list li.is-source-open .ws-item-source-expand {
-  width: 100%;
-  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin: 12px 0 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* Workspace status badges matching .done-top-badge */

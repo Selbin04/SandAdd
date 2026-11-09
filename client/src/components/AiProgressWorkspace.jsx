@@ -887,7 +887,7 @@ export default function AiProgressWorkspace({
                 >
                   {/* Option 1: Full Card Cover */}
                   {isFullCover ? (
-                    <div className="done-cover-full-wrapper">
+                    <div className="done-file-card done-cover-full-wrapper">
                       <div className="done-cover-full-backdrop">
                         <DoneCoverImage cover={itemCover} className="done-cover-full-img" />
                         <div className="done-cover-full-scrim" />
@@ -932,8 +932,6 @@ export default function AiProgressWorkspace({
                           </button>
                         </div>
 
-                        {renderSourceExpand(true)}
-
                         {/* Bottom Row */}
                         <div className="done-cover-bottom-row">
                           <div className="done-cover-actions">
@@ -961,7 +959,7 @@ export default function AiProgressWorkspace({
                     </div>
                   ) : isTopCover ? (
                     /* Option 2: Top Banner Cover */
-                    <div className="done-cover-top-wrapper">
+                    <div className="done-file-card done-cover-top-wrapper">
                       <div className="done-cover-top-banner">
                         <DoneCoverImage cover={itemCover} className="done-cover-top-img" />
                       </div>
@@ -1023,13 +1021,12 @@ export default function AiProgressWorkspace({
                           </div>
                         </div>
 
-                        {renderSourceExpand(false)}
                         {renderTray("top")}
                       </div>
                     </div>
                   ) : (
                     /* Option 3: Normal State (No cover image) */
-                    <>
+                    <div className="done-file-card done-normal-card-wrapper">
                       <div className="done-row">
                         <div className="done-row-main">
                           <div className="done-text-line">
@@ -1086,10 +1083,11 @@ export default function AiProgressWorkspace({
                         </div>
                       </div>
 
-                      {renderSourceExpand(false)}
                       {renderTray("normal")}
-                    </>
+                    </div>
                   )}
+
+                  {renderSourceExpand(isFullCover)}
                 </li>
               );
             })}

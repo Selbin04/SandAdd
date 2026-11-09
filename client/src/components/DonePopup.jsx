@@ -2223,7 +2223,7 @@ export default function DonePopup({
                       </div>
                     )}
                     {isFullCover ? (
-                      <div className="done-cover-full-wrapper">
+                      <div className="done-file-card done-cover-full-wrapper">
                         <div className="done-cover-full-backdrop">
                           <DoneCoverImage cover={topic.coverImage} className="done-cover-full-img" />
                           <div className="done-cover-full-scrim" />
@@ -2346,7 +2346,7 @@ export default function DonePopup({
                         </div>
                       </div>
                     ) : isTopCover ? (
-                      <div className="done-cover-top-wrapper">
+                      <div className="done-file-card done-cover-top-wrapper">
                         {/* Top Banner Image (Option 2 matching user screenshot) */}
                         <div className="done-cover-top-banner">
                           <DoneCoverImage cover={topic.coverImage} className="done-cover-top-img" />
@@ -2477,120 +2477,122 @@ export default function DonePopup({
                       </div>
                     ) : (
                       /* Normal State without cover image */
-                      <div className="done-row">
-                        <div className="done-row-main">
-                          <div className="done-text-line">
-                            <span className="done-text">
-                              {topic.text}
-                            </span>
-                            {isMemberFile ? (
-                              <button
-                                type="button"
-                                className="done-membership-file-badge"
-                                title={
-                                  membershipStatus?.isMember
-                                    ? "Unlocked Member progress file"
-                                    : "Members-only progress file — Click to unlock membership"
-                                }
-                                onClick={(e) => {
-                                  if (!membershipStatus?.isMember) {
-                                    e.stopPropagation();
-                                    setShowMembershipModal(true);
-                                  }
-                                }}
-                              >
-                                👑 {membershipStatus?.isMember ? "Member" : "Members Only"}
-                              </button>
-                            ) : null}
-                            {isTopFile ? (
-                              <span className="done-top-badge" title="Top of progress files stack (latest)">
-                                TOP
+                      <div className="done-file-card done-normal-card-wrapper">
+                        <div className="done-row">
+                          <div className="done-row-main">
+                            <div className="done-text-line">
+                              <span className="done-text">
+                                {topic.text}
                               </span>
-                            ) : null}
-                          </div>
-                          <button
-                            type="button"
-                            className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isOpen) closePanel();
-                              else openPanel(topic);
-                            }}
-                            disabled={!canOpenSource}
-                            title={
-                              readOnlyTasks
-                                ? hasSource || hasTopicPosts
-                                  ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                                  : "No source"
-                                : hasSource || hasTopicPosts
-                                  ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
-                                  : "Add source"
-                            }
-                            aria-expanded={isOpen}
-                            aria-label={`Source for ${topic.text}`}
-                          >
-                            <span className="done-source-label">SOURCE ({totalSourceCount})</span>
-                          </button>
-                        </div>
-
-                        <div className="done-row-side">
-                          <div className="done-row-actions">
-                            {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
-                              <button
-                                type="button"
-                                className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
-                                onClick={(e) => handleToggleTaskMenu(topic, e)}
-                                title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
-                                aria-label={`Actions for ${topic.text}`}
-                                aria-haspopup="true"
-                                aria-expanded={taskMenuTopic?.id === topic.id}
-                              >
-                                <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
-                                {isSharedFolder ? (
-                                  <span className="done-task-like-mini-count">
-                                    {formatStatCount(getLikeCountForTopic(topic.id))}
-                                  </span>
-                                ) : null}
-                              </button>
-                            ) : null}
-                            {!todayMode && !readOnlyTasks && (
-                              <button
-                                type="button"
-                                className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
-                                onClick={(e) => handleToggleMoreMenu(topic, e)}
-                                aria-label={`Options for ${topic.text}`}
-                                title="More options"
-                                aria-haspopup="true"
-                                aria-expanded={moreMenuTopic?.id === topic.id}
-                              >
-                                <IconMoreVertical />
-                              </button>
-                            )}
-                          </div>
-
-                          {showCheck ? (
+                              {isMemberFile ? (
+                                <button
+                                  type="button"
+                                  className="done-membership-file-badge"
+                                  title={
+                                    membershipStatus?.isMember
+                                      ? "Unlocked Member progress file"
+                                      : "Members-only progress file — Click to unlock membership"
+                                  }
+                                  onClick={(e) => {
+                                    if (!membershipStatus?.isMember) {
+                                      e.stopPropagation();
+                                      setShowMembershipModal(true);
+                                    }
+                                  }}
+                                >
+                                  👑 {membershipStatus?.isMember ? "Member" : "Members Only"}
+                                </button>
+                              ) : null}
+                              {isTopFile ? (
+                                <span className="done-top-badge" title="Top of progress files stack (latest)">
+                                  TOP
+                                </span>
+                              ) : null}
+                            </div>
                             <button
                               type="button"
-                              className={`done-check ${finished ? "is-checked" : ""}`}
+                              className={`done-source ${hasSource || hasTopicPosts ? "has-source" : ""} ${isOpen ? "is-active" : ""}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isLockedForUser) {
-                                  setShowMembershipModal(true);
-                                  return;
-                                }
-                                onToggle?.(project._id, topic.id);
+                                if (isOpen) closePanel();
+                                else openPanel(topic);
                               }}
-                              aria-pressed={finished}
-                              aria-label={
-                                finished
-                                  ? `Mark ${topic.text} as not done`
-                                  : `Mark ${topic.text} as done`
+                              disabled={!canOpenSource}
+                              title={
+                                readOnlyTasks
+                                  ? hasSource || hasTopicPosts
+                                    ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                    : "No source"
+                                  : hasSource || hasTopicPosts
+                                    ? `${sourceCount} source(s)${hasTopicPosts ? ` · ${topicPostsCount} post(s)` : ""}`
+                                    : "Add source"
                               }
-                              title={finished ? "Completed (click to undo)" : "Mark as done"}
+                              aria-expanded={isOpen}
+                              aria-label={`Source for ${topic.text}`}
                             >
-                              {finished ? "✓" : ""}
+                              <span className="done-source-label">SOURCE ({totalSourceCount})</span>
                             </button>
-                          ) : null}
+                          </div>
+
+                          <div className="done-row-side">
+                            <div className="done-row-actions">
+                              {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
+                                <button
+                                  type="button"
+                                  className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
+                                  onClick={(e) => handleToggleTaskMenu(topic, e)}
+                                  title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
+                                  aria-label={`Actions for ${topic.text}`}
+                                  aria-haspopup="true"
+                                  aria-expanded={taskMenuTopic?.id === topic.id}
+                                >
+                                  <IconHeartBubble filled={Boolean(taskLikes[topic.id])} />
+                                  {isSharedFolder ? (
+                                    <span className="done-task-like-mini-count">
+                                      {formatStatCount(getLikeCountForTopic(topic.id))}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              ) : null}
+                              {!todayMode && !readOnlyTasks && (
+                                <button
+                                  type="button"
+                                  className={`done-more-btn ${moreMenuTopic?.id === topic.id ? "is-active" : ""}`}
+                                  onClick={(e) => handleToggleMoreMenu(topic, e)}
+                                  aria-label={`Options for ${topic.text}`}
+                                  title="More options"
+                                  aria-haspopup="true"
+                                  aria-expanded={moreMenuTopic?.id === topic.id}
+                                >
+                                  <IconMoreVertical />
+                                </button>
+                              )}
+                            </div>
+
+                            {showCheck ? (
+                              <button
+                                type="button"
+                                className={`done-check ${finished ? "is-checked" : ""}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isLockedForUser) {
+                                    setShowMembershipModal(true);
+                                    return;
+                                  }
+                                  onToggle?.(project._id, topic.id);
+                                }}
+                                aria-pressed={finished}
+                                aria-label={
+                                  finished
+                                    ? `Mark ${topic.text} as not done`
+                                    : `Mark ${topic.text} as done`
+                                }
+                                title={finished ? "Completed (click to undo)" : "Mark as done"}
+                              >
+                                {finished ? "✓" : ""}
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
                     )}

@@ -644,16 +644,30 @@
   box-shadow: 0 4px 14px -1px rgba(2, 132, 199, 0.28);
 }
 
-/* When source page is open: card expands to full width inside the progress folder while maintaining list positioning */
+/* Normal card wrapper when closed: pass-through display */
+.done-normal-card-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When source page is open:
+   1. The li becomes a transparent full-width container spanning the progress folder.
+   2. The progress file card (.done-file-card) REMAINS in its exact same size and alternating position!
+   3. ONLY the source page (.done-source-panel) expands to 100% full width inside the progress folder!
+*/
 .done-list li.is-source-open {
   width: 100% !important;
   max-width: 100% !important;
   align-self: stretch !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
-  border-color: #0284c7;
-  box-shadow: 0 6px 22px -2px rgba(2, 132, 199, 0.28);
-  transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  padding: 0 !important;
+  min-height: unset !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  gap: 12px !important;
 }
 
 .done-list li.has-cover.is-source-open {
@@ -662,21 +676,138 @@
   align-self: stretch !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-.done-list li.is-source-open .done-source-panel {
-  width: 100%;
-  margin: 12px 0 4px;
-  padding: 12px 14px;
-  border-radius: 12px;
+/* Progress file card keeps its EXACT SAME size and alternating position when source is open */
+.done-list li.is-source-open .done-file-card {
+  width: calc(100% - 44px) !important;
+  max-width: 580px !important;
+  min-width: 240px !important;
+  box-sizing: border-box !important;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.done-list li:nth-child(odd).is-source-open .done-file-card {
+  align-self: flex-start !important;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+}
+
+.done-list li:nth-child(even).is-source-open .done-file-card {
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
+/* Normal card styling inside open li */
+.done-list li.is-source-open .done-normal-card-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 20px;
+  min-height: 86px;
+  border-radius: 14px;
+  background: #BEE3EF;
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 3px 12px -2px rgba(15, 23, 42, 0.18);
   box-sizing: border-box;
 }
 
+.done-list li.is-source-open .done-file-card:hover {
+  transform: translateY(-1px);
+}
+
+.done-list li.is-source-open:hover .done-normal-card-wrapper,
+.done-list li.is-source-open .done-normal-card-wrapper:hover {
+  border-color: #0284c7;
+  box-shadow: 0 4px 14px -1px rgba(2, 132, 199, 0.28);
+}
+
+.done-list li.is-top-file.is-source-open .done-normal-card-wrapper {
+  border-left: 3.5px solid #0284c7;
+  background: #BEE3EF;
+}
+
+.done-list li.is-done.is-source-open .done-normal-card-wrapper {
+  background: color-mix(in srgb, #BEE3EF 60%, transparent);
+  border-color: rgba(15, 23, 42, 0.16);
+  box-shadow: none;
+}
+
+/* Light theme support */
+[data-theme="light"] .done-list li.is-source-open .done-normal-card-wrapper {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .done-list li.is-source-open:hover .done-normal-card-wrapper,
+[data-theme="light"] .done-list li.is-source-open .done-normal-card-wrapper:hover {
+  border-color: var(--brass);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .done-list li.is-top-file.is-source-open .done-normal-card-wrapper {
+  background: #ffffff;
+  border-left: 3.5px solid var(--brass);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .done-list li.is-done.is-source-open .done-normal-card-wrapper {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.05);
+  box-shadow: none;
+}
+
+/* Hide path line on li itself and attach to .done-file-card so it remains at card position */
+.done-list li.is-source-open::before {
+  display: none !important;
+}
+
+.done-list li.is-source-open:nth-child(even) .done-file-card::before {
+  content: "";
+  position: absolute;
+  top: -34px;
+  left: 28px;
+  width: 30px;
+  height: 34px;
+  background-color: var(--muted, #64748b);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 0 C5 9 14 18 21 34'/%3E%3Cpath d='M13 0 C12 9 21 18 28 34'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 0 C5 9 14 18 21 34'/%3E%3Cpath d='M13 0 C12 9 21 18 28 34'/%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.done-list li.is-source-open:nth-child(odd):not(:first-child) .done-file-card::before {
+  content: "";
+  position: absolute;
+  top: -34px;
+  right: 28px;
+  width: 30px;
+  height: 34px;
+  background-color: var(--muted, #64748b);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M24 0 C25 9 16 18 9 34'/%3E%3Cpath d='M17 0 C18 9 9 18 2 34'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M24 0 C25 9 16 18 9 34'/%3E%3Cpath d='M17 0 C18 9 9 18 2 34'/%3E%3C/svg%3E") no-repeat center / contain;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ONLY the opening source page expands to full width inside the progress folder */
+.done-list li.is-source-open .done-source-panel,
 .done-list li.has-cover.is-source-open .done-source-panel {
-  width: 100%;
-  margin: 10px 0 4px;
-  padding: 12px 14px;
-  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin: 12px 0 4px !important;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  box-sizing: border-box !important;
 }
 
 .done-list li.is-top-file {
