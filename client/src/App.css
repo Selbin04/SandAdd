@@ -3326,7 +3326,7 @@
 .work-drawer.is-single-page {
   position: absolute;
   inset: 0 0 0 auto;
-  width: min(640px, 100vw);
+  width: min(720px, 100vw);
   min-width: 320px;
   height: 100%;
   display: flex;

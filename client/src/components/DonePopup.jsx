@@ -1175,10 +1175,14 @@ export default function DonePopup({
         ) || 64
       : 64;
   const minTop = inline ? 8 : navH + 8;
-  const left = inline ? 8 : Math.min(Math.max(8, x), Math.max(8, window.innerWidth - 340));
+  const expectedPopupWidth = showWorkspacePage ? 720 : 490;
+  const expectedPopupHeight = showWorkspacePage ? 800 : 580;
+  const left = inline
+    ? 8
+    : Math.min(Math.max(8, x), Math.max(8, window.innerWidth - expectedPopupWidth - 24));
   const top = inline
     ? 8
-    : Math.min(Math.max(minTop, y), Math.max(minTop, window.innerHeight - 360));
+    : Math.min(Math.max(minTop, y), Math.max(minTop, window.innerHeight - expectedPopupHeight - 24));
 
   useEffect(() => {
     if (!panelTopic) return;

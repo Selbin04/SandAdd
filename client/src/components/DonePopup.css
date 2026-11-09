@@ -47,13 +47,13 @@
 
 .done-card {
   position: absolute;
-  width: min(320px, calc(100vw - 16px));
+  width: min(480px, calc(100vw - 20px));
   max-height: min(94vh, calc(100vh - 24px));
   display: flex;
   flex-direction: column;
   overflow: visible;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 14px;
   border: 1.5px solid #0284c7;
   background: color-mix(in srgb, #BEE3EF 12%, var(--panel));
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
@@ -61,10 +61,10 @@
 }
 
 .done-card.has-workspace-open:not(.done-card-inline) {
-  width: min(540px, calc(100vw - 20px));
+  width: min(720px, calc(100vw - 20px));
   max-width: calc(100vw - 20px);
-  min-height: min(600px, calc(100vh - 36px));
-  height: min(720px, calc(100vh - 36px));
+  min-height: min(650px, calc(100vh - 36px));
+  height: min(800px, calc(100vh - 36px));
 }
 
 .done-inline {
@@ -420,7 +420,7 @@
   padding: 10px 4px 24px;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 34px;
   max-height: calc(94vh - 120px);
   flex: 1 1 auto;
   min-height: 0;
@@ -602,16 +602,18 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: 12px;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 20px;
+  min-height: 86px;
+  border-radius: 14px;
   background: #BEE3EF;
   color: #0f172a;
   border: 1px solid rgba(15, 23, 42, 0.14);
-  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.15);
-  width: calc(100% - 50px);
-  max-width: 440px;
-  min-width: 200px;
+  box-shadow: 0 3px 12px -2px rgba(15, 23, 42, 0.18);
+  width: calc(100% - 44px);
+  max-width: 580px;
+  min-width: 240px;
   box-sizing: border-box;
   cursor: default;
   user-select: text;
@@ -642,8 +644,39 @@
   box-shadow: 0 4px 14px -1px rgba(2, 132, 199, 0.28);
 }
 
+/* When source page is open: card expands to full width inside the progress folder while maintaining list positioning */
 .done-list li.is-source-open {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   border-color: #0284c7;
+  box-shadow: 0 6px 22px -2px rgba(2, 132, 199, 0.28);
+  transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.done-list li.has-cover.is-source-open {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.done-list li.is-source-open .done-source-panel {
+  width: 100%;
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.done-list li.has-cover.is-source-open .done-source-panel {
+  width: 100%;
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  box-sizing: border-box;
 }
 
 .done-list li.is-top-file {
@@ -684,6 +717,8 @@
 
 .done-list li .done-text {
   color: #0f172a;
+  font-size: 14.5px;
+  line-height: 1.4;
 }
 
 .done-list li .done-source {
@@ -708,6 +743,8 @@
 .done-list li .done-return-btn,
 .done-list li .done-more-btn {
   color: #334155;
+  min-width: 26px;
+  height: 26px;
 }
 
 .done-list li .done-return-btn:hover,
@@ -717,9 +754,13 @@
 }
 
 .done-list li .done-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   background: #ffffff;
   border: 1.5px solid rgba(15, 23, 42, 0.3);
   color: transparent;
+  font-size: 13px;
 }
 
 .done-list li .done-check:hover {
@@ -801,10 +842,10 @@
 .done-text {
   flex: 0 1 auto;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--paper);
-  line-height: 1.35;
+  line-height: 1.4;
   letter-spacing: -0.01em;
   word-break: break-word;
   transition: opacity 0.15s ease, text-decoration 0.15s ease;
@@ -817,11 +858,11 @@
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
   border-radius: 999px;
-  padding: 2.5px 8px;
+  padding: 3.5px 10px;
   background: color-mix(in srgb, var(--surface) 65%, transparent);
   color: var(--muted);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -2332,9 +2373,9 @@
     position: relative !important;
     left: auto !important;
     top: auto !important;
-    width: min(340px, calc(100vw - 24px)) !important;
-    max-width: calc(100vw - 24px) !important;
-    max-height: min(94dvh, calc(100dvh - 24px)) !important;
+    width: min(500px, calc(100vw - 20px)) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: min(94dvh, calc(100dvh - 20px)) !important;
     overflow-y: auto !important;
     padding: 14px;
     margin: auto !important;
@@ -2343,9 +2384,9 @@
   }
 
   .done-card {
-    width: min(320px, calc(100vw - 16px));
+    width: min(480px, calc(100vw - 16px));
     max-width: calc(100vw - 16px);
-    padding: 10px;
+    padding: 12px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   }
 
@@ -3065,7 +3106,8 @@
 /* Remove default li styling when card has a cover image */
 .done-list li.has-cover {
   padding: 0;
-  border-radius: 14px;
+  min-height: unset;
+  border-radius: 16px;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -3092,22 +3134,22 @@
 .done-cover-full-wrapper {
   position: relative;
   width: 100%;
-  min-height: 160px;
-  border-radius: 14px;
+  min-height: 240px;
+  border-radius: 16px;
   overflow: hidden;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.38);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   background: #0f172a;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .done-list li.has-cover:hover .done-cover-full-wrapper {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.48);
 }
 
 .done-cover-full-backdrop {
@@ -3140,10 +3182,10 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 16px 20px;
   box-sizing: border-box;
-  min-height: 160px;
+  min-height: 240px;
   justify-content: space-between;
 }
 
@@ -3152,22 +3194,22 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: #BEE3EF;
   color: #0f172a;
-  border-radius: 14px;
-  padding: 8px 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  max-width: 90%;
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  max-width: 92%;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(15, 23, 42, 0.16);
 }
 
 .done-cover-check {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   background: #ffffff;
   border: 1.5px solid rgba(15, 23, 42, 0.28);
   display: inline-flex;
@@ -3196,9 +3238,9 @@
 }
 
 .done-cover-pill-text {
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.38;
   color: #0f172a;
   letter-spacing: -0.01em;
   word-break: break-word;
@@ -3332,12 +3374,12 @@
    -------------------------------------------------------------------------- */
 .done-cover-top-wrapper {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 3px 12px -2px rgba(15, 23, 42, 0.18);
   border: 1px solid rgba(15, 23, 42, 0.14);
   background: #BEE3EF;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
@@ -3346,18 +3388,18 @@
 [data-theme="light"] .done-cover-top-wrapper {
   background: #BEE3EF;
   border-color: rgba(15, 23, 42, 0.14);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
 }
 
 .done-list li.has-cover:hover .done-cover-top-wrapper {
   transform: translateY(-1px);
   border-color: #0284c7;
-  box-shadow: 0 4px 14px -1px rgba(2, 132, 199, 0.28);
+  box-shadow: 0 5px 18px -1px rgba(2, 132, 199, 0.32);
 }
 
 .done-cover-top-banner {
   width: 100%;
-  height: 110px;
+  height: 165px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 80%, var(--panel));
   position: relative;
@@ -3376,7 +3418,7 @@
 }
 
 .done-cover-top-body {
-  padding: 10px 14px;
+  padding: 14px 20px;
   background: #BEE3EF;
   color: #0f172a;
 }

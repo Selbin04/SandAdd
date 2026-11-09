@@ -558,14 +558,14 @@
 .ws-card-cover-banner {
   position: relative;
   width: 100%;
-  height: 95px;
+  height: 165px;
   background-size: cover;
   background-position: center;
   border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.1));
 }
 
 .ws-card-cover-banner.is-full {
-  height: 140px;
+  height: 240px;
 }
 
 .ws-cover-change-pill {
@@ -1017,7 +1017,7 @@
 .ws-cover-preview-banner {
   position: relative;
   width: 100%;
-  height: 110px;
+  height: 140px;
   background-size: cover;
   background-position: center;
   overflow: hidden;
@@ -1031,7 +1031,7 @@
 }
 
 .ws-cover-preview-banner.is-full {
-  height: 160px;
+  height: 200px;
 }
 
 .ws-preview-tag {
@@ -1264,11 +1264,28 @@
   max-height: none;
   height: auto;
   overflow-y: visible;
-  padding: 10px 4px 44px;
+  padding: 12px 6px 48px;
   margin: 0 auto;
   width: 100%;
-  max-width: 580px;
-  gap: 28px;
+  max-width: 680px;
+  gap: 34px;
+}
+
+.done-list.ws-exact-done-list li {
+  max-width: 620px;
+}
+
+.done-list.ws-exact-done-list li.is-source-open {
+  width: 100% !important;
+  max-width: 100% !important;
+  align-self: stretch !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.done-list.ws-exact-done-list li.is-source-open .ws-item-source-expand {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Workspace status badges matching .done-top-badge */
@@ -1378,6 +1395,92 @@
 
 .ws-item-source-expand.is-cover-mode .ws-item-source-link a {
   color: #38bdf8;
+}
+
+/* Links Grid & Badges (Minimum 5 links) */
+.ws-source-links-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.ws-source-link-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  transition: all 0.15s ease;
+}
+
+.ws-item-source-expand.is-cover-mode .ws-source-link-item {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ws-source-link-item:hover {
+  background: rgba(2, 132, 199, 0.12);
+  border-color: rgba(2, 132, 199, 0.35);
+  transform: translateX(2px);
+}
+
+.ws-item-source-expand.is-cover-mode .ws-source-link-item:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.ws-source-link-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  flex-shrink: 0;
+  min-width: 16px;
+  line-height: 1.4;
+}
+
+.ws-item-source-expand.is-cover-mode .ws-source-link-num {
+  color: #38bdf8;
+}
+
+.ws-source-link-anchor {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: #0284c7;
+  text-decoration: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ws-item-source-expand.is-cover-mode .ws-source-link-anchor {
+  color: #38bdf8;
+}
+
+.ws-source-link-title {
+  font-weight: 700;
+  font-size: 11.5px;
+  color: inherit;
+  text-decoration: underline;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-source-link-url {
+  font-size: 10px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-item-source-expand.is-cover-mode .ws-source-link-url {
+  color: #94a3b8;
 }
 
 /* Attached Workspace Controls Bar (Tray directly below card elements) */

@@ -187,6 +187,7 @@ export function saveWorkspaceItem(projectId, item) {
     description: String(item.description || "").trim(),
     source: String(item.source || "").trim(),
     sourceTitle: String(item.sourceTitle || "").trim(),
+    links: Array.isArray(item.links) ? item.links : [],
     coverImage: item.coverImage || null,
     coverMode: item.coverMode === "full" ? "full" : "top",
     coverTheme: item.coverTheme || "space",
@@ -279,7 +280,6 @@ export function checkAndTriggerScheduled(projectId, onPushCallback) {
           }
 
           const desc = String(item.description || "").trim();
-          const ref = String(item.source || "").trim();
           const scheduledSources = [];
           if (desc) {
             scheduledSources.push({
@@ -290,19 +290,31 @@ export function checkAndTriggerScheduled(projectId, onPushCallback) {
               proof: null,
             });
           }
-          if (ref) {
-            const isUrl = /^https?:\/\//i.test(ref) || /^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(ref);
-            scheduledSources.push({
-              id: `src-sched-ref-${item.id}`,
-              title: "Reference Resource",
-              type: isUrl ? "link" : "text",
-              content: ref,
-              proof: null,
-            });
-          }
-          const combinedSource = desc && ref
-            ? `${desc}\n\nReference: ${ref}`
-            : desc || ref;
+
+          const linksList = Array.isArray(item.links) && item.links.length > 0
+            ? item.links
+            : item.source
+              ? [{ title: "Reference Resource", url: item.source }]
+              : [];
+
+          linksList.forEach((lnk, idx) => {
+            const url = typeof lnk === "string" ? lnk : lnk?.url || lnk?.source || "";
+            const title = typeof lnk === "object" && lnk?.title ? lnk.title : `Resource ${idx + 1}`;
+            if (url) {
+              scheduledSources.push({
+                id: `src-sched-lnk-${item.id}-${idx}`,
+                title,
+                type: "link",
+                content: url,
+                proof: null,
+              });
+            }
+          });
+
+          const formattedLinks = linksList.map((l, i) => `${i + 1}. ${l.title || "Resource"}: ${l.url || l}`).join("\n");
+          const combinedSource = desc && formattedLinks
+            ? `${desc}\n\nRelated Resources:\n${formattedLinks}`
+            : desc || formattedLinks;
 
           onPushCallback(item.text, {
             source: combinedSource,
