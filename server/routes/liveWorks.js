@@ -18,10 +18,13 @@ export default function createLiveWorksRouter(useMemory) {
       .filter(Boolean)
       .slice(0, 100);
     if (ids.length === 0) return res.json({ works: {}, progress: {} });
+    if (typeof store.getManyWithProgress === "function") {
+      return res.json(await store.getManyWithProgress(ids));
+    }
     const works = await store.getMany(ids);
     const progress = {};
-    for (const id of ids) {
-      const p = await store.getProgress(id);
+    const pairs = await Promise.all(ids.map(async (id) => [id, await store.getProgress(id)]));
+    for (const [id, p] of pairs) {
       if (p) progress[id] = p;
     }
     return res.json({ works, progress });

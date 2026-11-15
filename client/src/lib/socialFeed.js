@@ -225,25 +225,42 @@ export function lightCoverProof(cover) {
     const trimmed = cover.trim();
     if (!trimmed) return null;
     const isPreset = COVER_PRESETS.some((p) => p.id === trimmed);
-    const dataUrl = isPreset ? getCoverPresetDataUrl(trimmed) : trimmed;
+    if (isPreset) {
+      return {
+        themeId: trimmed,
+        name: "Cover theme",
+        type: "image/svg+xml",
+        hasMedia: true,
+      };
+    }
     return {
-      dataUrl,
+      dataUrl: trimmed,
       name: "Cover theme",
-      type: dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+      type: trimmed.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
       hasMedia: true,
-      ...(isPreset ? { themeId: trimmed } : {}),
     };
   }
-  const themeId = cover.themeId || (COVER_PRESETS.some((p) => p.id === cover.name) ? cover.name : undefined);
-  const dataUrl = cover.dataUrl || (themeId ? getCoverPresetDataUrl(themeId) : "");
+  const themeId =
+    cover.themeId ||
+    (COVER_PRESETS.some((p) => p.id === cover.name) ? cover.name : undefined);
+  const dataUrl = themeId ? "" : cover.dataUrl || "";
   return {
     mediaId: cover.mediaId || null,
     name: cover.name || (themeId ? "Cover theme" : "Cover"),
-    type: cover.type || (dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg"),
+    type:
+      cover.type ||
+      (themeId || dataUrl.startsWith("data:image/svg")
+        ? "image/svg+xml"
+        : "image/jpeg"),
     size: cover.size || 0,
-    hasMedia: Boolean(dataUrl || cover.mediaId || themeId),
+    hasMedia: Boolean(
+      dataUrl || cover.mediaId || themeId || cover.hasMedia || cover.hasRemoteCover
+    ),
     ...(themeId ? { themeId } : {}),
     ...(dataUrl ? { dataUrl } : {}),
+    ...(!themeId && !dataUrl && cover.hasRemoteCover
+      ? { hasRemoteCover: true }
+      : {}),
   };
 }
 
@@ -261,63 +278,71 @@ export async function restoreProjectsTopicMedia(projects) {
   if (!Array.isArray(projects)) return [];
   return Promise.all(
     projects.map(async (project) => {
-      const topics = Array.isArray(project.topics) ? project.topics : [];
-      const hasMedia = topics.some(
-        (t) =>
-          t?.sourceProof?.mediaId ||
-          t?.sourceProof?.hasMedia ||
-          t?.coverImage ||
-          (Array.isArray(t?.sources) &&
-            t.sources.some((s) => s?.proof?.mediaId || s?.proof?.hasMedia))
-      );
-      if (!hasMedia) return project;
-      const nextTopics = await Promise.all(
-        topics.map(async (t) => {
-          let sourceProof = t?.sourceProof;
-          if (sourceProof) {
-            sourceProof = await restoreProofMedia(sourceProof);
-          }
-          let coverImage = t?.coverImage;
-          if (coverImage) {
-            if (typeof coverImage === "string") {
-              const trimmed = coverImage.trim();
-              const isPreset = COVER_PRESETS.some((p) => p.id === trimmed);
-              const dataUrl = isPreset ? getCoverPresetDataUrl(trimmed) : trimmed;
-              coverImage = {
-                dataUrl,
-                hasMedia: true,
-                name: "Cover theme",
-                type: dataUrl.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
-                ...(isPreset ? { themeId: trimmed } : {}),
-              };
-            } else {
-              if (coverImage.mediaId) {
-                coverImage = await restoreProofMedia(coverImage);
-              }
-              if (!coverImage?.dataUrl && coverImage?.themeId) {
+      try {
+        const topics = Array.isArray(project.topics) ? project.topics : [];
+        const needsWork = topics.some(
+          (t) =>
+            (t?.sourceProof?.mediaId && !t?.sourceProof?.dataUrl) ||
+            (t?.coverImage &&
+              (typeof t.coverImage === "string" ||
+                (t.coverImage.mediaId && !t.coverImage.dataUrl) ||
+                (t.coverImage.themeId && !t.coverImage.dataUrl))) ||
+            (Array.isArray(t?.sources) &&
+              t.sources.some((s) => s?.proof?.mediaId && !s?.proof?.dataUrl))
+        );
+        if (!needsWork) return project;
+        const nextTopics = await Promise.all(
+          topics.map(async (t) => {
+            let sourceProof = t?.sourceProof;
+            if (sourceProof?.mediaId && !sourceProof?.dataUrl) {
+              sourceProof = await restoreProofMedia(sourceProof);
+            }
+            let coverImage = t?.coverImage;
+            if (coverImage) {
+              if (typeof coverImage === "string") {
+                const trimmed = coverImage.trim();
+                const isPreset = COVER_PRESETS.some((p) => p.id === trimmed);
+                const dataUrl = isPreset ? getCoverPresetDataUrl(trimmed) : trimmed;
                 coverImage = {
-                  ...coverImage,
-                  dataUrl: getCoverPresetDataUrl(coverImage.themeId),
+                  dataUrl,
+                  hasMedia: true,
+                  name: "Cover theme",
+                  type: dataUrl.startsWith("data:image/svg")
+                    ? "image/svg+xml"
+                    : "image/jpeg",
+                  ...(isPreset ? { themeId: trimmed } : {}),
                 };
+              } else {
+                if (coverImage.mediaId && !coverImage.dataUrl) {
+                  coverImage = await restoreProofMedia(coverImage);
+                }
+                if (!coverImage?.dataUrl && coverImage?.themeId) {
+                  coverImage = {
+                    ...coverImage,
+                    dataUrl: getCoverPresetDataUrl(coverImage.themeId),
+                  };
+                }
               }
             }
-          }
-          let sources = Array.isArray(t?.sources) ? t.sources : [];
-          if (sources.length > 0) {
-            sources = await Promise.all(
-              sources.map(async (s) => {
-                if (s?.type === "file" && s?.proof) {
-                  const proof = await restoreProofMedia(s.proof);
-                  return { ...s, proof };
-                }
-                return s;
-              })
-            );
-          }
-          return { ...t, sourceProof, coverImage, sources };
-        })
-      );
-      return { ...project, topics: nextTopics };
+            let sources = Array.isArray(t?.sources) ? t.sources : [];
+            if (sources.some((s) => s?.type === "file" && s?.proof?.mediaId && !s?.proof?.dataUrl)) {
+              sources = await Promise.all(
+                sources.map(async (s) => {
+                  if (s?.type === "file" && s?.proof?.mediaId && !s?.proof?.dataUrl) {
+                    const proof = await restoreProofMedia(s.proof);
+                    return { ...s, proof };
+                  }
+                  return s;
+                })
+              );
+            }
+            return { ...t, sourceProof, coverImage, sources };
+          })
+        );
+        return { ...project, topics: nextTopics };
+      } catch {
+        return project;
+      }
     })
   );
 }

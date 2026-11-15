@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   PROOF_ACCEPT,
@@ -11,7 +11,9 @@ import {
 } from "../lib/socialFeed.js";
 import { getProjectCreator, getProjectCreatorTagline, getLiveWork } from "../lib/liveWorks.js";
 import { getFollowedWorkGroup } from "../lib/followingStore.js";
-import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi } from "../api.js";
+import { likeTopicApi, addTopicCommentApi, deleteTopicCommentApi, fetchProjectCovers } from "../api.js";
+
+const projectCoversCache = new Map();
 import FileUploadHint from "./FileUploadHint.jsx";
 import FolderHourglassModal from "./FolderHourglassModal.jsx";
 import MembershipModal from "./MembershipModal.jsx";
@@ -697,6 +699,189 @@ function computeFollowersCount(project, allProjects = []) {
   return 0;
 }
 
+function getSourcePillMeta(item) {
+  const isYt = isYouTubeUrl(item?.content);
+  const typeName =
+    item?.type === "file"
+      ? "File"
+      : isYt
+        ? "YouTube"
+        : item?.type === "link" || isUrlSource(item?.content)
+          ? "Link"
+          : "Note";
+  const cleanTitle = String(item?.title || "").trim();
+  const proofName = String(item?.proof?.name || "").trim();
+  const rawContent = String(item?.content || "").trim();
+  const contentFallback = rawContent
+    ? item?.type === "link" || isUrlSource(rawContent)
+      ? rawContent.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "")
+      : rawContent.length > 48
+        ? `${rawContent.slice(0, 48)}...`
+        : rawContent
+    : "";
+
+  return {
+    typeName,
+    title: cleanTitle || proofName || contentFallback || typeName,
+  };
+}
+
+/**
+ * Top source pagination pills bar inside an opened progress file source panel.
+ * Displays compact numbered circles initially for 0.5s, then smoothly slides each count right
+ * to open space revealing that source's exact title, wrapping overflowing items to the next line.
+ */
+function SourcePillsBar({ sourceList, safeIdx, onSelectIndex }) {
+  const [expanded, setExpanded] = useState(false);
+  const [pillMetrics, setPillMetrics] = useState({});
+  const barRef = useRef(null);
+  const labelRef = useRef(null);
+  const titleRefs = useRef({});
+
+  useEffect(() => {
+    setExpanded(false);
+    const timer = window.setTimeout(() => {
+      setExpanded(true);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const measureTitles = useCallback(() => {
+    const parentEl = barRef.current?.parentElement;
+    const containerWidth = parentEl ? parentEl.clientWidth : 0;
+    const labelWidth = labelRef.current ? labelRef.current.offsetWidth : 52;
+    // Account for bar padding (24px), borders (4px), label gap (10px), count badge (26px), and buffer
+    const availableForTitle =
+      containerWidth > 180 ? Math.max(110, containerWidth - labelWidth - 70) : 260;
+
+    const next = {};
+    sourceList.forEach((item, idx) => {
+      const key = String(item.id || idx);
+      const titleEl = titleRefs.current[key];
+      if (!titleEl) return;
+
+      const prevWhiteSpace = titleEl.style.whiteSpace;
+      const prevWidth = titleEl.style.width;
+      titleEl.style.whiteSpace = "nowrap";
+      titleEl.style.width = "max-content";
+      const naturalW =
+        Math.ceil(Math.max(titleEl.scrollWidth, titleEl.getBoundingClientRect().width)) + 1;
+      titleEl.style.whiteSpace = prevWhiteSpace;
+      titleEl.style.width = prevWidth;
+
+      const multiline = naturalW > availableForTitle;
+      next[key] = {
+        width: multiline ? availableForTitle : naturalW,
+        multiline,
+      };
+    });
+
+    setPillMetrics((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every(
+          (k) => prev[k] && prev[k].width === next[k].width && prev[k].multiline === next[k].multiline
+        )
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [sourceList]);
+
+  useLayoutEffect(() => {
+    measureTitles();
+  }, [measureTitles, expanded]);
+
+  useEffect(() => {
+    let active = true;
+    const parentEl = barRef.current?.parentElement;
+    if (!parentEl) return undefined;
+
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => {
+        if (active) measureTitles();
+      });
+      ro.observe(parentEl);
+    }
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(() => {
+        if (active) measureTitles();
+      });
+    }
+
+    return () => {
+      active = false;
+      ro?.disconnect();
+    };
+  }, [measureTitles]);
+
+  return (
+    <div
+      ref={barRef}
+      className={`done-source-pills ${expanded ? "is-expanded" : ""}`}
+      role="tablist"
+      aria-label="Source pagination"
+    >
+      <span ref={labelRef} className="done-source-pills-label">
+        Sources
+      </span>
+      <div className="done-source-pills-track">
+        {sourceList.map((item, idx) => {
+          const isSelected = idx === safeIdx;
+          const key = String(item.id || idx);
+          const { typeName, title } = getSourcePillMeta(item);
+          const metric = pillMetrics[key];
+          const isMultiline = Boolean(expanded && metric?.multiline);
+          const targetWidth = expanded && metric ? `${metric.width}px` : "0px";
+
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              className={`done-source-pill ${isSelected ? "is-active" : ""} ${
+                expanded ? "is-expanded" : ""
+              } ${isMultiline ? "is-multiline" : ""}`}
+              onClick={() => onSelectIndex(idx)}
+              title={`Source ${idx + 1}: ${title} (${typeName})`}
+              aria-label={`Source ${idx + 1}: ${title}`}
+            >
+              <span
+                className="done-source-pill-title-wrap"
+                style={{ width: targetWidth }}
+                aria-hidden={!expanded}
+              >
+                <span
+                  ref={(el) => {
+                    if (el) titleRefs.current[key] = el;
+                    else delete titleRefs.current[key];
+                  }}
+                  className="done-source-pill-title"
+                  style={isMultiline && metric ? { width: `${metric.width}px` } : undefined}
+                >
+                  {title}
+                </span>
+              </span>
+              <span className="done-source-pill-num-wrap">
+                <span className="done-source-pill-num">{idx + 1}</span>
+                {isSelected ? (
+                  <span className="done-source-pill-glow" aria-hidden="true" />
+                ) : null}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DonePopup({
   project,
   x,
@@ -815,9 +1000,9 @@ export default function DonePopup({
   };
   const [askModalTopic, setAskModalTopic] = useState(null);
   const [askText, setAskText] = useState("");
-  const [commentModalTopic, setCommentModalTopic] = useState(null);
+  const [commentPanelId, setCommentPanelId] = useState(null);
   const [commentText, setCommentText] = useState("");
-  const [taskComments, setTaskComments] = useState([]);
+  const [, setTaskCommentsTick] = useState(0);
   const [reportModalTopic, setReportModalTopic] = useState(null);
   const [reportText, setReportText] = useState("");
   const [toastMessage, setToastMessage] = useState("");
@@ -844,13 +1029,92 @@ export default function DonePopup({
     };
   }, [showAddForm]);
 
-  const allTopics = Array.isArray(project.topics) ? project.topics : [];
+  const rawTopics = Array.isArray(project?.topics) ? project.topics : [];
+  const projKey = String(project?._id || project?.id || "");
+  const [remoteCovers, setRemoteCovers] = useState(
+    () => projectCoversCache.get(projKey) || {}
+  );
+  const fetchedCoversProjRef = useRef("");
+
+  useEffect(() => {
+    setRemoteCovers(projectCoversCache.get(projKey) || {});
+    fetchedCoversProjRef.current = "";
+  }, [projKey]);
+
+  const needsRemoteCovers = useMemo(
+    () =>
+      /^[0-9a-fA-F]{24}$/.test(projKey) &&
+      rawTopics.some((t) => {
+        const c = t?.coverImage;
+        if (!c || typeof c !== "object") return false;
+        if (c.dataUrl || c.themeId) return false;
+        if (c.name && COVER_PRESETS.some((p) => p.id === c.name)) return false;
+        return Boolean(c.hasRemoteCover || c.hasMedia || !c.mediaId);
+      }),
+    [projKey, rawTopics]
+  );
+
+  useEffect(() => {
+    if (!needsRemoteCovers) return;
+    if (projectCoversCache.has(projKey) || fetchedCoversProjRef.current === projKey) {
+      return;
+    }
+    fetchedCoversProjRef.current = projKey;
+    let alive = true;
+    fetchProjectCovers(projKey)
+      .then((res) => {
+        const covers = res?.covers && typeof res.covers === "object" ? res.covers : {};
+        projectCoversCache.set(projKey, covers);
+        if (alive) setRemoteCovers(covers);
+      })
+      .catch(() => {
+        /* ignore lazy cover fetch failure */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [needsRemoteCovers, projKey]);
+
+  const allTopics = useMemo(() => {
+    if (!remoteCovers || Object.keys(remoteCovers).length === 0) {
+      return rawTopics;
+    }
+    let changed = false;
+    const merged = rawTopics.map((t) => {
+      const tid = String(t?.id || "");
+      const rc = tid ? remoteCovers[tid] : null;
+      if (
+        rc?.dataUrl &&
+        t.coverImage &&
+        typeof t.coverImage === "object" &&
+        !t.coverImage.dataUrl &&
+        !t.coverImage.themeId
+      ) {
+        changed = true;
+        return {
+          ...t,
+          coverImage: {
+            ...t.coverImage,
+            ...rc,
+          },
+        };
+      }
+      return t;
+    });
+    return changed ? merged : rawTopics;
+  }, [rawTopics, remoteCovers]);
+
   const hasDailyTopics = Array.isArray(topicIds) && topicIds.length > 0;
   const [filterMode, setFilterMode] = useState(() => (mode === "today" && hasDailyTopics ? "today" : "all"));
 
   useEffect(() => {
     setFilterMode(mode === "today" && hasDailyTopics ? "today" : "all");
   }, [mode, hasDailyTopics, project?._id]);
+
+  useEffect(() => {
+    setCommentPanelId(null);
+    setCommentText("");
+  }, [project?._id]);
 
   useEffect(() => {
     if (inline || !onClose) return;
@@ -864,9 +1128,13 @@ export default function DonePopup({
   }, [inline, onClose]);
 
   const todayMode = filterMode === "today" && hasDailyTopics;
-  const topics = todayMode
-    ? allTopics.filter((t) => (topicIds || []).includes(String(t.id)))
-    : allTopics;
+  const topics = useMemo(
+    () =>
+      todayMode
+        ? allTopics.filter((t) => (topicIds || []).includes(String(t.id)))
+        : allTopics,
+    [allTopics, todayMode, topicIds]
+  );
   const panelTopic = topics.find((t) => t.id === sourcePanelId) || null;
 
   const totalFolderLikes = (allTopics.length > 0 ? allTopics : topics).reduce((sum, topic) => {
@@ -906,14 +1174,17 @@ export default function DonePopup({
   const [folderReportReason, setFolderReportReason] = useState("Inappropriate or misleading content");
   const [folderReportDetails, setFolderReportDetails] = useState("");
 
+  const onAddRef = useRef(onAdd);
+  onAddRef.current = onAdd;
+
   // Background Auto-Push Check for Scheduled Progress Files
   useEffect(() => {
     const projId = project?._id || project?.id;
-    if (!projId || !onAdd) return;
+    if (!projId || !onAddRef.current) return;
 
-    // Check immediately on mount/update
+    // Check immediately on mount/project switch
     const initialPushed = checkAndTriggerScheduled(projId, (text, info) => {
-      onAdd(projId, text, info);
+      onAddRef.current?.(projId, text, info);
     });
     if (initialPushed && initialPushed.length > 0) {
       initialPushed.forEach((p) => {
@@ -924,7 +1195,7 @@ export default function DonePopup({
     // Interval check every 10 seconds
     const schedTimer = setInterval(() => {
       const pushed = checkAndTriggerScheduled(projId, (text, info) => {
-        onAdd(projId, text, info);
+        onAddRef.current?.(projId, text, info);
       });
       if (pushed && pushed.length > 0) {
         pushed.forEach((p) => {
@@ -934,7 +1205,7 @@ export default function DonePopup({
     }, 10000);
 
     return () => clearInterval(schedTimer);
-  }, [project?._id, project?.id, onAdd]);
+  }, [project?._id, project?.id]);
 
   const handleToggleHourglassMenu = (e) => {
     e.preventDefault();
@@ -1150,7 +1421,17 @@ export default function DonePopup({
           counts[t.id] = getLocalPostsForTopic(t.id).length;
         }
       }
-      setTopicPostsCounts(counts);
+      setTopicPostsCounts((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(counts);
+        if (
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((k) => prev[k] === counts[k])
+        ) {
+          return prev;
+        }
+        return counts;
+      });
     };
 
     updateCounts();
@@ -1203,6 +1484,7 @@ export default function DonePopup({
   };
 
   const openPanel = (topic) => {
+    setCommentPanelId(null);
     setSourceError("");
     setSourcePanelId(topic.id);
     setOpenSourceIndex(0);
@@ -1386,16 +1668,32 @@ export default function DonePopup({
     showToast(nextLiked ? `Liked "${topic.text}"` : `Unliked "${topic.text}"`);
   };
 
-  const handleActionComment = (topic) => {
+  const openCommentsPanel = (topic) => {
+    if (!topic?.id) return;
+    closePanel();
     setTaskMenuTopic(null);
-    setCommentModalTopic(topic);
+    setCommentPanelId(topic.id);
     setCommentText("");
-    setTaskComments(getTaskComments(project?._id, topic, isSharedFolder));
   };
 
-  const handleSubmitComment = (e) => {
+  const closeCommentsPanel = () => {
+    setCommentPanelId(null);
+    setCommentText("");
+  };
+
+  const handleActionComment = (topic) => {
+    setTaskMenuTopic(null);
+    if (!topic?.id) return;
+    if (commentPanelId === topic.id) {
+      closeCommentsPanel();
+    } else {
+      openCommentsPanel(topic);
+    }
+  };
+
+  const handleSubmitComment = (topic, e) => {
     e.preventDefault();
-    if (!commentModalTopic || !commentText.trim()) return;
+    if (!topic?.id || !commentText.trim()) return;
     const authorName = localStorage.getItem("sandadd.profile.name") || "You";
     const newComment = {
       id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1403,24 +1701,26 @@ export default function DonePopup({
       text: commentText.trim(),
       createdAt: new Date().toISOString(),
     };
-    const next = [...taskComments, newComment];
-    setTaskComments(next);
-    saveTaskComments(project?._id, commentModalTopic.id, next);
+    const currentComments = getTaskComments(project?._id, topic, isSharedFolder);
+    const next = [...currentComments, newComment];
+    saveTaskComments(project?._id, topic.id, next);
+    setTaskCommentsTick((n) => n + 1);
     if (project?._id) {
-      addTopicCommentApi(project._id, commentModalTopic.id, { text: newComment.text, author: authorName }).catch(() => {});
+      addTopicCommentApi(project._id, topic.id, { text: newComment.text, author: authorName }).catch(() => {});
     }
     setCommentText("");
-    showToast(`Comment added to "${commentModalTopic.text}"`);
+    showToast(`Comment added to "${topic.text}"`);
   };
 
-  const handleDeleteComment = (commentId) => {
-    if (!commentModalTopic) return;
-    const next = taskComments.filter((c) => c.id !== commentId);
-    setTaskComments(next);
-    saveTaskComments(project?._id, commentModalTopic.id, next);
+  const handleDeleteComment = (topic, commentId) => {
+    if (!topic?.id) return;
+    const currentComments = getTaskComments(project?._id, topic, isSharedFolder);
+    const next = currentComments.filter((c) => c.id !== commentId);
+    saveTaskComments(project?._id, topic.id, next);
+    setTaskCommentsTick((n) => n + 1);
 
     try {
-      const delKey = `sandadd.deletedComments.${project?._id}.${commentModalTopic.id}`;
+      const delKey = `sandadd.deletedComments.${project?._id}.${topic.id}`;
       const raw = localStorage.getItem(delKey);
       const list = raw ? JSON.parse(raw) : [];
       if (!list.includes(commentId)) {
@@ -1432,7 +1732,7 @@ export default function DonePopup({
     }
 
     if (project?._id) {
-      deleteTopicCommentApi(project._id, commentModalTopic.id, commentId).catch(() => {});
+      deleteTopicCommentApi(project._id, topic.id, commentId).catch(() => {});
     }
     showToast("Comment deleted");
   };
@@ -2170,6 +2470,7 @@ export default function DonePopup({
                 const sourceCount = sourceList.length;
                 const hasSource = sourceCount > 0;
                 const isOpen = sourcePanelId === topic.id;
+                const isCommentOpen = commentPanelId === topic.id;
                 const topicPostsCount =
                   topicPostsCounts[topic.id] ?? getLocalPostsForTopic(topic.id).length;
                 const hasTopicPosts = topicPostsCount > 0;
@@ -2177,6 +2478,10 @@ export default function DonePopup({
                 const isTopFile = index === 0 && !todayMode;
                 const isMemberFile = Boolean(topic?.membershipOnly || topic?.audience === "membership");
                 const isLockedForUser = Boolean(isMemberFile && !membershipStatus?.isMember && !membershipStatus?.isCreator);
+                const isPanelExpanded = (isOpen || isCommentOpen) && !isLockedForUser;
+                const topicComments = isCommentOpen && !isLockedForUser
+                  ? getTaskComments(project?._id, topic, isSharedFolder)
+                  : [];
                 const canOpenSource = !busyFile && !isLockedForUser && (!readOnlyTasks || hasSource || hasTopicPosts);
 
                 const showCheck = topic.hasCheckbox !== false;
@@ -2202,7 +2507,7 @@ export default function DonePopup({
                 return (
                   <li
                     key={topic.id}
-                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isTopFile ? "is-top-file" : ""} ${isFullCover ? "has-cover cover-full" : isTopCover ? "has-cover cover-top" : ""} ${isLockedForUser ? "is-membership-locked" : ""}`}
+                    className={`${finished ? "is-done" : ""} ${isOpen ? "is-source-open" : ""} ${isCommentOpen ? "is-comment-open" : ""} ${isPanelExpanded ? "is-panel-open" : ""} ${isTopFile ? "is-top-file" : ""} ${isFullCover ? "has-cover cover-full" : isTopCover ? "has-cover cover-top" : ""} ${isLockedForUser ? "is-membership-locked" : ""}`}
                     onClick={isLockedForUser ? () => setShowMembershipModal(true) : undefined}
                   >
                     {isLockedForUser && (
@@ -2317,7 +2622,7 @@ export default function DonePopup({
                               {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                                 <button
                                   type="button"
-                                  className={`done-cover-heart-btn ${taskLikes[topic.id] ? "is-liked" : ""} ${finished ? "is-done" : ""}`}
+                                  className={`done-cover-heart-btn ${taskLikes[topic.id] ? "is-liked" : ""} ${taskMenuTopic?.id === topic.id || isCommentOpen ? "is-active" : ""} ${finished ? "is-done" : ""}`}
                                   onClick={(e) => handleToggleTaskMenu(topic, e)}
                                   title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                   aria-label={`Actions for ${topic.text}`}
@@ -2422,7 +2727,7 @@ export default function DonePopup({
                                 {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                                   <button
                                     type="button"
-                                    className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
+                                    className={`done-return-btn ${taskMenuTopic?.id === topic.id || isCommentOpen ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
                                     onClick={(e) => handleToggleTaskMenu(topic, e)}
                                     title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                     aria-label={`Actions for ${topic.text}`}
@@ -2539,7 +2844,7 @@ export default function DonePopup({
                               {Boolean(!todayMode || isCollaborativeWork || isSharedFolder || (Array.isArray(topic.comments) && topic.comments.length > 0) || taskLikes[topic.id]) ? (
                                 <button
                                   type="button"
-                                  className={`done-return-btn ${taskMenuTopic?.id === topic.id ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
+                                  className={`done-return-btn ${taskMenuTopic?.id === topic.id || isCommentOpen ? "is-active" : ""} ${finished ? "is-done" : ""} ${taskLikes[topic.id] ? "is-liked" : ""}`}
                                   onClick={(e) => handleToggleTaskMenu(topic, e)}
                                   title={`Actions (Likes: ${getLikeCountForTopic(topic.id)}, Comments: ${getTaskComments(project?._id, topic, isSharedFolder).length})`}
                                   aria-label={`Actions for ${topic.text}`}
@@ -2694,45 +2999,12 @@ export default function DonePopup({
                             return (
                               <div className="done-source-one-by-one">
                                 {sourceCount > 1 && (
-                                  <div className="done-source-pills" role="tablist" aria-label="Source pagination">
-                                    <span className="done-source-pills-label">Sources</span>
-                                    <div className="done-source-pills-track">
-                                      {sourceList.map((item, idx) => {
-                                        const isSelected = idx === safeIdx;
-                                        const isYt = isYouTubeUrl(item.content);
-                                        const typeName =
-                                          item.type === "file"
-                                            ? "File"
-                                            : isYt
-                                              ? "YouTube"
-                                              : item.type === "link" || isUrlSource(item.content)
-                                                ? "Link"
-                                                : "Note";
-                                        const name =
-                                          item.title ||
-                                          item.proof?.name ||
-                                          (item.content ? String(item.content).slice(0, 30) : "") ||
-                                          typeName;
-                                        return (
-                                          <button
-                                            key={item.id || idx}
-                                            type="button"
-                                            role="tab"
-                                            aria-selected={isSelected}
-                                            className={`done-source-pill ${isSelected ? "is-active" : ""}`}
-                                            onClick={() => setOpenSourceIndex(idx)}
-                                            title={`Source ${idx + 1}: ${name} (${typeName})`}
-                                            aria-label={`Source ${idx + 1}: ${name}`}
-                                          >
-                                            <span className="done-source-pill-num">{idx + 1}</span>
-                                            {isSelected ? (
-                                              <span className="done-source-pill-glow" aria-hidden="true" />
-                                            ) : null}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                                  <SourcePillsBar
+                                    key={topic.id}
+                                    sourceList={sourceList}
+                                    safeIdx={safeIdx}
+                                    onSelectIndex={setOpenSourceIndex}
+                                  />
                                 )}
 
                                 <div className="done-source-item">
@@ -3079,6 +3351,124 @@ export default function DonePopup({
                       ) : null}
                     </div>
                   ) : null}
+
+                  {isCommentOpen && !isLockedForUser ? (
+                    <div
+                      className="done-source-panel done-comment-panel"
+                      role="region"
+                      aria-label={`Comments for ${topic.text}`}
+                    >
+                      <div className="done-source-tabs done-comment-tabs">
+                        <button
+                          type="button"
+                          className="done-source-tab-btn is-active"
+                          aria-current="true"
+                        >
+                          <IconComment className="done-comment-tab-icon" />
+                          <span>Comments</span>
+                          <span className="done-source-tab-count">{topicComments.length}</span>
+                        </button>
+                        {canOpenSource ? (
+                          <button
+                            type="button"
+                            className="done-source-tab-btn"
+                            onClick={() => openPanel(topic)}
+                            title={`Switch to sources (${totalSourceCount})`}
+                          >
+                            <span>Sources</span>
+                            {totalSourceCount > 0 ? (
+                              <span className="done-source-tab-count">{totalSourceCount}</span>
+                            ) : null}
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="done-source-edit-toggle done-comment-close-btn"
+                          onClick={closeCommentsPanel}
+                          title="Close comments"
+                          aria-label="Close comments"
+                        >
+                          ✕ Close
+                        </button>
+                      </div>
+
+                      <div className="done-source-pane done-comment-pane">
+                        {topicComments.length === 0 ? (
+                          <div className="task-comment-empty">
+                            <span>No comments yet. Write a comment below!</span>
+                          </div>
+                        ) : (
+                          <div className="task-comment-list done-comment-inline-list">
+                            {topicComments.map((c) => (
+                              <div key={c.id} className="task-comment-item">
+                                <div className="task-comment-header">
+                                  <div className="task-comment-author-badge">
+                                    <span className="task-comment-avatar-circle">
+                                      {(c.author || "U").slice(0, 1).toUpperCase()}
+                                    </span>
+                                    <span className="task-comment-author-name">
+                                      {c.author || "You"}
+                                    </span>
+                                  </div>
+                                  <div className="task-comment-meta-right">
+                                    <span className="task-comment-time">
+                                      {formatCommentTime(c.createdAt)}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="task-comment-delete-btn"
+                                      onClick={() => handleDeleteComment(topic, c.id)}
+                                      title="Delete comment"
+                                      aria-label="Delete comment"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                                <p className="task-comment-text">{c.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <form
+                          onSubmit={(e) => handleSubmitComment(topic, e)}
+                          className="task-comment-form"
+                        >
+                          <textarea
+                            className="task-action-modal-textarea task-comment-input"
+                            rows={2}
+                            placeholder="Write a comment..."
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                if (commentText.trim()) handleSubmitComment(topic, e);
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <div className="task-action-modal-foot done-comment-form-foot">
+                            <button
+                              type="button"
+                              className="task-action-modal-cancel"
+                              onClick={closeCommentsPanel}
+                            >
+                              Close
+                            </button>
+                            <button
+                              type="submit"
+                              className="task-action-modal-submit"
+                              disabled={!commentText.trim()}
+                            >
+                              Post Comment
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}
@@ -3137,19 +3527,21 @@ export default function DonePopup({
             <button
               type="button"
               role="menuitem"
-              className="task-action-item-btn"
+              className={`task-action-item-btn ${commentPanelId === taskMenuTopic.id ? "is-active" : ""}`}
               onClick={() => handleActionComment(taskMenuTopic)}
             >
               <span className="task-action-icon">
                 <IconComment />
               </span>
-              <span className="task-action-label">Comment</span>
+              <span className="task-action-label">
+                {commentPanelId === taskMenuTopic.id ? "Close Comments" : "Comment"}
+              </span>
               <span
                 className={`task-action-count-badge ${
-                  getTaskComments(project?._id, taskMenuTopic.id, isSharedFolder).length > 0 ? "has-comments" : ""
+                  getTaskComments(project?._id, taskMenuTopic, isSharedFolder).length > 0 ? "has-comments" : ""
                 }`}
               >
-                {getTaskComments(project?._id, taskMenuTopic.id, isSharedFolder).length}
+                {getTaskComments(project?._id, taskMenuTopic, isSharedFolder).length}
               </span>
             </button>
           </li>
@@ -3349,116 +3741,6 @@ export default function DonePopup({
                 </button>
               </div>
             </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
-    {commentModalTopic &&
-      createPortal(
-        <div
-          className="task-action-modal-overlay"
-          onClick={() => setCommentModalTopic(null)}
-        >
-          <div
-            className="task-action-modal-card task-comment-modal-card"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="comment-modal-title"
-          >
-            <div className="task-action-modal-head">
-              <div className="task-comment-modal-title-row">
-                <h4 id="comment-modal-title">Comments</h4>
-                <span className="task-comment-count-badge">
-                  {taskComments.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="task-action-modal-close"
-                onClick={() => setCommentModalTopic(null)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="task-action-modal-taskname">
-              Task: <strong>{commentModalTopic.text}</strong>
-            </p>
-
-            <div className="task-comment-body">
-              {taskComments.length === 0 ? (
-                <div className="task-comment-empty">
-                  <span>No comments yet. Write a comment below!</span>
-                </div>
-              ) : (
-                <div className="task-comment-list">
-                  {taskComments.map((c) => (
-                    <div key={c.id} className="task-comment-item">
-                      <div className="task-comment-header">
-                        <div className="task-comment-author-badge">
-                          <span className="task-comment-avatar-circle">
-                            {(c.author || "U").slice(0, 1).toUpperCase()}
-                          </span>
-                          <span className="task-comment-author-name">
-                            {c.author || "You"}
-                          </span>
-                        </div>
-                        <div className="task-comment-meta-right">
-                          <span className="task-comment-time">
-                            {formatCommentTime(c.createdAt)}
-                          </span>
-                          <button
-                            type="button"
-                            className="task-comment-delete-btn"
-                            onClick={() => handleDeleteComment(c.id)}
-                            title="Delete comment"
-                            aria-label="Delete comment"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                      <p className="task-comment-text">{c.text}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmitComment} className="task-comment-form">
-                <textarea
-                  className="task-action-modal-textarea task-comment-input"
-                  rows={2}
-                  placeholder="Write a comment..."
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (commentText.trim()) handleSubmitComment(e);
-                    }
-                  }}
-                  autoFocus
-                />
-                <div className="task-action-modal-foot">
-                  <button
-                    type="button"
-                    className="task-action-modal-cancel"
-                    onClick={() => setCommentModalTopic(null)}
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    className="task-action-modal-submit"
-                    disabled={!commentText.trim()}
-                  >
-                    Post Comment
-                  </button>
-                </div>
-              </form>
-            </div>
           </div>
         </div>,
         document.body

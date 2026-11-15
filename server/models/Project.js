@@ -76,4 +76,6 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+projectSchema.index({ ownerId: 1, lastWorkedAt: -1, createdAt: -1 });
+
 export default mongoose.model("Project", projectSchema);

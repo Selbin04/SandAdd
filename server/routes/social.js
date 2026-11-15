@@ -71,12 +71,92 @@ function postQuery(targetId) {
   return { $or: conditions };
 }
 
-function formatPost(doc, currentUserId) {
+const FEED_PROJECTION = {
+  "proof.dataUrl": 0,
+  "works.sourceProof.dataUrl": 0,
+  "works.coverImage.dataUrl": 0,
+  "sharedProject.works.sourceProof.dataUrl": 0,
+  "sharedProject.works.coverImage.dataUrl": 0,
+};
+
+function stripMediaField(media, postId = null, workId = null) {
+  if (!media) return null;
+  const remoteMeta = postId
+    ? {
+        remotePostId: String(postId),
+        ...(workId ? { remoteWorkId: String(workId) } : {}),
+      }
+    : {};
+  if (typeof media === "string") {
+    const trimmed = media.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("data:") || trimmed.length > 512) {
+      return {
+        name: "Cover",
+        type: trimmed.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+        hasMedia: true,
+        hasRemoteProof: true,
+        ...remoteMeta,
+      };
+    }
+    return trimmed;
+  }
+  if (typeof media !== "object") return media;
+  const { dataUrl, ...rest } = media;
+  const isTextOrLink =
+    rest.type === "link" ||
+    rest.kind === "link" ||
+    Boolean(rest.url) ||
+    rest.type === "text" ||
+    rest.kind === "text" ||
+    Boolean(rest.text);
+  if (isTextOrLink) return rest;
+  const hasTheme = Boolean(rest.themeId);
+  const hasMedia = Boolean(
+    rest.hasMedia || rest.mediaId || hasTheme || dataUrl || Object.keys(rest).length > 0
+  );
+  return {
+    ...rest,
+    hasMedia,
+    ...(!hasTheme && hasMedia ? { hasRemoteProof: true, ...remoteMeta } : {}),
+  };
+}
+
+function stripWorksMedia(works, postId = null) {
+  if (!Array.isArray(works)) return [];
+  return works.map((w) => {
+    if (!w || typeof w !== "object") return w;
+    const wId = w.id || w._id || null;
+    return {
+      ...w,
+      ...(w.sourceProof ? { sourceProof: stripMediaField(w.sourceProof, postId, wId) } : {}),
+      ...(w.coverImage ? { coverImage: stripMediaField(w.coverImage, postId, wId) } : {}),
+    };
+  });
+}
+
+function formatPost(doc, currentUserId, { stripProof = false } = {}) {
   const isUser = Boolean(
     currentUserId && String(doc.authorId || "") === String(currentUserId)
   );
   const likes = Array.isArray(doc.likes) ? doc.likes.map(String) : [];
   const isLiked = Boolean(currentUserId && likes.includes(String(currentUserId)));
+  const postKey = String(doc._id || doc.clientId || "");
+  const works = Array.isArray(doc.works)
+    ? stripProof
+      ? stripWorksMedia(doc.works, postKey)
+      : doc.works
+    : [];
+  const sharedProject =
+    stripProof && doc.sharedProject && typeof doc.sharedProject === "object"
+      ? {
+          ...doc.sharedProject,
+          works: stripWorksMedia(doc.sharedProject.works, postKey),
+        }
+      : doc.sharedProject || null;
+  const proof = stripProof
+    ? stripMediaField(doc.proof, postKey)
+    : doc.proof || null;
 
   return {
     _id: String(doc._id || doc.clientId),
@@ -98,9 +178,9 @@ function formatPost(doc, currentUserId) {
     creatorName: doc.creatorName || doc.sharedProject?.creatorName || "",
     creatorHandle: doc.creatorHandle || doc.sharedProject?.creatorHandle || "",
     topicId: doc.topicId || null,
-    works: Array.isArray(doc.works) ? doc.works : [],
-    sharedProject: doc.sharedProject || null,
-    proof: doc.proof || null,
+    works,
+    sharedProject,
+    proof,
     kind: doc.kind || "post",
     likesCount: likes.length,
     isLiked,
@@ -196,6 +276,7 @@ export default function createSocialRouter(useMemory) {
 
       const scope = req.query.scope === "group" ? "group" : "view";
       const groupId = req.query.groupId ? String(req.query.groupId) : null;
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 25));
 
       if (useMemory) {
         let filtered = memPosts.filter((p) => p.scope === scope);
@@ -203,19 +284,50 @@ export default function createSocialRouter(useMemory) {
           filtered = filtered.filter((p) => String(p.groupId) === groupId);
         }
         filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        return res.json(filtered.map((p) => formatPost(p, currentUserId)));
+        return res.json(
+          filtered.slice(0, limit).map((p) => formatPost(p, currentUserId, { stripProof: true }))
+        );
       }
 
       const query = { scope };
       if (scope === "group") {
         if (groupId) query.groupId = groupId;
       }
-      const docs = await SocialPost.find(query)
+      const docs = await SocialPost.find(query, FEED_PROJECTION)
         .sort({ createdAt: -1 })
-        .limit(100)
+        .limit(limit)
         .lean();
 
-      return res.json(docs.map((d) => formatPost(d, currentUserId)));
+      return res.json(docs.map((d) => formatPost(d, currentUserId, { stripProof: true })));
+    })
+  );
+
+  // GET /api/social/posts/:id/proof
+  router.get(
+    "/posts/:id/proof",
+    asyncRoute(async (req, res) => {
+      const targetId = String(req.params.id);
+      if (useMemory) {
+        const post = memPosts.find(
+          (p) => p.clientId === targetId || String(p._id) === targetId
+        );
+        if (!post) return res.status(404).json({ error: "Post not found" });
+        return res.json({
+          proof: post.proof || null,
+          works: Array.isArray(post.works) ? post.works : [],
+          sharedProject: post.sharedProject || null,
+        });
+      }
+
+      const doc = await SocialPost.findOne(postQuery(targetId))
+        .select("proof works sharedProject")
+        .lean();
+      if (!doc) return res.status(404).json({ error: "Post not found" });
+      return res.json({
+        proof: doc.proof || null,
+        works: Array.isArray(doc.works) ? doc.works : [],
+        sharedProject: doc.sharedProject || null,
+      });
     })
   );
 

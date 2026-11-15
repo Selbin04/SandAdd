@@ -42,7 +42,7 @@ export function subscribeLiveSync(handler) {
   };
 }
 
-function readCatalog() {
+export function readCatalog() {
   try {
     const raw = localStorage.getItem(LIVE_WORKS_KEY);
     if (!raw) return {};

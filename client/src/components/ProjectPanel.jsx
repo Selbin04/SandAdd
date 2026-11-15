@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getProjectCreator, getNotificationCount, isTasksLocked } from "../lib/liveWorks.js";
 import WorkMenu from "./WorkMenu.jsx";
 import { useHorizontalScroll } from "../lib/useHorizontalScroll.js";
 import WorkFolderStats from "./WorkFolderStats.jsx";
 import { getCardAvatar, getCardCreatorName, getCardInitial } from "../lib/projectCardAvatar.js";
+import ProgressFab from "./ProgressFab.jsx";
 
 export default function ProjectPanel({
   title,
@@ -33,8 +34,6 @@ export default function ProjectPanel({
   onSelectFolder,
   allProjects = [],
 }) {
-  const sentinelRef = useRef(null);
-  const [isFloating, setIsFloating] = useState(false);
   const folderScroll = useHorizontalScroll();
   const importantScroll = useHorizontalScroll();
   const [, setAvatarUpdateTick] = useState(0);
@@ -51,44 +50,17 @@ export default function ProjectPanel({
     };
   }, []);
 
-  useEffect(() => {
-    if (!showCreate) return;
-
-    const checkFloating = () => {
-      if (
-        typeof window === "undefined" ||
-        window.innerWidth > 768 ||
-        !sentinelRef.current
-      ) {
-        setIsFloating(false);
-        return;
-      }
-      const rect = sentinelRef.current.getBoundingClientRect();
-      const threshold = window.innerHeight - 70;
-      if (rect.top > threshold) {
-        setIsFloating(true);
-      } else {
-        setIsFloating(false);
-      }
-    };
-
-    checkFloating();
-    window.addEventListener("scroll", checkFloating, { passive: true });
-    window.addEventListener("resize", checkFloating, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", checkFloating);
-      window.removeEventListener("resize", checkFloating);
-    };
-  }, [showCreate]);
-
   const activeFolder =
     activeFolderId && folders
       ? folders.find((f) => f.id === activeFolderId) || null
       : null;
 
-  const unfiledCount = (allProjects.length > 0 ? allProjects : projects).filter(
-    (p) => !p.folderId
-  ).length;
+  const validFolderIds = new Set((folders || []).map((f) => String(f.id)));
+  const isUnfiledProject = (p) =>
+    !p.folderId || !validFolderIds.has(String(p.folderId));
+  const pool = allProjects.length > 0 ? allProjects : projects;
+  const unfiled = pool.filter(isUnfiledProject);
+  const unfiledCount = unfiled.length;
 
   return (
     <aside
@@ -108,30 +80,6 @@ export default function ProjectPanel({
 
       {showCreate && (
         <>
-          <div ref={sentinelRef} className="new-project-sentinel" />
-          <form
-            className={`new-project ${isFloating ? "is-floating-mobile" : ""}`}
-            onSubmit={(e) => {
-              e.preventDefault();
-              onCreate();
-            }}
-          >
-            <input
-              type="text"
-              maxLength={80}
-              placeholder={
-                activeFolder
-                  ? `Create progress in "${activeFolder.name}"…`
-                  : "Create New Progress Path"
-              }
-              value={newName}
-              onChange={(e) => onNewName(e.target.value)}
-            />
-            <button type="submit" className="chip active">
-              Save
-            </button>
-          </form>
-
           {/* Folders used to arrange progress folders */}
           <div className="folder-arrange-bar">
             <div className="folder-arrange-label-wrap">
@@ -173,9 +121,6 @@ export default function ProjectPanel({
               >
                 {/* Title: "All Paths" */}
                 {(() => {
-                  const unfiled = (allProjects.length > 0 ? allProjects : projects).filter(
-                    (p) => !p.folderId
-                  );
                   const hasUpdates = unfiled.some(
                     (p) => isTasksLocked(p) || p.originId || p.sharedTemplateId || Boolean(p.notificationCount)
                   );
@@ -592,6 +537,14 @@ export default function ProjectPanel({
           })}
         </ul>
         </>
+      )}
+
+      {showCreate && (
+        <ProgressFab
+          onCreate={onCreate}
+          onCreateFolder={onCreateFolder}
+          activeFolderName={activeFolder?.name || ""}
+        />
       )}
     </aside>
   );

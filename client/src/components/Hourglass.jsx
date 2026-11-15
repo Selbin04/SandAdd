@@ -86,11 +86,13 @@ export default function Hourglass({ progress, pouring, finished }) {
   }, []);
 
   useEffect(() => {
-    let raf;
+    if (!pouring && grainsRef.current.length === 0) return undefined;
+    let raf = null;
     let acc = 0;
     let last = performance.now();
 
     const tick = (now) => {
+      raf = null;
       const dt = Math.min(32, now - last);
       last = now;
       let next = grainsRef.current;
@@ -106,26 +108,38 @@ export default function Hourglass({ progress, pouring, finished }) {
         acc = 0;
       }
 
-      next = next
-        .map((g) => ({
-          ...g,
-          x: g.x + g.vx * (dt / 16),
-          y: g.y + g.vy * (dt / 16),
-          vy: g.vy + 0.12,
-          life: g.y > BOT_Y - 40 ? g.life - dt / 220 : g.life,
-        }))
-        .filter((g) => g.y < BOT_Y - 4 && g.life > 0);
+      if (next.length > 0) {
+        next = next
+          .map((g) => ({
+            ...g,
+            x: g.x + g.vx * (dt / 16),
+            y: g.y + g.vy * (dt / 16),
+            vy: g.vy + 0.12,
+            life: g.y > BOT_Y - 40 ? g.life - dt / 220 : g.life,
+          }))
+          .filter((g) => g.y < BOT_Y - 4 && g.life > 0);
+      }
 
       if (next.length > 55) next = next.slice(next.length - 55);
 
-      grainsRef.current = next;
-      setGrains(next);
-      raf = requestAnimationFrame(tick);
+      if (grainsRef.current.length > 0 || next.length > 0) {
+        grainsRef.current = next;
+        setGrains(next);
+      }
+
+      if (
+        (pouringRef.current && progressRef.current < 1) ||
+        grainsRef.current.length > 0
+      ) {
+        raf = requestAnimationFrame(tick);
+      }
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    return () => {
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+  }, [pouring]);
 
   const topPath = topSandPath(progress);
   const botPath = bottomSandPath(progress);

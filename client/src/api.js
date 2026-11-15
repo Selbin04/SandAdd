@@ -68,6 +68,13 @@ export async function fetchProjects() {
   return readJson(res, "Could not load works");
 }
 
+export async function fetchProjectCovers(id) {
+  const res = await fetch(`${API}/projects/${encodeURIComponent(id)}/covers`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load project covers");
+}
+
 export async function createProject(payload) {
   const res = await fetch(`${API}/projects`, {
     method: "POST",
@@ -232,6 +239,13 @@ export async function fetchSocialPosts({ scope = "view", groupId = null, topicId
     headers: authHeaders(),
   });
   return readJson(res, "Could not load social feed");
+}
+
+export async function fetchSocialPostProof(postId) {
+  const res = await fetch(`${API}/social/posts/${encodeURIComponent(postId)}/proof`, {
+    headers: authHeaders(),
+  });
+  return readJson(res, "Could not load post media");
 }
 
 export async function createSocialPost(payload) {

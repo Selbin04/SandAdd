@@ -16,9 +16,11 @@ import {
   mergeByIdPreferMedia,
   PROOF_ACCEPT,
   readAuthorProfile,
+  snapshotProjectWorks,
   syncPostCommentsFromServer,
   syncSocialGroupsFromServer,
 } from "../lib/socialFeed.js";
+import { getAuthUser } from "../lib/auth.js";
 import {
   fetchSocialPosts,
   toggleLikeSocialPost,
@@ -32,6 +34,7 @@ import {
   normalizeSourceUrl,
   workHasSource,
 } from "./SourceMedia.jsx";
+import RecommendedChannelsModal from "./RecommendedChannelsModal.jsx";
 import "./SocialPage.css";
 
 function newDraftWork() {
@@ -273,6 +276,8 @@ function PostActions({
   commentsCount = 0,
   commentsOpen = false,
   onToggleComments,
+  hasSharedPath = false,
+  onOpenRecommendedChannels = null,
 }) {
   return (
     <div className="social-actions">
@@ -306,6 +311,34 @@ function PostActions({
       <button type="button" className="is-report" aria-label="Report">
         <IconReport />
       </button>
+
+      {hasSharedPath ? (
+        <button
+          type="button"
+          className="social-recommended-channels-btn"
+          onClick={onOpenRecommendedChannels}
+          title="Recommended Channels for this path"
+          aria-label="Recommended channels for this shared path"
+        >
+          <svg
+            className="social-recommended-channels-icon"
+            viewBox="0 0 24 24"
+            width="15"
+            height="15"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            <path d="M12 11v6" />
+            <path d="M9 14h6" />
+          </svg>
+          <span>Recommended Channels</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -320,6 +353,7 @@ function FeedCard({
   onOpenProfile,
   commentsOpen = false,
   onToggleComments,
+  onOpenRecommendedChannels = null,
 }) {
   const [comments, setComments] = useState(() => loadPostComments(item.id));
 
@@ -523,6 +557,13 @@ function FeedCard({
         commentsCount={Math.max(comments.length, Number(item.commentsCount) || 0)}
         commentsOpen={commentsOpen}
         onToggleComments={onToggleComments}
+        hasSharedPath={Boolean(
+          shared ||
+          item.projectId ||
+          (item.projectName && works.length > 0) ||
+          item.sharedTemplateId
+        )}
+        onOpenRecommendedChannels={() => onOpenRecommendedChannels?.(item)}
       />
     </article>
   );
@@ -676,6 +717,7 @@ export default function SocialPage({
   initialGroupId = null,
   onAddSharedProject = null,
   existingSharedTemplateIds = [],
+  projects = [],
 }) {
   const [section, setSection] = useState(initialGroupId ? "groups" : "view");
   const [openGroupId, setOpenGroupId] = useState(initialGroupId);
@@ -685,6 +727,7 @@ export default function SocialPage({
   const [commentsAnchor, setCommentsAnchor] = useState(null);
   const pageRef = useRef(null);
   const [likedIds, setLikedIds] = useState(() => new Set());
+  const [recommendedChannelsPost, setRecommendedChannelsPost] = useState(null);
   const [groupUserPosts, setGroupUserPosts] = useState(() =>
     initialGroupId ? loadGroupPosts(initialGroupId) : []
   );
@@ -696,10 +739,26 @@ export default function SocialPage({
   const [proofName, setProofName] = useState("");
   const [postError, setPostError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [showProjectForm, setShowProjectForm] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [draftWorks, setDraftWorks] = useState(() => [newDraftWork()]);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
   const [sharedProject, setSharedProject] = useState(null);
+
+  const userProjects = useMemo(() => {
+    if (Array.isArray(projects) && projects.length > 0) return projects;
+    try {
+      const u = getAuthUser();
+      if (u?.id) {
+        const raw = localStorage.getItem(`sandadd.projectsCache.${u.id}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return [];
+  }, [projects]);
   const [workFileBusyId, setWorkFileBusyId] = useState(null);
   const workFileRef = useRef(null);
   const pendingWorkFileIdRef = useRef(null);
@@ -744,38 +803,53 @@ export default function SocialPage({
 
   useEffect(() => {
     let alive = true;
-    const fetchRemote = () => {
-      if (section === "view") {
-        fetchSocialPosts({ scope: "view" })
-          .then((serverPosts) => {
-            if (!alive || !Array.isArray(serverPosts)) return;
-            setViewPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
-            for (const p of serverPosts) {
-              if (Array.isArray(p.comments) && p.comments.length > 0) {
-                syncPostCommentsFromServer(p.id, p.comments);
-              }
-            }
-          })
-          .catch(() => {});
-      } else if (section === "groups" && openGroupId) {
-        fetchSocialPosts({ scope: "group", groupId: openGroupId })
-          .then((serverPosts) => {
-            if (!alive || !Array.isArray(serverPosts)) return;
-            setGroupUserPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
-            for (const p of serverPosts) {
-              if (Array.isArray(p.comments) && p.comments.length > 0) {
-                syncPostCommentsFromServer(p.id, p.comments);
-              }
-            }
-          })
-          .catch(() => {});
+    let inFlight = false;
+    const fetchRemote = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const tasks = [];
+        if (section === "view") {
+          tasks.push(
+            fetchSocialPosts({ scope: "view" })
+              .then((serverPosts) => {
+                if (!alive || !Array.isArray(serverPosts)) return;
+                setViewPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
+                for (const p of serverPosts) {
+                  if (Array.isArray(p.comments) && p.comments.length > 0) {
+                    syncPostCommentsFromServer(p.id, p.comments);
+                  }
+                }
+              })
+              .catch(() => {})
+          );
+        } else if (section === "groups" && openGroupId) {
+          tasks.push(
+            fetchSocialPosts({ scope: "group", groupId: openGroupId })
+              .then((serverPosts) => {
+                if (!alive || !Array.isArray(serverPosts)) return;
+                setGroupUserPosts((prev) => mergeByIdPreferMedia(serverPosts, prev || []));
+                for (const p of serverPosts) {
+                  if (Array.isArray(p.comments) && p.comments.length > 0) {
+                    syncPostCommentsFromServer(p.id, p.comments);
+                  }
+                }
+              })
+              .catch(() => {})
+          );
+        }
+        tasks.push(
+          syncSocialGroupsFromServer()
+            .then(() => {
+              if (!alive) return;
+              setCustomGroups(loadCustomGroups().map(toDisplayGroup));
+            })
+            .catch(() => {})
+        );
+        await Promise.all(tasks);
+      } finally {
+        inFlight = false;
       }
-      syncSocialGroupsFromServer()
-        .then(() => {
-          if (!alive) return;
-          setCustomGroups(loadCustomGroups().map(toDisplayGroup));
-        })
-        .catch(() => {});
     };
 
     hydrateSocialFeeds().then((data) => {
@@ -788,10 +862,15 @@ export default function SocialPage({
         setGroupUserPosts([]);
       }
       setCustomGroups(loadCustomGroups().map(toDisplayGroup));
-      fetchRemote();
+      void fetchRemote();
     });
 
-    const interval = setInterval(fetchRemote, 3500);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      void fetchRemote();
+    }, 15000);
     return () => {
       alive = false;
       clearInterval(interval);
@@ -803,9 +882,8 @@ export default function SocialPage({
     setProof(null);
     setProofName("");
     setPostError("");
-    setShowProjectForm(false);
-    setProjectName("");
-    setDraftWorks([newDraftWork()]);
+    setShowProjectPicker(false);
+    setSelectedFolderId(null);
     setSharedProject(null);
   }, [openGroupId, section]);
 
@@ -813,38 +891,33 @@ export default function SocialPage({
     setProof(null);
     setProofName("");
     setSharedProject(null);
-    setShowProjectForm(false);
-    setProjectName("");
-    setDraftWorks([newDraftWork()]);
+    setSelectedFolderId(null);
+    setShowProjectPicker(false);
     setPostError("");
   };
 
-  const resetProjectCompose = () => {
-    setSharedProject(null);
-    setProjectName("");
-    setDraftWorks([newDraftWork()]);
-    setShowProjectForm(false);
-  };
-
-  const applyProjectToCompose = () => {
+  const handleSelectProjectFolder = (project) => {
     setPostError("");
-    try {
-      const next = buildSharedProject({
-        name: projectName,
-        works: draftWorks
-          .map((w) => ({
-            id: w.id,
-            text: w.text,
-            source: normalizeSourceUrl(w.source),
-            sourceProof: w.sourceProof,
-          }))
-          .filter((w) => String(w.text || "").trim()),
-      });
-      setSharedProject(next);
-      setShowProjectForm(false);
-    } catch (err) {
-      setPostError(err.message || "Could not add work");
+    const pid = String(project._id || project.id);
+    if (selectedFolderId === pid && sharedProject) {
+      setSharedProject(null);
+      setSelectedFolderId(null);
+      return;
     }
+    const works = snapshotProjectWorks(project);
+    const originId = String(project.originId || project._id || project.id || "");
+    const payload = {
+      templateId: `fin-${project._id || project.id || "p"}-${Date.now()}`,
+      originId,
+      shareMode: project.originMode || "follow",
+      name: project.name,
+      about: String(project.about || "").slice(0, 2000),
+      works,
+      durationMs: project.durationMs || project.timeoutMs || 30_000,
+    };
+    setSharedProject(payload);
+    setSelectedFolderId(pid);
+    setShowProjectPicker(false);
   };
 
   const updateDraftWork = (id, patch) => {
@@ -1121,46 +1194,27 @@ export default function SocialPage({
     }
   };
 
-  const resolveWorksForPost = (projectShare) => {
-    if (!projectShare) return { works: [], sharedProject: null };
-    let works = Array.isArray(projectShare.works) ? [...projectShare.works] : [];
-    let nextShare = { ...projectShare, works };
-    if (works.length > 0) {
-      const includeWorks = window.confirm(
-        "Include the task list in this post?"
-      );
-      if (!includeWorks) {
-        // Declined → no works list and no Add to Progress
-        return { works: [], sharedProject: null };
-      }
-    } else {
-      // No works to share → don't offer Add to Progress
-      nextShare = null;
-    }
-    return { works, sharedProject: nextShare };
-  };
-
   const submitViewPost = (e) => {
     e.preventDefault();
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a project to post.");
+      setPostError("Write something or select a progress path to post.");
       return;
     }
     const author = readAuthorProfile();
     const attachedName = sharedProject?.name || "";
-    const { works, sharedProject: projectShare } = resolveWorksForPost(sharedProject);
+    const works = Array.isArray(sharedProject?.works) ? [...sharedProject.works] : [];
     const post = {
       id: `view-${Date.now()}`,
       name: author.name,
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      meta: projectShare ? "shared a work · just now" : "just now",
+      meta: sharedProject ? "shared a work · just now" : "just now",
       body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
-      proof: proof || null,
+      proof: null,
       works,
-      sharedProject: projectShare,
-      projectName: projectShare ? attachedName : "",
+      sharedProject: sharedProject || null,
+      projectName: sharedProject ? attachedName : "",
       createdAt: new Date().toISOString(),
       isUser: true,
       kind: "post",
@@ -1175,25 +1229,25 @@ export default function SocialPage({
     if (!openGroupId || !openGroup) return;
     const body = draft.trim();
     if (!body && !sharedProject) {
-      setPostError("Write something or add a project to post.");
+      setPostError("Write something or select a progress path to post.");
       return;
     }
     const author = readAuthorProfile();
     const attachedName = sharedProject?.name || "";
-    const { works, sharedProject: projectShare } = resolveWorksForPost(sharedProject);
+    const works = Array.isArray(sharedProject?.works) ? [...sharedProject.works] : [];
     const post = {
       id: `group-${Date.now()}`,
       name: author.name,
       handle: author.handle,
       initial: author.name.trim().slice(0, 1).toUpperCase() || "U",
-      meta: projectShare
+      meta: sharedProject
         ? `shared a work · ${openGroup.name}`
         : `in ${openGroup.name}`,
       body: body || (attachedName ? `Shared project: ${attachedName}` : ""),
-      proof: proof || null,
+      proof: null,
       works,
-      sharedProject: projectShare,
-      projectName: projectShare ? attachedName : "",
+      sharedProject: sharedProject || null,
+      projectName: sharedProject ? attachedName : "",
       createdAt: new Date().toISOString(),
       isUser: true,
       groupId: openGroupId,
@@ -1206,125 +1260,157 @@ export default function SocialPage({
   };
 
   const composeExtras = (
-    <>
+    <div className="social-compose-progress-wrap">
       <button
         type="button"
-        className={`social-group-attach ${showProjectForm || sharedProject ? "is-active" : ""}`}
+        className={`social-group-attach ${showProjectPicker || sharedProject ? "is-active" : ""}`}
         disabled={busy}
         onClick={() => {
           setPostError("");
-          if (sharedProject) {
-            resetProjectCompose();
-            return;
-          }
-          setShowProjectForm((v) => !v);
+          setShowProjectPicker((v) => !v);
         }}
+        aria-expanded={showProjectPicker}
+        title={
+          sharedProject
+            ? `Attached: ${sharedProject.name}`
+            : "Select a progress folder from your Progress section"
+        }
       >
-        {sharedProject ? "Remove progress path" : "Progress Path"}
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <path d="M12 11v6" />
+          <path d="M9 14h6" />
+        </svg>
+        <span>{sharedProject ? `Path: ${sharedProject.name}` : "Progress Path"}</span>
       </button>
-    </>
+
+      {sharedProject ? (
+        <button
+          type="button"
+          className="social-compose-clear-path-btn"
+          onClick={() => {
+            setSharedProject(null);
+            setSelectedFolderId(null);
+          }}
+          title="Remove selected progress path"
+          aria-label="Remove progress path"
+        >
+          ✕
+        </button>
+      ) : null}
+    </div>
   );
 
-  const projectComposePanel = showProjectForm ? (
-    <div className="social-project-compose">
-      <input
-        type="text"
-        value={projectName}
-        onChange={(e) => setProjectName(e.target.value)}
-        placeholder="Progress path name"
-        maxLength={80}
-        aria-label="Progress path name"
-      />
-      <p className="social-project-works-label">
-        Tasks
-      </p>
-      <ul className="social-project-works-edit">
-        {draftWorks.map((work, index) => (
-          <li key={work.id}>
-            <div className="social-project-work-row">
-              <input
-                type="text"
-                value={work.text}
-                onChange={(e) => updateDraftWork(work.id, { text: e.target.value })}
-                placeholder={`Task ${index + 1}`}
-                maxLength={80}
-                aria-label={`Task ${index + 1}`}
-              />
-              <button
-                type="button"
-                className="social-project-work-remove"
-                onClick={() => removeDraftWork(work.id)}
-                aria-label={`Remove task ${index + 1}`}
-              >
-                ×
-              </button>
-            </div>
-            <input
-              type="url"
-              value={work.source}
-              onChange={(e) =>
-                updateDraftWork(work.id, {
-                  source: e.target.value,
-                  sourceProof: e.target.value ? null : work.sourceProof,
-                })
-              }
-              placeholder="Source URL (optional)"
-              maxLength={500}
-              aria-label={`Source link for task ${index + 1}`}
-            />
-            <div className="social-project-work-source-actions">
-              <button
-                type="button"
-                className="social-project-work-file"
-                disabled={workFileBusyId === work.id}
-                onClick={() => pickWorkFile(work.id)}
-              >
-                {work.sourceProof
-                  ? work.sourceProof.name || "File attached"
-                  : workFileBusyId === work.id
-                    ? "Uploading…"
-                    : "Attach source file"}
-              </button>
-              {work.sourceProof ? (
-                <button
-                  type="button"
-                  className="social-project-work-clear-file"
-                  onClick={() => updateDraftWork(work.id, { sourceProof: null })}
-                >
-                  Clear file
-                </button>
-              ) : null}
-            </div>
-            <FileUploadHint />
-          </li>
-        ))}
-      </ul>
-      <div className="social-project-compose-actions">
+  const projectComposePanel = showProjectPicker ? (
+    <div
+      className="social-progress-folder-picker"
+      role="region"
+      aria-label="Select progress folder"
+    >
+      <div className="social-progress-picker-head">
+        <span className="social-progress-picker-title">
+          Select a progress folder from your Progress section
+        </span>
         <button
           type="button"
-          className="social-project-work-add"
-          onClick={addDraftWork}
+          className="social-progress-picker-close"
+          onClick={() => setShowProjectPicker(false)}
+          aria-label="Close folder list"
         >
-          Add progress
-        </button>
-        <button
-          type="button"
-          className="social-project-compose-save"
-          onClick={applyProjectToCompose}
-        >
-          Add progress path to post
+          ✕
         </button>
       </div>
+
+      {userProjects.length === 0 ? (
+        <div className="social-progress-picker-empty">
+          <p>No progress folders found in your Progress section.</p>
+          <span>Create a progress folder in Progress first to select and share it here.</span>
+        </div>
+      ) : (
+        <ul className="social-progress-picker-list">
+          {userProjects.map((project) => {
+            const pid = String(project._id || project.id);
+            const isSelected =
+              selectedFolderId === pid ||
+              (sharedProject && sharedProject.name === project.name);
+            const taskCount = Array.isArray(project.topics)
+              ? project.topics.length
+              : Array.isArray(project.works)
+                ? project.works.length
+                : 0;
+
+            return (
+              <li key={pid} className="social-progress-picker-item-wrap">
+                <button
+                  type="button"
+                  className={`social-progress-picker-item ${isSelected ? "is-selected" : ""}`}
+                  onClick={() => handleSelectProjectFolder(project)}
+                >
+                  <div className="social-progress-picker-item-main">
+                    <span className="social-progress-picker-icon" aria-hidden="true">
+                      📁
+                    </span>
+                    <div className="social-progress-picker-info">
+                      <span className="social-progress-picker-name">
+                        {project.name}
+                      </span>
+                      <span className="social-progress-picker-meta">
+                        {taskCount} task{taskCount === 1 ? "" : "s"}
+                        {project.about ? ` · ${project.about.slice(0, 50)}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`social-progress-picker-check ${isSelected ? "is-active" : ""}`}>
+                    {isSelected ? "✓ Selected" : "+ Select"}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   ) : null;
 
   const sharedProjectChip = sharedProject ? (
-    <p className="social-project-chip">
-      Progress path ready: <strong>{sharedProject.name}</strong>
-      {sharedProject.works?.length
-        ? ` · ${sharedProject.works.length} task${sharedProject.works.length === 1 ? "" : "s"}`
-        : ""}
-    </p>
+    <div className="social-selected-folder-chip">
+      <div className="social-selected-folder-main">
+        <span className="social-selected-folder-icon" aria-hidden="true">
+          📁
+        </span>
+        <div className="social-selected-folder-text">
+          <span className="social-selected-folder-label">Progress path ready to share:</span>
+          <strong className="social-selected-folder-name">{sharedProject.name}</strong>
+          {sharedProject.works?.length ? (
+            <span className="social-selected-folder-tasks">
+              ({sharedProject.works.length} task{sharedProject.works.length === 1 ? "" : "s"})
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="social-selected-folder-remove"
+        onClick={() => {
+          setSharedProject(null);
+          setSelectedFolderId(null);
+        }}
+        title="Remove progress path"
+        aria-label="Remove progress path"
+      >
+        ✕
+      </button>
+    </div>
   ) : null;
 
   return (
@@ -1420,31 +1506,13 @@ export default function SocialPage({
               aria-label="Write a group post"
             />
             <div className="social-group-compose-actions">
-              <input
-                ref={fileRef}
-                type="file"
-                accept={PROOF_ACCEPT}
-                hidden
-                onChange={onProofChange}
-              />
-              <button
-                type="button"
-                className="social-group-attach"
-                disabled={busy}
-                onClick={() => fileRef.current?.click()}
-              >
-                {proofName ? "Change file" : "Attach"}
-              </button>
               {composeExtras}
               <button type="submit" className="social-group-post-btn" disabled={busy}>
                 Post
               </button>
             </div>
-            <FileUploadHint />
             {projectComposePanel}
             {sharedProjectChip}
-            {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
-            <ProofMedia proof={proof} className="social-group-attach-preview" />
             {postError ? <p className="social-group-post-error">{postError}</p> : null}
           </form>
             {groupFeed.map((item) => {
@@ -1489,6 +1557,7 @@ export default function SocialPage({
                       setViewingProfile(null);
                       setOpenCommentsPostId((prev) => (prev === item.id ? null : item.id));
                     }}
+                    onOpenRecommendedChannels={(post) => setRecommendedChannelsPost(post)}
                   />
                 </div>
               );
@@ -1512,31 +1581,13 @@ export default function SocialPage({
                 aria-label="Write a post"
               />
               <div className="social-group-compose-actions">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept={PROOF_ACCEPT}
-                  hidden
-                  onChange={onProofChange}
-                />
-                <button
-                  type="button"
-                  className="social-group-attach"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {proofName ? "Change file" : "Attach"}
-                </button>
                 {composeExtras}
                 <button type="submit" className="social-group-post-btn" disabled={busy}>
                   Post
                 </button>
               </div>
-              <FileUploadHint />
               {projectComposePanel}
               {sharedProjectChip}
-              {proofName ? <p className="social-group-attach-name">{proofName}</p> : null}
-              <ProofMedia proof={proof} className="social-group-attach-preview" />
               {postError ? <p className="social-group-post-error">{postError}</p> : null}
             </form>
             <div className="social-view-search">
@@ -1653,6 +1704,7 @@ export default function SocialPage({
                         setViewingProfile(null);
                         setOpenCommentsPostId((prev) => (prev === item.id ? null : item.id));
                       }}
+                      onOpenRecommendedChannels={(post) => setRecommendedChannelsPost(post)}
                     />
                   </div>
                 );
@@ -1725,6 +1777,17 @@ export default function SocialPage({
           ))}
         </div>
       )}
+
+      {recommendedChannelsPost ? (
+        <RecommendedChannelsModal
+          post={recommendedChannelsPost}
+          allPosts={feed}
+          onAddProject={handleAddSharedProject}
+          addedTemplateIds={knownAddedTemplateIds}
+          addingTemplateId={addingTemplateId}
+          onClose={() => setRecommendedChannelsPost(null)}
+        />
+      ) : null}
     </section>
   );
 }

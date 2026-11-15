@@ -112,7 +112,11 @@ function parseProjectInput(body, { partial = false } = {}) {
           name: "Cover theme",
           type: coverProof.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
         };
-      } else if (coverProof && typeof coverProof === "object" && (coverProof.mediaId || coverProof.name || coverProof.dataUrl || coverProof.themeId)) {
+      } else if (
+        coverProof &&
+        typeof coverProof === "object" &&
+        (coverProof.mediaId || coverProof.name || coverProof.dataUrl || coverProof.themeId || coverProof.hasMedia)
+      ) {
         coverImage = {
           mediaId: String(coverProof.mediaId || ""),
           name: String(coverProof.name || "").slice(0, 120),
@@ -220,7 +224,82 @@ function parseProjectInput(body, { partial = false } = {}) {
   return { value: result };
 }
 
-function asProject(doc) {
+function sanitizeCoverForList(cover, stripCoverData) {
+  if (!cover) return null;
+  if (typeof cover === "string") {
+    const trimmed = cover.trim();
+    if (!trimmed) return null;
+    if (stripCoverData && (trimmed.startsWith("data:") || trimmed.length > 512)) {
+      return {
+        name: "Cover",
+        type: trimmed.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+        hasMedia: true,
+        hasRemoteCover: true,
+      };
+    }
+    return trimmed;
+  }
+  if (stripCoverData && typeof cover === "object" && !Array.isArray(cover)) {
+    const { dataUrl, ...rest } = cover;
+    const hasTheme = Boolean(rest.themeId);
+    const hasMedia = Boolean(
+      rest.hasMedia || rest.mediaId || hasTheme || dataUrl || Object.keys(rest).length > 0
+    );
+    return {
+      ...rest,
+      name: rest.name || (hasTheme ? "Cover theme" : "Cover"),
+      hasMedia,
+      ...(!hasTheme && (dataUrl || (hasMedia && !rest.mediaId))
+        ? { hasRemoteCover: true }
+        : {}),
+    };
+  }
+  return cover;
+}
+
+function preserveTopicCovers(nextTopics, currentTopics) {
+  const prevById = new Map(
+    (Array.isArray(currentTopics) ? currentTopics : []).map((t) => [String(t.id), t])
+  );
+  return nextTopics.map((topic) => {
+    if (
+      !topic.coverImage ||
+      typeof topic.coverImage !== "object" ||
+      topic.coverImage.dataUrl ||
+      topic.coverImage.themeId
+    ) {
+      return topic;
+    }
+    const prev = prevById.get(String(topic.id));
+    if (!prev?.coverImage) return topic;
+    if (typeof prev.coverImage === "string" && prev.coverImage.trim()) {
+      return {
+        ...topic,
+        coverImage: {
+          ...topic.coverImage,
+          dataUrl: prev.coverImage.trim(),
+          hasMedia: true,
+        },
+      };
+    }
+    if (typeof prev.coverImage === "object" && prev.coverImage.dataUrl) {
+      return {
+        ...topic,
+        coverImage: {
+          ...topic.coverImage,
+          name: topic.coverImage.name || prev.coverImage.name || "Cover",
+          type: topic.coverImage.type || prev.coverImage.type || "",
+          size: topic.coverImage.size || prev.coverImage.size || 0,
+          hasMedia: true,
+          dataUrl: prev.coverImage.dataUrl,
+        },
+      };
+    }
+    return topic;
+  });
+}
+
+function asProject(doc, { stripCoverData = false } = {}) {
   const obj = typeof doc.toObject === "function" ? doc.toObject() : { ...doc };
   const durationMs = obj.durationMs ?? obj.timeoutMs;
   delete obj.timeoutMs;
@@ -229,21 +308,24 @@ function asProject(doc) {
     durationMs,
     important: Boolean(obj.important),
     stars: Math.min(5, Math.max(0, Number(obj.stars) || 0)),
-    topics: (Array.isArray(obj.topics) ? obj.topics : []).map((t) => ({
-      ...t,
-      description: String(t.description || ""),
-      hasCheckbox: t.hasCheckbox !== false && t.checkboxEnabled !== false,
-      checkboxEnabled: t.hasCheckbox !== false && t.checkboxEnabled !== false,
-      sourceTitle: String(t.sourceTitle || ""),
-      sources: Array.isArray(t.sources) ? t.sources : [],
-      likeCount: Number(t.likeCount) || 0,
-      likes: t.likes || {},
-      comments: Array.isArray(t.comments) ? t.comments : [],
-      reports: Array.isArray(t.reports) ? t.reports : [],
-      asks: Array.isArray(t.asks) ? t.asks : [],
-      coverImage: t.coverImage || null,
-      coverMode: t.coverMode || (t.coverImage ? "top" : "none"),
-    })),
+    topics: (Array.isArray(obj.topics) ? obj.topics : []).map((t) => {
+      const coverImage = sanitizeCoverForList(t.coverImage, stripCoverData);
+      return {
+        ...t,
+        description: String(t.description || ""),
+        hasCheckbox: t.hasCheckbox !== false && t.checkboxEnabled !== false,
+        checkboxEnabled: t.hasCheckbox !== false && t.checkboxEnabled !== false,
+        sourceTitle: String(t.sourceTitle || ""),
+        sources: Array.isArray(t.sources) ? t.sources : [],
+        likeCount: Number(t.likeCount) || 0,
+        likes: t.likes || {},
+        comments: Array.isArray(t.comments) ? t.comments : [],
+        reports: Array.isArray(t.reports) ? t.reports : [],
+        asks: Array.isArray(t.asks) ? t.asks : [],
+        coverImage,
+        coverMode: t.coverMode || (coverImage ? "top" : "none"),
+      };
+    }),
     originId: obj.originId || null,
     originMode: obj.originMode === "assign" || obj.originMode === "follow"
       ? obj.originMode
@@ -264,6 +346,7 @@ function ownerIdOf(req) {
 
 export default function projectRoutes(useMemory) {
   const router = Router();
+  let orphansClaimedOnce = false;
 
   router.get("/", async (req, res) => {
     try {
@@ -275,18 +358,59 @@ export default function projectRoutes(useMemory) {
         return res.json((await memoryStore.list(ownerId)).map(asProject));
       }
 
-      // Legacy pre-auth projects: claim once for the first signed-in user
-      await Project.updateMany(
-        {
-          $or: [{ ownerId: { $exists: false } }, { ownerId: null }, { ownerId: "" }],
-        },
-        { $set: { ownerId } }
-      );
+      // Legacy pre-auth projects: claim once per server lifecycle
+      if (!orphansClaimedOnce) {
+        orphansClaimedOnce = true;
+        await Project.updateMany(
+          {
+            $or: [{ ownerId: { $exists: false } }, { ownerId: null }, { ownerId: "" }],
+          },
+          { $set: { ownerId } }
+        );
+      }
 
-      const projects = await Project.find({ ownerId })
+      const projects = await Project.find(
+        { ownerId },
+        { "topics.coverImage.dataUrl": 0 }
+      )
         .sort({ lastWorkedAt: -1, createdAt: -1 })
-        .limit(100);
-      res.json(projects.map(asProject));
+        .limit(100)
+        .lean();
+      res.json(projects.map((p) => asProject(p, { stripCoverData: true })));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  router.get("/:id/covers", async (req, res) => {
+    try {
+      const ownerId = ownerIdOf(req);
+      if (!ownerId) return res.status(401).json({ error: "Sign in required." });
+
+      const doc = useMemory
+        ? await memoryStore.get(req.params.id, ownerId)
+        : await Project.findOne(
+            { _id: req.params.id, ownerId },
+            { "topics.id": 1, "topics.coverImage": 1 }
+          ).lean();
+      if (!doc) return res.status(404).json({ error: "Not found" });
+
+      const covers = {};
+      for (const t of doc.topics || []) {
+        if (!t?.coverImage) continue;
+        if (typeof t.coverImage === "string" && t.coverImage.trim()) {
+          const s = t.coverImage.trim();
+          covers[String(t.id)] = {
+            name: "Cover",
+            type: s.startsWith("data:image/svg") ? "image/svg+xml" : "image/jpeg",
+            hasMedia: true,
+            dataUrl: s,
+          };
+        } else if (typeof t.coverImage === "object" && t.coverImage.dataUrl) {
+          covers[String(t.id)] = t.coverImage;
+        }
+      }
+      res.json({ covers });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -330,7 +454,12 @@ export default function projectRoutes(useMemory) {
         return res.json(asProject(updated));
       }
 
-      const current = await Project.findOne({ _id: req.params.id, ownerId });
+      const current = await Project.findOne(
+        { _id: req.params.id, ownerId },
+        parsed.value.topics !== undefined
+          ? { name: 1, durationMs: 1, timeoutMs: 1, elapsedMs: 1, topics: 1 }
+          : { name: 1, durationMs: 1, timeoutMs: 1, elapsedMs: 1 }
+      ).lean();
       if (!current) return res.status(404).json({ error: "Not found" });
 
       const currentDuration = current.durationMs ?? current.timeoutMs;
@@ -349,7 +478,7 @@ export default function projectRoutes(useMemory) {
         next.stars = parsed.value.stars;
       }
       if (parsed.value.topics !== undefined) {
-        next.topics = parsed.value.topics;
+        next.topics = preserveTopicCovers(parsed.value.topics, current.topics);
       }
       if (parsed.value.originId !== undefined) {
         next.originId = parsed.value.originId;

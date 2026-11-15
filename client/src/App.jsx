@@ -203,18 +203,93 @@ function getPageFromUrl() {
   return "progress";
 }
 
+const PROJECTS_CACHE_PREFIX = "sandadd.projectsCache.";
+
+function stripHeavyCacheFields(list) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 100).map((p) => ({
+    ...p,
+    topics: Array.isArray(p.topics)
+      ? p.topics.map((t) => {
+          const { coverImage, sourceProof, ...restTopic } = t || {};
+          const lightCover =
+            coverImage && typeof coverImage === "object"
+              ? {
+                  mediaId: coverImage.mediaId || null,
+                  name: coverImage.name || "",
+                  type: coverImage.type || "",
+                  hasMedia: Boolean(
+                    coverImage.hasMedia ||
+                      coverImage.mediaId ||
+                      coverImage.themeId ||
+                      coverImage.dataUrl
+                  ),
+                  ...(coverImage.themeId ? { themeId: coverImage.themeId } : {}),
+                  ...(coverImage.hasRemoteCover ? { hasRemoteCover: true } : {}),
+                }
+              : coverImage;
+          const lightProof =
+            sourceProof && typeof sourceProof === "object"
+              ? {
+                  mediaId: sourceProof.mediaId || null,
+                  name: sourceProof.name || "",
+                  type: sourceProof.type || "",
+                  hasMedia: Boolean(
+                    sourceProof.hasMedia || sourceProof.mediaId || sourceProof.dataUrl
+                  ),
+                }
+              : sourceProof;
+          return {
+            ...restTopic,
+            coverImage: lightCover || null,
+            sourceProof: lightProof || null,
+          };
+        })
+      : [],
+  }));
+}
+
+function readProjectsCache(uid) {
+  if (!uid) return [];
+  try {
+    const raw = localStorage.getItem(`${PROJECTS_CACHE_PREFIX}${uid}`);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeProjectsCache(uid, list) {
+  if (!uid || !Array.isArray(list)) return;
+  try {
+    localStorage.setItem(
+      `${PROJECTS_CACHE_PREFIX}${uid}`,
+      JSON.stringify(stripHeavyCacheFields(list))
+    );
+  } catch {
+    /* ignore storage quota errors */
+  }
+}
+
 export default function App() {
   const [authUser, setAuthUser] = useState(() =>
     getAuthToken() ? getAuthUser() : null
   );
-  const [authReady, setAuthReady] = useState(() => !getAuthToken());
+  const [authReady, setAuthReady] = useState(
+    () => !getAuthToken() || Boolean(getAuthUser())
+  );
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [durationMs, setDurationMs] = useState(30_000);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [pouring, setPouring] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState(() => {
+    const u = getAuthToken() ? getAuthUser() : null;
+    return u?.id ? readProjectsCache(u.id) : [];
+  });
   const [activeId, setActiveId] = useState(null);
   const [openWorkId, setOpenWorkId] = useState(null);
   const [workDrawerClosing, setWorkDrawerClosing] = useState(false);
@@ -240,6 +315,9 @@ export default function App() {
   const [activeFolderId, setActiveFolderId] = useState(null);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const reviewStartedRef = useRef(false);
+  const loadInFlightRef = useRef(null);
+  const isSyncingLiveRef = useRef(false);
+  const startPourLoopRef = useRef(null);
 
   const pouringRef = useRef(false);
   const elapsedRef = useRef(0);
@@ -432,215 +510,244 @@ export default function App() {
     advanceReview(true);
   }, [advanceReview, reviewIndex, reviewQueue]);
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const [health, list] = await Promise.all([fetchHealth(), fetchProjects()]);
-      setStorage(health.storage || "file");
-      let withMedia = await restoreProjectsTopicMedia(list);
+  const loadProjects = useCallback(() => {
+    if (loadInFlightRef.current) return loadInFlightRef.current;
 
-      const liveKeys = withMedia
-        .map((p) => p.originId || p.sharedTemplateId)
-        .filter(Boolean);
-      if (liveKeys.length > 0) {
-        try {
-          await syncLiveWorksFromServer(liveKeys);
-        } catch {}
-      }
+    const run = (async () => {
+      try {
+        const [health, list] = await Promise.all([
+          fetchHealth().catch(() => ({ storage: "mongodb" })),
+          fetchProjects(),
+        ]);
+        setStorage(health.storage || "file");
+        let withMedia = await restoreProjectsTopicMedia(list);
+        const uid = getAuthUser()?.id;
+        if (uid) {
+          withMedia = applyFolderMembership(uid, withMedia);
+        }
 
-      const synced = [];
-      for (const project of withMedia) {
-        const isFollowerProject = Boolean(
-          project.originId ||
-          project.sharedTemplateId ||
-          project.originMode ||
-          project.tasksLocked
-        );
+        // Update UI immediately as soon as the projects list arrives
+        setProjects(withMedia);
+        if (uid) writeProjectsCache(uid, withMedia);
+        setApiError("");
+        if (!activeIdRef.current && withMedia[0]) applyProject(withMedia[0]);
 
-        if (!isFollowerProject) {
-          // Creator work that was shared: pull follower ticks into the list
-          const live = getLiveWork(project._id);
-          if (live && !live.deleted) {
-            const topics = applyLiveProgress(project.topics || [], project._id);
-            const changed = topics.some((t) => {
-              const prev = (project.topics || []).find((x) => x.id === t.id);
-              return Boolean(prev?.done) !== Boolean(t.done);
-            });
-            if (changed) {
-              const duration = projectDuration(project) || live.durationMs || 30_000;
-              const elapsedMs = elapsedFromWorks(topics, duration);
-              const completed = topics.length > 0 && elapsedMs >= duration;
-              try {
-                const topicsForSave = await prepareTopicsForSave(topics);
-                const updated = await updateProject(project._id, {
-                  topics: topicsForSave,
-                  durationMs: duration,
-                  elapsedMs,
-                  completed,
-                });
-                const mergedTopics = (updated.topics || topicsForSave).map((t) => {
-                  const local = topics.find((x) => x.id === t.id);
-                  if (local?.sourceProof?.dataUrl) {
-                    return {
-                      ...t,
-                      sourceProof: { ...t.sourceProof, ...local.sourceProof },
-                    };
+        const forced = applyDailyReviewForce();
+        if (forced) setSelectedIds([]);
+
+        if (!reviewStartedRef.current && (forced || shouldShowDailyReview())) {
+          reviewStartedRef.current = true;
+          const queue = incompleteImportant(withMedia);
+          if (queue.length === 0) {
+            markDailyReviewDone();
+          } else {
+            setReviewQueue(queue);
+            setReviewIndex(0);
+          }
+        }
+
+        // Sync live works in background without blocking initial project list paint
+        const liveKeys = withMedia
+          .map((p) => p.originId || p.sharedTemplateId)
+          .filter(Boolean);
+        if (liveKeys.length > 0) {
+          isSyncingLiveRef.current = true;
+          try {
+            await syncLiveWorksFromServer(liveKeys);
+          } catch {
+            /* ignore live sync failure */
+          } finally {
+            isSyncingLiveRef.current = false;
+          }
+        }
+
+        const synced = [];
+        let anySyncedChange = false;
+        for (const project of withMedia) {
+          const isFollowerProject = Boolean(
+            project.originId ||
+            project.sharedTemplateId ||
+            project.originMode ||
+            project.tasksLocked
+          );
+
+          if (!isFollowerProject) {
+            // Creator work that was shared: pull follower ticks into the list
+            const live = getLiveWork(project._id);
+            if (live && !live.deleted) {
+              const topics = applyLiveProgress(project.topics || [], project._id);
+              const changed = topics.some((t) => {
+                const prev = (project.topics || []).find((x) => x.id === t.id);
+                return Boolean(prev?.done) !== Boolean(t.done);
+              });
+              if (changed) {
+                anySyncedChange = true;
+                const duration = projectDuration(project) || live.durationMs || 30_000;
+                const elapsedMs = elapsedFromWorks(topics, duration);
+                const completed = topics.length > 0 && elapsedMs >= duration;
+                try {
+                  const topicsForSave = await prepareTopicsForSave(topics);
+                  const updated = await updateProject(project._id, {
+                    topics: topicsForSave,
+                    durationMs: duration,
+                    elapsedMs,
+                    completed,
+                  });
+                  const mergedTopics = (updated.topics || topicsForSave).map((t) => {
+                    const local = topics.find((x) => x.id === t.id);
+                    if (local?.sourceProof?.dataUrl) {
+                      return {
+                        ...t,
+                        sourceProof: { ...t.sourceProof, ...local.sourceProof },
+                      };
+                    }
+                    return { ...t, done: Boolean(local?.done ?? t.done) };
+                  });
+                  const merged = { ...updated, topics: mergedTopics };
+                  synced.push(merged);
+                  if (activeIdRef.current === project._id) {
+                    applyProject(merged);
                   }
-                  return { ...t, done: Boolean(local?.done ?? t.done) };
-                });
-                const merged = { ...updated, topics: mergedTopics };
-                synced.push(merged);
-                if (activeIdRef.current === project._id) {
-                  applyProject(merged);
+                  continue;
+                } catch {
+                  synced.push({ ...project, topics, elapsedMs, completed });
+                  continue;
                 }
-                continue;
-              } catch {
-                synced.push({ ...project, topics, elapsedMs, completed });
-                continue;
               }
             }
+            synced.push(project);
+            continue;
           }
-          synced.push(project);
-          continue;
-        }
 
-        const liveKey = project.originId || project.sharedTemplateId;
+          const liveKey = project.originId || project.sharedTemplateId;
 
-        // Creator deleted the source work → remove from this Progress list
-        if (liveKey && isLiveWorkDeleted(liveKey)) {
+          // Creator deleted the source work → remove from this Progress list
+          if (liveKey && isLiveWorkDeleted(liveKey)) {
+            anySyncedChange = true;
+            try {
+              await deleteProject(project._id);
+            } catch {
+              /* ignore */
+            }
+            unmarkTemplatesForDeletedProject(project);
+            setSelectedIds((ids) => {
+              const next = ids.filter((id) => id !== project._id);
+              saveDailySelectedIds(next);
+              return next;
+            });
+            clearDailyWorkIds(project._id);
+            continue;
+          }
+
+          const live = getLiveWork(liveKey);
+          if (!live?.works) {
+            synced.push({ ...project, tasksLocked: true });
+            continue;
+          }
+          const topics = mergeFollowerTopics(
+            project.topics,
+            live.works,
+            liveKey
+          );
+          const duration = projectDuration(project) || live.durationMs || 30_000;
+          const elapsedMs = elapsedFromWorks(topics, duration);
+          const completed = topics.length > 0 && elapsedMs >= duration;
+          const name = live.name || project.name;
+          const about = live.about !== undefined ? live.about : (project.about || "");
+          const needsSync = followerTopicsNeedSync(
+            project.topics,
+            live.works,
+            liveKey
+          );
+          const elapsedChanged =
+            Math.abs((Number(project.elapsedMs) || 0) - elapsedMs) > 0.5 ||
+            Boolean(project.completed) !== completed ||
+            (live.name && live.name !== project.name) ||
+            (live.about !== undefined && live.about !== (project.about || ""));
+          if (!needsSync && !elapsedChanged) {
+            synced.push({
+              ...project,
+              name,
+              about,
+              topics,
+              tasksLocked: true,
+              originId: project.originId,
+              originMode: project.originMode || live.mode || "follow",
+            });
+            continue;
+          }
+          anySyncedChange = true;
           try {
-            await deleteProject(project._id);
+            const topicsForSave = await prepareTopicsForSave(topics);
+            const updated = await updateProject(project._id, {
+              name,
+              about,
+              topics: topicsForSave,
+              durationMs: duration,
+              elapsedMs,
+              completed,
+              originId: project.originId,
+              originMode: project.originMode || live.mode || "follow",
+              tasksLocked: true,
+            });
+            const mergedTopics = (updated.topics || topicsForSave).map((t) => {
+              const local = topics.find((x) => x.id === t.id);
+              const localSources = Array.isArray(local?.sources) ? local.sources : [];
+              const serverSources = Array.isArray(t?.sources) && t.sources.length > 0 ? t.sources : localSources;
+              return {
+                ...t,
+                done: Boolean(local?.done ?? t.done),
+                text: local?.text || t.text,
+                source: local?.source ?? t.source,
+                sources: serverSources,
+                hasCheckbox: local?.hasCheckbox !== false,
+                sourceProof: local?.sourceProof?.dataUrl
+                  ? { ...t.sourceProof, ...local.sourceProof }
+                  : t.sourceProof || local?.sourceProof || null,
+              };
+            });
+            synced.push({
+              ...updated,
+              topics: mergedTopics,
+              tasksLocked: true,
+              originId: project.originId,
+              originMode: project.originMode || live.mode || "follow",
+            });
+            if (activeIdRef.current === project._id) {
+              const activeMerged = synced[synced.length - 1];
+              applyProject(activeMerged);
+            }
           } catch {
-            /* ignore */
+            synced.push({
+              ...project,
+              name,
+              topics,
+              elapsedMs,
+              completed,
+              tasksLocked: true,
+            });
           }
-          unmarkTemplatesForDeletedProject(project);
-          setSelectedIds((ids) => {
-            const next = ids.filter((id) => id !== project._id);
-            saveDailySelectedIds(next);
-            return next;
-          });
-          clearDailyWorkIds(project._id);
-          continue;
         }
 
-        const live = getLiveWork(liveKey);
-        if (!live?.works) {
-          synced.push({ ...project, tasksLocked: true });
-          continue;
+        if (anySyncedChange) {
+          const finalList = uid ? applyFolderMembership(uid, synced) : synced;
+          setProjects(finalList);
+          if (uid) writeProjectsCache(uid, finalList);
         }
-        const topics = mergeFollowerTopics(
-          project.topics,
-          live.works,
-          liveKey
-        );
-        const duration = projectDuration(project) || live.durationMs || 30_000;
-        const elapsedMs = elapsedFromWorks(topics, duration);
-        const completed = topics.length > 0 && elapsedMs >= duration;
-        const name = live.name || project.name;
-        const about = live.about !== undefined ? live.about : (project.about || "");
-        const needsSync = followerTopicsNeedSync(
-          project.topics,
-          live.works,
-          liveKey
-        );
-        const elapsedChanged =
-          Math.abs((Number(project.elapsedMs) || 0) - elapsedMs) > 0.5 ||
-          Boolean(project.completed) !== completed ||
-          (live.name && live.name !== project.name) ||
-          (live.about !== undefined && live.about !== (project.about || ""));
-        if (!needsSync && !elapsedChanged) {
-          synced.push({
-            ...project,
-            name,
-            about,
-            topics,
-            tasksLocked: true,
-            originId: project.originId,
-            originMode: project.originMode || live.mode || "follow",
-          });
-          continue;
+      } catch (err) {
+        const msg = err?.message || "";
+        if (/sign in|session/i.test(msg)) {
+          setAuthUser(null);
+          return;
         }
-        try {
-          const topicsForSave = await prepareTopicsForSave(topics);
-          const updated = await updateProject(project._id, {
-            name,
-            about,
-            topics: topicsForSave,
-            durationMs: duration,
-            elapsedMs,
-            completed,
-            originId: project.originId,
-            originMode: project.originMode || live.mode || "follow",
-            tasksLocked: true,
-          });
-          const mergedTopics = (updated.topics || topicsForSave).map((t) => {
-            const local = topics.find((x) => x.id === t.id);
-            const localSources = Array.isArray(local?.sources) ? local.sources : [];
-            const serverSources = Array.isArray(t?.sources) && t.sources.length > 0 ? t.sources : localSources;
-            return {
-              ...t,
-              done: Boolean(local?.done ?? t.done),
-              text: local?.text || t.text,
-              source: local?.source ?? t.source,
-              sources: serverSources,
-              hasCheckbox: local?.hasCheckbox !== false,
-              sourceProof: local?.sourceProof?.dataUrl
-                ? { ...t.sourceProof, ...local.sourceProof }
-                : t.sourceProof || local?.sourceProof || null,
-            };
-          });
-          synced.push({
-            ...updated,
-            topics: mergedTopics,
-            tasksLocked: true,
-            originId: project.originId,
-            originMode: project.originMode || live.mode || "follow",
-          });
-          if (activeIdRef.current === project._id) {
-            const activeMerged = synced[synced.length - 1];
-            applyProject(activeMerged);
-          }
-        } catch {
-          synced.push({
-            ...project,
-            name,
-            topics,
-            elapsedMs,
-            completed,
-            tasksLocked: true,
-          });
-        }
+        setApiError(msg || "API offline — start the Express server on port 5000.");
+      } finally {
+        loadInFlightRef.current = null;
       }
-      withMedia = synced;
+    })();
 
-      const uid = getAuthUser()?.id;
-      if (uid) {
-        withMedia = applyFolderMembership(uid, withMedia);
-      }
-      setProjects(withMedia);
-      setApiError("");
-      if (!activeIdRef.current && withMedia[0]) applyProject(withMedia[0]);
-
-      const forced = applyDailyReviewForce();
-      if (forced) setSelectedIds([]);
-
-      if (!reviewStartedRef.current && (forced || shouldShowDailyReview())) {
-        reviewStartedRef.current = true;
-        const queue = incompleteImportant(withMedia);
-        if (queue.length === 0) {
-          markDailyReviewDone();
-        } else {
-          setReviewQueue(queue);
-          setReviewIndex(0);
-        }
-      }
-    } catch (err) {
-      const msg = err?.message || "";
-      if (/sign in|session/i.test(msg)) {
-        setAuthUser(null);
-        return;
-      }
-      setApiError("API offline — start the Express server on port 5000.");
-    }
+    loadInFlightRef.current = run;
+    return run;
   }, [applyProject]);
 
   useEffect(() => {
@@ -687,9 +794,16 @@ export default function App() {
         requestSync();
       }
     };
+    const onLiveSync = () => {
+      if (isSyncingLiveRef.current) return;
+      requestSync();
+    };
     const onFocus = () => requestSync();
-    const unsub = subscribeLiveSync(requestSync);
+    const unsub = subscribeLiveSync(onLiveSync);
     const poll = window.setInterval(async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
       const list = projectsRef.current || [];
       const cares = list.some((p) => {
         if (p.originId || p.sharedTemplateId || p.tasksLocked) return true;
@@ -701,13 +815,18 @@ export default function App() {
           .map((p) => p.originId || p.sharedTemplateId)
           .filter(Boolean);
         if (originIds.length > 0) {
+          isSyncingLiveRef.current = true;
           try {
             await syncLiveWorksFromServer(originIds);
-          } catch {}
+          } catch {
+            /* ignore poll error */
+          } finally {
+            isSyncingLiveRef.current = false;
+          }
         }
         requestSync();
       }
-    }, 2500);
+    }, 15000);
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onFocus);
@@ -763,10 +882,13 @@ export default function App() {
         saveAuthSession({ token, user: data.user });
         setAuthUser(data.user);
       })
-      .catch(() => {
+      .catch((err) => {
         if (!alive) return;
-        clearAuthSession();
-        setAuthUser(null);
+        const msg = err?.message || "";
+        if (!getAuthUser() || /sign in|session|unauthorized|invalid|expired|not found/i.test(msg)) {
+          clearAuthSession();
+          setAuthUser(null);
+        }
       })
       .finally(() => {
         if (alive) setAuthReady(true);
@@ -778,8 +900,15 @@ export default function App() {
 
   useEffect(() => {
     if (!authUser) return;
+    if (authUser.id && projectsRef.current.length === 0) {
+      const cached = readProjectsCache(authUser.id);
+      if (cached.length > 0) {
+        setProjects(cached);
+        if (!activeIdRef.current && cached[0]) applyProject(cached[0]);
+      }
+    }
     loadProjects();
-  }, [authUser, loadProjects]);
+  }, [authUser, loadProjects, applyProject]);
 
   const handleAuthSubmit = async ({ mode, name, email, password }) => {
     setAuthBusy(true);
@@ -812,7 +941,7 @@ export default function App() {
     reviewStartedRef.current = false;
   };
   useEffect(() => {
-    let raf;
+    let raf = null;
     let last = performance.now();
     let lastProjectSync = 0;
 
@@ -838,6 +967,7 @@ export default function App() {
     };
 
     const tick = (now) => {
+      raf = null;
       const dt = now - last;
       last = now;
       const duration = durationRef.current;
@@ -889,12 +1019,40 @@ export default function App() {
           setNeedsCompleteSave(true);
         }
       }
-      raf = requestAnimationFrame(tick);
+
+      if (
+        pourTargetRef.current != null ||
+        (pouringRef.current && !completedRef.current)
+      ) {
+        raf = requestAnimationFrame(tick);
+      }
     };
 
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const scheduleTick = () => {
+      if (raf != null) return;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
+    startPourLoopRef.current = scheduleTick;
+
+    if (
+      pourTargetRef.current != null ||
+      (pouringRef.current && !completedRef.current)
+    ) {
+      scheduleTick();
+    }
+
+    return () => {
+      startPourLoopRef.current = null;
+      if (raf != null) cancelAnimationFrame(raf);
+    };
   }, []);
+
+  useEffect(() => {
+    if (pouring && !completed) {
+      startPourLoopRef.current?.();
+    }
+  }, [pouring, completed]);
 
   useEffect(() => {
     if (!needsCompleteSave) return;
@@ -944,6 +1102,7 @@ export default function App() {
         // Set ref immediately so RAF starts pouring before React re-renders
         pouringRef.current = true;
         setPouring(true);
+        startPourLoopRef.current?.();
       }
     } catch (err) {
       setApiError(err.message);
@@ -957,11 +1116,15 @@ export default function App() {
     saveCurrent(true);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (customName = "") => {
     try {
       await saveCurrent(false);
       const count = projectsRef.current.length + 1;
-      const name = newName.trim() || `Progress ${count}`;
+      const raw =
+        typeof customName === "string" && customName.trim()
+          ? customName
+          : newName;
+      const name = raw.trim() || `Progress ${count}`;
       const author = readAuthorProfile();
       const currentAvatar =
         localStorage.getItem("sandadd.userAvatar") ||
@@ -1192,7 +1355,10 @@ export default function App() {
       return 0;
     });
 
-  const regularProjects = projects.filter((p) => !p.folderId);
+  const validFolderIds = new Set((folders || []).map((f) => String(f.id)));
+  const regularProjects = projects.filter(
+    (p) => !p.folderId || !validFolderIds.has(String(p.folderId))
+  );
   const displayedRegularProjects = sortProjects(
     activeFolderId
       ? projects.filter((p) => String(p.folderId || "") === String(activeFolderId))
@@ -1444,6 +1610,7 @@ export default function App() {
     }
 
     pourTargetRef.current = target;
+    startPourLoopRef.current?.();
   }, []);
 
   const closeTopicPopup = useCallback(() => {
@@ -1546,6 +1713,7 @@ export default function App() {
             pourTargetRef.current = elapsedMs;
             completedRef.current = false;
             setCompleted(false);
+            startPourLoopRef.current?.();
           } else {
             pourTargetRef.current = null;
             elapsedRef.current = elapsedMs;
@@ -1960,6 +2128,42 @@ export default function App() {
         onNavigate={handleNavigate}
       />
 
+      {apiError ? (
+        <div
+          role="alert"
+          style={{
+            margin: "8px 16px 0",
+            padding: "10px 14px",
+            borderRadius: "10px",
+            background: "rgba(217, 119, 6, 0.14)",
+            border: "1px solid rgba(217, 119, 6, 0.35)",
+            color: "#fbbf24",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            fontSize: "0.88rem",
+          }}
+        >
+          <span>{apiError}</span>
+          <button
+            type="button"
+            onClick={() => setApiError("")}
+            aria-label="Dismiss error"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontWeight: 600,
+              padding: "2px 6px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
+
       {page === "social" ? (
         <SocialPage
           key={socialGroupId || "social"}
@@ -1968,6 +2172,7 @@ export default function App() {
             .map((project) => project.sharedTemplateId)
             .filter(Boolean)}
           onAddSharedProject={handleAddSharedProject}
+          projects={projects}
         />
       ) : page === "messages" ? (
         <MessagesPage

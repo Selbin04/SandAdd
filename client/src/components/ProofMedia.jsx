@@ -1,8 +1,46 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { fetchSocialPostProof } from "../api.js";
 import { isImageProof, isPdfProof, isVideoProof } from "../lib/socialFeed.js";
 import { normalizeSourceUrl } from "./SourceMedia.jsx";
 import YouTubeEmbed from "./YouTubeEmbed.jsx";
 import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
+
+const postProofCache = new Map();
+const postProofInflight = new Map();
+
+function resolveRemoteMediaFromPayload(payload, proof) {
+  if (!payload) return null;
+  if (proof?.remoteWorkId) {
+    const wid = String(proof.remoteWorkId);
+    const lists = [payload.works, payload.sharedProject?.works];
+    for (const list of lists) {
+      if (!Array.isArray(list)) continue;
+      const match = list.find((w) => String(w?.id || w?._id || "") === wid);
+      if (match?.sourceProof?.dataUrl) return match.sourceProof;
+      if (match?.coverImage?.dataUrl) return match.coverImage;
+    }
+  }
+  return payload.proof || null;
+}
+
+async function loadPostProofOnce(postId) {
+  const key = String(postId || "");
+  if (!key) return null;
+  if (postProofCache.has(key)) return postProofCache.get(key);
+  if (postProofInflight.has(key)) return postProofInflight.get(key);
+  const promise = fetchSocialPostProof(key)
+    .then((data) => {
+      postProofCache.set(key, data);
+      postProofInflight.delete(key);
+      return data;
+    })
+    .catch((err) => {
+      postProofInflight.delete(key);
+      throw err;
+    });
+  postProofInflight.set(key, promise);
+  return promise;
+}
 
 function openProofPdf(proof) {
   if (!proof?.dataUrl) return;
@@ -96,17 +134,74 @@ function ProofVideo({ proof, className }) {
 }
 
 /** Renders attached proof (image, video, PDF link, link URL, text note, or file name). */
-export default function ProofMedia({ proof, className = "social-proof" }) {
+export default function ProofMedia({ proof, postId = null, className = "social-proof" }) {
+  const targetPostId = postId || proof?.remotePostId || null;
+  const needsRemote = Boolean(
+    proof && !proof.dataUrl && (proof.hasRemoteProof || proof.hasMedia) && targetPostId
+  );
+  const cachedPayload = targetPostId ? postProofCache.get(String(targetPostId)) : null;
+  const cachedResolved = needsRemote ? resolveRemoteMediaFromPayload(cachedPayload, proof) : null;
+
+  const [hydratedProof, setHydratedProof] = useState(() => cachedResolved || null);
+  const [inView, setInView] = useState(() => !needsRemote || Boolean(cachedResolved));
+  const holderRef = useRef(null);
+
+  useEffect(() => {
+    setHydratedProof(cachedResolved || null);
+    setInView(!needsRemote || Boolean(cachedResolved));
+  }, [targetPostId, proof?.mediaId, proof?.remoteWorkId, needsRemote, Boolean(cachedResolved)]);
+
+  useEffect(() => {
+    if (!needsRemote || hydratedProof?.dataUrl) return undefined;
+    const node = holderRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return undefined;
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "320px" }
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [needsRemote, hydratedProof?.dataUrl]);
+
+  useEffect(() => {
+    if (!needsRemote || !inView || hydratedProof?.dataUrl) return undefined;
+    let cancelled = false;
+    loadPostProofOnce(targetPostId)
+      .then((payload) => {
+        if (cancelled) return;
+        const resolved = resolveRemoteMediaFromPayload(payload, proof);
+        if (resolved?.dataUrl) {
+          setHydratedProof({ ...proof, ...resolved });
+        }
+      })
+      .catch(() => {
+        /* ignore lazy fetch failure */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsRemote, inView, targetPostId, proof, hydratedProof?.dataUrl]);
+
   if (!proof) return null;
-  if (proof.type === "link" || proof.kind === "link" || proof.url) {
-    const linkUrl = proof.url || proof.link || proof.name;
-    const label = proof.name || linkUrl;
+  const effectiveProof = hydratedProof?.dataUrl ? hydratedProof : proof;
+
+  if (effectiveProof.type === "link" || effectiveProof.kind === "link" || effectiveProof.url) {
+    const linkUrl = effectiveProof.url || effectiveProof.link || effectiveProof.name;
+    const label = effectiveProof.name || linkUrl;
 
     if (isYouTubeUrl(linkUrl)) {
       return (
         <YouTubeEmbed
           url={linkUrl}
-          title={proof.name && proof.name !== linkUrl ? proof.name : ""}
+          title={effectiveProof.name && effectiveProof.name !== linkUrl ? effectiveProof.name : ""}
           className={`${className}-youtube`}
         />
       );
@@ -127,8 +222,8 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
       </a>
     );
   }
-  if (proof.type === "text" || proof.kind === "text" || proof.text) {
-    const textContent = proof.text || proof.name;
+  if (effectiveProof.type === "text" || effectiveProof.kind === "text" || effectiveProof.text) {
+    const textContent = effectiveProof.text || effectiveProof.name;
     const yt = extractYouTubeUrl(textContent);
     return (
       <div className={`${className}-text-card`}>
@@ -144,19 +239,19 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
       </div>
     );
   }
-  if (isImageProof(proof)) {
-    return <ProofImage proof={proof} className={className} />;
+  if (isImageProof(effectiveProof)) {
+    return <ProofImage proof={effectiveProof} className={className} />;
   }
-  if (isVideoProof(proof)) {
-    return <ProofVideo proof={proof} className={className} />;
+  if (isVideoProof(effectiveProof)) {
+    return <ProofVideo proof={effectiveProof} className={className} />;
   }
-  if (isPdfProof(proof)) {
-    const label = proof.name || "PDF";
+  if (isPdfProof(effectiveProof)) {
+    const label = effectiveProof.name || "PDF";
     return (
       <button
         type="button"
         className={`${className}-pdf`}
-        onClick={() => openProofPdf(proof)}
+        onClick={() => openProofPdf(effectiveProof)}
       >
         <span className={`${className}-pdf-icon`} aria-hidden="true">
           PDF
@@ -165,14 +260,16 @@ export default function ProofMedia({ proof, className = "social-proof" }) {
       </button>
     );
   }
-  if (proof.name) {
-    if (isYouTubeUrl(proof.name)) {
-      return <YouTubeEmbed url={proof.name} className={`${className}-youtube`} />;
+  if (effectiveProof.name || needsRemote) {
+    if (effectiveProof.name && isYouTubeUrl(effectiveProof.name)) {
+      return <YouTubeEmbed url={effectiveProof.name} className={`${className}-youtube`} />;
     }
-    const pending = proof.hasMedia && !proof.dataUrl;
+    const pending = (effectiveProof.hasMedia || needsRemote) && !effectiveProof.dataUrl;
     return (
-      <p className={`${className}-file`}>
-        {pending ? `Loading media: ${proof.name}` : `Proof: ${proof.name}`}
+      <p ref={holderRef} className={`${className}-file`}>
+        {pending
+          ? `Loading media${effectiveProof.name ? `: ${effectiveProof.name}` : "…"}`
+          : `Proof: ${effectiveProof.name}`}
       </p>
     );
   }

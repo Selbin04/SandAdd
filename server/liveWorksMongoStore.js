@@ -64,20 +64,33 @@ export const liveWorksMongoStore = {
   },
 
   async getMany(ids) {
+    const { works } = await this.getManyWithProgress(ids);
+    return works;
+  },
+
+  async getManyWithProgress(ids) {
     const rawIds = ids.map(String);
     const cleanIds = rawIds.map((id) => id.replace(/^(live|view)-/, ""));
     const allQueryIds = Array.from(new Set([...rawIds, ...cleanIds]));
     const entries = await LiveWork.find({
       originId: { $in: allQueryIds },
     }).lean();
-    const result = {};
+    const works = {};
+    const entryByKey = new Map();
     for (const entry of entries) {
       const s = serialize(entry);
-      result[entry.originId] = s;
-      result[`live-${entry.originId}`] = s;
-      result[`view-${entry.originId}`] = s;
+      const keys = [entry.originId, `live-${entry.originId}`, `view-${entry.originId}`];
+      for (const key of keys) {
+        works[key] = s;
+        entryByKey.set(key, entry);
+      }
     }
-    return result;
+    const progress = {};
+    for (const id of rawIds) {
+      const entry = entryByKey.get(id) || entryByKey.get(id.replace(/^(live|view)-/, ""));
+      if (entry?.progress) progress[id] = entry.progress;
+    }
+    return { works, progress };
   },
 
   async getProgress(originId) {

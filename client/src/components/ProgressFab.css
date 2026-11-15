@@ -1,0 +1,345 @@
+/* Floating Action Button (FAB) and Creation Menu / Modal */
+
+.progress-fab-root {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 9999;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.progress-fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+  pointer-events: auto;
+  animation: fab-fade-in 0.18s ease-out both;
+}
+
+@keyframes fab-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Round Floating Button (WhatsApp / Google Drive style) */
+.progress-fab-btn {
+  pointer-events: auto;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+  user-select: none;
+  outline: none;
+}
+
+.progress-fab-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 22px rgba(0, 102, 255, 0.6), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.progress-fab-btn:active {
+  transform: scale(0.95);
+}
+
+.progress-fab-btn.is-open {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.progress-fab-btn.is-open:hover {
+  box-shadow: 0 6px 22px rgba(239, 68, 68, 0.6), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.progress-fab-icon {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.progress-fab-btn.is-open .progress-fab-icon {
+  transform: rotate(135deg);
+}
+
+/* Speed-dial Popover Menu */
+.progress-fab-menu {
+  pointer-events: auto;
+  margin-bottom: 14px;
+  background: var(--panel, #18191c);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 16px;
+  padding: 8px;
+  min-width: 250px;
+  max-width: 310px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fab-slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom right;
+}
+
+@keyframes fab-slide-up {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.progress-fab-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: transparent;
+  border: none;
+  color: var(--paper, #f0f0f0);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, transform 0.15s ease;
+  width: 100%;
+}
+
+.progress-fab-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(-2px);
+}
+
+[data-theme="light"] .progress-fab-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.progress-fab-item-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(0, 136, 255, 0.15);
+  color: #0088ff;
+}
+
+.progress-fab-item-icon.folder-icon {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.progress-fab-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.progress-fab-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paper, #f0f0f0);
+  line-height: 1.25;
+}
+
+.progress-fab-item-desc {
+  font-size: 11px;
+  color: var(--muted, #8e8e93);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Modal Dialog for Creating New Progress Folder */
+.progress-fab-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fab-fade-in 0.18s ease-out both;
+}
+
+.progress-fab-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel, #18191c);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fab-modal-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fab-modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.progress-fab-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.progress-fab-modal-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 136, 255, 0.2), rgba(0, 85, 255, 0.25));
+  color: #0088ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.progress-fab-modal-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.progress-fab-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--paper, #f0f0f0);
+  margin: 0;
+}
+
+.progress-fab-modal-subtitle {
+  font-size: 13px;
+  color: var(--muted, #8e8e93);
+  margin: 0;
+}
+
+.progress-fab-modal-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-fab-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--input-bg, rgba(255, 255, 255, 0.06));
+  color: var(--paper, #f0f0f0);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.progress-fab-modal-input:focus {
+  border-color: #0088ff;
+  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.25);
+}
+
+.progress-fab-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.progress-fab-modal-btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.progress-fab-modal-btn:active {
+  transform: scale(0.97);
+}
+
+.progress-fab-modal-btn.cancel {
+  background: transparent;
+  color: var(--muted, #8e8e93);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+}
+
+.progress-fab-modal-btn.cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--paper, #f0f0f0);
+}
+
+.progress-fab-modal-btn.primary {
+  background: linear-gradient(135deg, #0088ff 0%, #0055ff 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 136, 255, 0.35);
+}
+
+.progress-fab-modal-btn.primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(0, 136, 255, 0.5);
+}
+
+.progress-fab-modal-btn.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .progress-fab-root {
+    right: 20px;
+    bottom: 20px;
+  }
+
+  .progress-fab-btn {
+    width: 54px;
+    height: 54px;
+  }
+
+  .progress-fab-menu {
+    min-width: 230px;
+    right: 0;
+  }
+}
+
