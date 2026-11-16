@@ -960,30 +960,35 @@
 }
 
 .social-group-attach {
-  border: 1px solid var(--line);
+  border: 1.5px solid rgba(2, 132, 199, 0.28);
   border-radius: 999px;
-  padding: 8px 12px;
-  background: var(--surface);
-  color: var(--paper);
+  padding: 7px 14px;
+  background: #ffffff;
+  color: #0284c7;
   font-size: 11px;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
   transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.1);
 }
 
 .social-group-attach:hover {
-  background: color-mix(in srgb, var(--brass) 12%, transparent);
-  border-color: var(--brass);
+  background: #f0f9ff;
+  border-color: #0284c7;
+  color: #0369a1;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.22);
 }
 
 .social-group-attach.is-active {
-  border-color: var(--brass);
-  color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 16%, transparent);
+  border-color: #0284c7;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35);
 }
 
 .social-compose-progress-wrap {

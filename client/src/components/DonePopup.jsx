@@ -2612,7 +2612,13 @@ export default function DonePopup({
                               aria-expanded={isOpen}
                               aria-label={`Source for ${topic.text}`}
                             >
-                              <span className="done-source-label">SOURCE ({totalSourceCount})</span>
+                              <IconPaperclip className="done-source-icon" />
+                              <span className="done-source-label">Source</span>
+                              {totalSourceCount > 0 ? (
+                                <span className="done-source-count-badge">
+                                  {totalSourceCount}
+                                </span>
+                              ) : null}
                             </button>
                           </div>
 
@@ -2714,9 +2720,8 @@ export default function DonePopup({
                                 <IconPaperclip className="done-source-icon" />
                                 <span className="done-source-label">Source</span>
                                 {totalSourceCount > 0 ? (
-                                  <span className="done-source-count-chip">
-                                    <span className="done-source-sep" aria-hidden="true">•</span>
-                                    <span className="done-source-count">{totalSourceCount}</span>
+                                  <span className="done-source-count-badge">
+                                    {totalSourceCount}
                                   </span>
                                 ) : null}
                               </button>
@@ -2835,7 +2840,13 @@ export default function DonePopup({
                               aria-expanded={isOpen}
                               aria-label={`Source for ${topic.text}`}
                             >
-                              <span className="done-source-label">SOURCE ({totalSourceCount})</span>
+                              <IconPaperclip className="done-source-icon" />
+                              <span className="done-source-label">Source</span>
+                              {totalSourceCount > 0 ? (
+                                <span className="done-source-count-badge">
+                                  {totalSourceCount}
+                                </span>
+                              ) : null}
                             </button>
                           </div>
 

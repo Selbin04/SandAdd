@@ -926,9 +926,13 @@ export default function AiProgressWorkspace({
                             onClick={() => setExpandedSourceId(isSourceExpanded ? null : item.id)}
                             title={hasSource ? item.source || item.description : "No source"}
                           >
-                            <span className="done-source-label">
-                              SOURCE ({sourceCount})
-                            </span>
+                            <IconPaperclip className="done-source-icon" />
+                            <span className="done-source-label">Source</span>
+                            {sourceCount > 0 ? (
+                              <span className="done-source-count-badge">
+                                {sourceCount}
+                              </span>
+                            ) : null}
                           </button>
                         </div>
 
@@ -991,9 +995,8 @@ export default function AiProgressWorkspace({
                               <IconPaperclip className="done-source-icon" />
                               <span className="done-source-label">Source</span>
                               {sourceCount > 0 ? (
-                                <span className="done-source-count-chip">
-                                  <span className="done-source-sep">•</span>
-                                  <span className="done-source-count">{sourceCount}</span>
+                                <span className="done-source-count-badge">
+                                  {sourceCount}
                                 </span>
                               ) : null}
                             </button>
@@ -1053,9 +1056,8 @@ export default function AiProgressWorkspace({
                             <IconPaperclip className="done-source-icon" />
                             <span className="done-source-label">Source</span>
                             {sourceCount > 0 ? (
-                              <span className="done-source-count-chip">
-                                <span className="done-source-sep">•</span>
-                                <span className="done-source-count">{sourceCount}</span>
+                              <span className="done-source-count-badge">
+                                {sourceCount}
                               </span>
                             ) : null}
                           </button>

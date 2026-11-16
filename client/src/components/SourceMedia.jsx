@@ -12,6 +12,23 @@ import YouTubeEmbed from "./YouTubeEmbed.jsx";
 import { isYouTubeUrl, extractYouTubeUrl } from "../lib/youtubeHelper.js";
 import "./SourceMedia.css";
 
+function IconPaperclip({ className = "" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
 export function normalizeSourceUrl(raw) {
   const s = String(raw || "").trim();
   if (!s) return "";
@@ -603,6 +620,7 @@ export function WorkSourceControl({ work }) {
   const hasLink = linkSources.length > 0;
   const hasText = textSources.length > 0;
   const has = workHasSource(work) || hasPosts || hasFile || hasLink || hasText;
+  const totalSourcesCount = fileSources.length + linkSources.length + textSources.length + topicPostsCount;
 
   if (!has) return null;
 
@@ -618,7 +636,11 @@ export function WorkSourceControl({ work }) {
         }}
         aria-expanded={open}
       >
-        Source
+        <IconPaperclip className="work-source-icon" />
+        <span>Source</span>
+        {totalSourcesCount > 0 ? (
+          <span className="work-source-count-badge">{totalSourcesCount}</span>
+        ) : null}
       </button>
       {open ? (
         <div
